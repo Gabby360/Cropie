@@ -170,6 +170,9 @@ export class CropieAuthService {
       });
 
       if (error) {
+        if (error.message.includes('Email logins are disabled')) {
+          throw new Error('Email provider is disabled in your Supabase Dashboard. Go to Supabase -> Authentication -> Providers -> Email and turn it ON.');
+        }
         if (error.message.includes('Invalid login credentials') || error.status === 400) {
           throw new Error('Incorrect email or password.');
         }
