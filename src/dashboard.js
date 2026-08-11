@@ -415,6 +415,10 @@ function initDashboardApp(dataService, auth, weatherService) {
   initAskCropieAssistant(assistantService, khayaService);
 
   async function initAskCropieAssistant(assistant, khaya) {
+    const floatingBtn = document.getElementById('floatingAskCropieBtn');
+    const modalOverlay = document.getElementById('askCropieModalOverlay');
+    const closeBtn = document.getElementById('closeAskCropieModalBtn');
+
     const langSelect = document.getElementById('assistantLangSelect');
     const capabilityAlert = document.getElementById('askCropieCapabilityAlert');
     const promptsContainer = document.getElementById('dashSuggestedPrompts');
@@ -430,6 +434,27 @@ function initDashboardApp(dataService, auth, weatherService) {
     let currentMediaRecorder = null;
     let audioChunks = [];
     let activeAudioPlayer = null;
+
+    // 0. Floating Trigger Modal Controls
+    if (floatingBtn && modalOverlay) {
+      floatingBtn.addEventListener('click', () => {
+        modalOverlay.classList.add('open');
+      });
+    }
+
+    if (closeBtn && modalOverlay) {
+      closeBtn.addEventListener('click', () => {
+        modalOverlay.classList.remove('open');
+      });
+    }
+
+    if (modalOverlay) {
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+          modalOverlay.classList.remove('open');
+        }
+      });
+    }
 
     // 1. Load Dynamic Language Capabilities
     const languages = await khaya.getLanguages();
@@ -487,12 +512,23 @@ function initDashboardApp(dataService, auth, weatherService) {
         const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true };
 
         if (!langConfig.speechRecognition && selectedCode !== 'eng') {
-          alert(`Voice is not currently available for ${langConfig.name}. Please type your question instead.`);
+          if (capabilityAlert) {
+            capabilityAlert.style.display = 'block';
+            capabilityAlert.textContent = `Voice is not currently available for ${langConfig.name}. Please type your question.`;
+          }
           if (textInput) textInput.focus();
           return;
         }
 
+        // Show instant visual listening feedback
+        if (recordingOverlay) recordingOverlay.style.display = 'flex';
+        if (recStatusLbl) recStatusLbl.textContent = `Listening in ${langConfig.name}... Speak your question now.`;
+
         try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('MediaDevices API not supported in browser environment');
+          }
+
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           currentMediaRecorder = new MediaRecorder(stream);
           audioChunks = [];
@@ -509,8 +545,6 @@ function initDashboardApp(dataService, auth, weatherService) {
             appendChatMessage('user', '🎙️ [Voice Question Recorded]');
 
             try {
-              if (recStatusLbl) recStatusLbl.textContent = 'Transcribing voice with Khaya AI ASR v3...';
-              
               let transcribedText = '';
               if (selectedCode === 'eng') {
                 transcribedText = 'Should I apply fertilizer to my maize today?';
@@ -530,13 +564,17 @@ function initDashboardApp(dataService, auth, weatherService) {
           };
 
           currentMediaRecorder.start();
-          if (recordingOverlay) recordingOverlay.style.display = 'flex';
-          if (recStatusLbl) recStatusLbl.textContent = `Listening in ${langConfig.name}... Speak now.`;
 
         } catch (mErr) {
           console.warn('Microphone access notice:', mErr);
-          alert('Microphone access denied or unavailable. Please type your question instead.');
-          if (textInput) textInput.focus();
+          if (recordingOverlay) recordingOverlay.style.display = 'none';
+          
+          const promptQuestion = prompt('Microphone access denied or browser permission required. Type your question below:', 'Should I apply fertilizer today?');
+          if (promptQuestion && promptQuestion.trim()) {
+            handleUserQuestion(promptQuestion.trim());
+          } else if (textInput) {
+            textInput.focus();
+          }
         }
       });
     }
@@ -545,6 +583,9 @@ function initDashboardApp(dataService, auth, weatherService) {
       stopRecBtn.addEventListener('click', () => {
         if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
           currentMediaRecorder.stop();
+        } else {
+          if (recordingOverlay) recordingOverlay.style.display = 'none';
+          handleUserQuestion('Should I apply fertilizer today?');
         }
       });
     }
@@ -600,7 +641,7 @@ function initDashboardApp(dataService, auth, weatherService) {
       }
     }
 
-    // Chat UI Helpers
+    // Chat UI Helpers (No tree emoji)
     function appendChatMessage(sender, text) {
       const msgId = `msg_${Date.now()}`;
       const isUser = sender === 'user';
@@ -611,7 +652,7 @@ function initDashboardApp(dataService, auth, weatherService) {
       itemEl.id = msgId;
 
       itemEl.innerHTML = `
-        <div class="msg-avatar">${isUser ? '👨‍🌾' : '🌱'}</div>
+        <div class="msg-avatar">${isUser ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>'}</div>
         <div class="msg-bubble-wrapper">
           <div class="msg-bubble">
             <p>${escapeHtml(text)}</p>
