@@ -303,20 +303,36 @@ function updateDashboardState(data) {
    ========================================================================== */
 function initFaqAccordion() {
   const faqItems = document.querySelectorAll('.faq-item');
+  if (!faqItems.length) return;
+
+  let initialScrollY = 0;
+
+  const closeAll = () => {
+    faqItems.forEach(item => item.classList.remove('open'));
+  };
+
+  const handleScrollAutoClose = () => {
+    if (Math.abs(window.scrollY - initialScrollY) > 60) {
+      closeAll();
+      window.removeEventListener('scroll', handleScrollAutoClose);
+    }
+  };
 
   faqItems.forEach(item => {
     const questionBtn = item.querySelector('.faq-question');
     if (!questionBtn) return;
 
-    questionBtn.addEventListener('click', () => {
+    questionBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const isOpen = item.classList.contains('open');
 
-      // Close all accordion items
-      faqItems.forEach(other => other.classList.remove('open'));
+      closeAll();
+      window.removeEventListener('scroll', handleScrollAutoClose);
 
-      // Toggle clicked item: if it was closed, open it; if it was open, it is now closed.
       if (!isOpen) {
         item.classList.add('open');
+        initialScrollY = window.scrollY;
+        window.addEventListener('scroll', handleScrollAutoClose, { passive: true });
       }
     });
   });
