@@ -4626,9 +4626,9 @@ html, body {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  z-index: 10001;
+  z-index: 1000001 !important;
   position: relative;
-  pointer-events: auto;
+  pointer-events: auto !important;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -4658,12 +4658,14 @@ html, body {
   z-index: 99999;
   opacity: 0;
   visibility: hidden;
+  pointer-events: none;
   transition: all 0.25s ease;
 }
 
 .mobile-drawer-overlay.open {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
 }
 
 .mobile-drawer-content {
