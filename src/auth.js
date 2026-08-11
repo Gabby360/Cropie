@@ -121,6 +121,9 @@ export class CropieAuthService {
       });
 
       if (error) {
+        if (error.message.toLowerCase().includes('rate limit')) {
+          throw new Error('Supabase email limit reached for this hour. Please sign in with an existing account or try again shortly.');
+        }
         if (error.message.includes('already registered') || error.status === 400) {
           throw new Error('This email is already registered. Please sign in instead.');
         }
