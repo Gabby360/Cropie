@@ -64,7 +64,7 @@ function initMobileDrawer(auth) {
   if (mobileMenuBtn) {
     mobileMenuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.toggleMobileDrawer(true);
+      window.toggleMobileDrawer();
     });
   }
 
@@ -84,8 +84,12 @@ function initMobileDrawer(auth) {
 
     const links = drawerOverlay.querySelectorAll('.mobile-nav-link');
     links.forEach(link => {
-      link.addEventListener('click', () => {
+      link.addEventListener('click', (e) => {
+        const href = link.getAttribute('href');
         window.toggleMobileDrawer(false);
+        if (href && href !== '#' && href !== 'javascript:void(0)') {
+          window.location.href = href;
+        }
       });
     });
   }
