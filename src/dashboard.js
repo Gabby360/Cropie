@@ -55,53 +55,27 @@ window.toggleMobileDrawer = function(forceOpen = null) {
   }
 };
 
-async function initMobileDrawer(auth) {
-  const user = await auth.getCurrentUser();
+function initMobileDrawer(auth) {
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
   const drawerClose = document.getElementById('mobileDrawerClose');
   const mobileDrawerUser = document.getElementById('mobileDrawerUser');
 
-  if (mobileDrawerUser && user) {
-    const displayName = user.fullName || user.email || 'Farmer';
-    mobileDrawerUser.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
-        <div style="display: flex; align-items: center; justify-content: space-between; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.75rem 1rem; border-radius: 12px;">
-          <div style="display: flex; align-items: center; gap: 0.5rem; color: #166534; font-weight: 700; font-size: 0.95rem;">
-            <i class="fa-solid fa-user-circle"></i>
-            <span>${displayName}</span>
-          </div>
-        </div>
-        <button id="mobileSignOutBtn" class="btn btn-outline-hero btn-block" style="color: #dc2626; border-color: #fecaca; background: #fef2f2;">
-          <i class="fa-solid fa-right-from-bracket" style="margin-right: 0.4rem;"></i> Sign Out
-        </button>
-      </div>
-    `;
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.toggleMobileDrawer(true);
+    });
+  }
 
-    const signOutBtn = mobileDrawerUser.querySelector('#mobileSignOutBtn');
-    if (signOutBtn) {
-      signOutBtn.addEventListener('click', () => {
-        auth.logout();
-        window.location.href = '/login.html';
-      });
-    }
+  if (drawerClose) {
+    drawerClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.toggleMobileDrawer(false);
+    });
   }
 
   if (drawerOverlay) {
-    if (mobileMenuBtn) {
-      mobileMenuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window.toggleMobileDrawer(true);
-      });
-    }
-
-    if (drawerClose) {
-      drawerClose.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window.toggleMobileDrawer(false);
-      });
-    }
-
     drawerOverlay.addEventListener('click', (e) => {
       if (e.target === drawerOverlay) {
         window.toggleMobileDrawer(false);
@@ -114,6 +88,30 @@ async function initMobileDrawer(auth) {
         window.toggleMobileDrawer(false);
       });
     });
+  }
+
+  if (mobileDrawerUser && auth) {
+    auth.getCurrentUser().then(user => {
+      if (user) {
+        const displayName = user.fullName || user.email || 'Farmer';
+        mobileDrawerUser.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.75rem 1rem; border-radius: 12px; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #166534; font-weight: 700; font-size: 0.95rem;">
+              <i class="fa-solid fa-user-circle"></i>
+              <span>${displayName}</span>
+            </div>
+            <button id="mobileSignOutBtn" style="background: none; border: none; color: #dc2626; font-weight: 700; font-size: 0.85rem; cursor: pointer;">Sign Out</button>
+          </div>
+        `;
+        const signOutBtn = mobileDrawerUser.querySelector('#mobileSignOutBtn');
+        if (signOutBtn) {
+          signOutBtn.addEventListener('click', () => {
+            auth.logout();
+            window.location.href = '/login.html';
+          });
+        }
+      }
+    }).catch(() => {});
   }
 }
 
