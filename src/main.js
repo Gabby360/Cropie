@@ -306,17 +306,16 @@ function initFaqAccordion() {
 
   faqItems.forEach(item => {
     const questionBtn = item.querySelector('.faq-question');
+    if (!questionBtn) return;
+
     questionBtn.addEventListener('click', () => {
       const isOpen = item.classList.contains('open');
-      
-      // Optional: Close others
-      faqItems.forEach(other => {
-        if (other !== item) other.classList.remove('open');
-      });
 
-      if (isOpen) {
-        item.classList.remove('open');
-      } else {
+      // Close all accordion items
+      faqItems.forEach(other => other.classList.remove('open'));
+
+      // Toggle clicked item: if it was closed, open it; if it was open, it is now closed.
+      if (!isOpen) {
         item.classList.add('open');
       }
     });
