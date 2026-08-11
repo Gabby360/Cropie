@@ -32,12 +32,40 @@
 
       <div class="nav-actions" id="dashNavActions">
         <a href="/login.html" class="nav-link nav-signin-link">Sign In</a>
-        <a href="/signup.html" class="btn btn-primary">
-          <span>Get Started</span>
-        </a>
       </div>
+
+      <!-- MOBILE HAMBURGER TOGGLE BUTTON -->
+      <button class="mobile-hamburger-btn" id="mobileMenuBtn" aria-label="Toggle Navigation Menu">
+        <i class="fa-solid fa-bars"></i>
+      </button>
     </div>
   </header>
+
+  <!-- MOBILE NAVIGATION DRAWER OVERLAY -->
+  <div class="mobile-drawer-overlay" id="mobileDrawerOverlay">
+    <div class="mobile-drawer-content">
+      <div class="mobile-drawer-header">
+        <a href="/" class="brand-logo">
+          <div class="logo-icon"><i class="fa-solid fa-seedling"></i></div>
+          <span style="color: #111827;">Cropie</span>
+        </a>
+        <button class="mobile-drawer-close" id="mobileDrawerClose">&times;</button>
+      </div>
+
+      <div class="mobile-drawer-user" id="mobileDrawerUser">
+        <a href="/login.html" class="btn btn-outline-hero btn-block" style="border-color: #cbd5e1;">Sign In</a>
+        <a href="/signup.html" class="btn btn-primary btn-block">Get Started</a>
+      </div>
+
+      <ul class="mobile-drawer-menu">
+        <li><a href="/" class="mobile-nav-link"><i class="fa-solid fa-house"></i> Home</a></li>
+        <li><a href="/dashboard.html" class="mobile-nav-link active"><i class="fa-solid fa-chart-line"></i> Live Dashboard</a></li>
+        <li><a href="/#features" class="mobile-nav-link"><i class="fa-solid fa-layer-group"></i> Features</a></li>
+        <li><a href="/#dashboard-showcase" class="mobile-nav-link"><i class="fa-solid fa-wheat-awn"></i> For Farmers</a></li>
+        <li><a href="/#faq" class="mobile-nav-link"><i class="fa-solid fa-circle-info"></i> About</a></li>
+      </ul>
+    </div>
+  </div>
 
   <!-- MAIN DASHBOARD CONTENT WRAPPER -->
   <main class="dashboard-main-content">
