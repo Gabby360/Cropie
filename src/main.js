@@ -1,24 +1,15 @@
 import { CropieAuthService } from './auth.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-  initHeaderScroll();
-  initWhyDrawer();
-  initFaqAccordion();
-  initOnboardForm();
-  initUserSessionNav();
-  initMobileDrawer();
-});
-
-function initUserSessionNav() {
-  // Keep homepage top navbar clean with standard Sign In link
-  return;
-}
-
-window.toggleMobileDrawer = function(forceOpen = null) {
+// Define global toggle function immediately on window
+window.toggleMobileDrawer = function(eOrForce = null) {
+  if (eOrForce && typeof eOrForce.stopPropagation === 'function') {
+    eOrForce.stopPropagation();
+  }
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
   if (!drawerOverlay) return;
 
   const isOpen = drawerOverlay.classList.contains('open');
+  const forceOpen = (typeof eOrForce === 'boolean') ? eOrForce : null;
   const shouldOpen = forceOpen !== null ? forceOpen : !isOpen;
 
   if (shouldOpen) {
@@ -30,6 +21,28 @@ window.toggleMobileDrawer = function(forceOpen = null) {
   }
 };
 
+function onDOMReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+
+onDOMReady(() => {
+  initMobileDrawer();
+  initHeaderScroll();
+  initWhyDrawer();
+  initFaqAccordion();
+  initOnboardForm();
+  initUserSessionNav();
+});
+
+function initUserSessionNav() {
+  // Keep homepage top navbar clean with standard Sign In link
+  return;
+}
+
 function initMobileDrawer() {
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
@@ -39,7 +52,7 @@ function initMobileDrawer() {
   if (mobileMenuBtn) {
     mobileMenuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.toggleMobileDrawer(true);
+      window.toggleMobileDrawer();
     });
   }
 

@@ -3,13 +3,44 @@ import { CropieDataService } from './dashboard-data.js';
 import { CropieAuthService } from './auth.js';
 import { CropieWeatherService } from './weather-service.js';
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Define global toggle function immediately on window
+window.toggleMobileDrawer = function(eOrForce = null) {
+  if (eOrForce && typeof eOrForce.stopPropagation === 'function') {
+    eOrForce.stopPropagation();
+  }
+  const drawerOverlay = document.getElementById('mobileDrawerOverlay');
+  if (!drawerOverlay) return;
+
+  const isOpen = drawerOverlay.classList.contains('open');
+  const forceOpen = (typeof eOrForce === 'boolean') ? eOrForce : null;
+  const shouldOpen = forceOpen !== null ? forceOpen : !isOpen;
+
+  if (shouldOpen) {
+    drawerOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  } else {
+    drawerOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+};
+
+// Safe DOMReady listener that runs immediately if DOM is already parsed
+function onDOMReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+
+onDOMReady(() => {
   const auth = new CropieAuthService();
   const dataService = new CropieDataService();
   const weatherService = new CropieWeatherService();
+
+  initMobileDrawer(auth);
   initDashboardApp(dataService, auth, weatherService);
-  await initUserSessionNav(auth);
-  await initMobileDrawer(auth);
+  initUserSessionNav(auth).catch(() => {});
 });
 
 async function initUserSessionNav(auth) {
@@ -38,22 +69,6 @@ async function initUserSessionNav(auth) {
     }
   }
 }
-
-window.toggleMobileDrawer = function(forceOpen = null) {
-  const drawerOverlay = document.getElementById('mobileDrawerOverlay');
-  if (!drawerOverlay) return;
-
-  const isOpen = drawerOverlay.classList.contains('open');
-  const shouldOpen = forceOpen !== null ? forceOpen : !isOpen;
-
-  if (shouldOpen) {
-    drawerOverlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  } else {
-    drawerOverlay.classList.remove('open');
-    document.body.style.overflow = '';
-  }
-};
 
 function initMobileDrawer(auth) {
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
