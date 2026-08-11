@@ -3,13 +3,41 @@ import { CropieDataService } from './dashboard-data.js';
 import { CropieAuthService } from './auth.js';
 import { CropieWeatherService } from './weather-service.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const auth = new CropieAuthService();
   const dataService = new CropieDataService();
   const weatherService = new CropieWeatherService();
   initDashboardApp(dataService, auth, weatherService);
-  initMobileDrawer(auth);
+  await initUserSessionNav(auth);
+  await initMobileDrawer(auth);
 });
+
+async function initUserSessionNav(auth) {
+  const user = await auth.getCurrentUser();
+  const mainNav = document.getElementById('mainNavActions');
+
+  if (mainNav && user) {
+    const displayName = (user.fullName || user.email || 'Farmer').split(' ')[0];
+    mainNav.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="/dashboard.html" class="btn btn-outline-sm" style="display: flex; align-items: center; gap: 0.4rem;">
+          <i class="fa-solid fa-user"></i>
+          <span>${displayName}</span>
+        </a>
+        <button id="navLogoutBtn" class="nav-link" style="background: none; border: none; cursor: pointer; color: #dc2626; font-weight: 600;">
+          Sign Out
+        </button>
+      </div>
+    `;
+    const logoutBtn = mainNav.querySelector('#navLogoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        auth.logout();
+        window.location.href = '/login.html';
+      });
+    }
+  }
+}
 
 window.toggleMobileDrawer = function(closeOnly = false) {
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');

@@ -3091,6 +3091,11 @@ a {
     display: none !important;
   }
 
+  .weather-hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+
   .dashboard-two-col-grid {
     grid-template-columns: 1fr !important;
   }
