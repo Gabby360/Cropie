@@ -39,16 +39,19 @@ async function initUserSessionNav(auth) {
   }
 }
 
-window.toggleMobileDrawer = function(closeOnly = false) {
+window.toggleMobileDrawer = function(forceOpen = null) {
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
-  if (drawerOverlay) {
-    if (closeOnly || drawerOverlay.classList.contains('open')) {
-      drawerOverlay.classList.remove('open');
-      document.body.style.overflow = '';
-    } else {
-      drawerOverlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    }
+  if (!drawerOverlay) return;
+
+  const isOpen = drawerOverlay.classList.contains('open');
+  const shouldOpen = forceOpen !== null ? forceOpen : !isOpen;
+
+  if (shouldOpen) {
+    drawerOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  } else {
+    drawerOverlay.classList.remove('open');
+    document.body.style.overflow = '';
   }
 };
 
@@ -84,31 +87,31 @@ async function initMobileDrawer(auth) {
     }
   }
 
-  if (mobileMenuBtn && drawerOverlay) {
-    mobileMenuBtn.addEventListener('click', () => {
-      drawerOverlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    });
+  if (drawerOverlay) {
+    if (mobileMenuBtn) {
+      mobileMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.toggleMobileDrawer(true);
+      });
+    }
 
     if (drawerClose) {
-      drawerClose.addEventListener('click', () => {
-        drawerOverlay.classList.remove('open');
-        document.body.style.overflow = '';
+      drawerClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.toggleMobileDrawer(false);
       });
     }
 
     drawerOverlay.addEventListener('click', (e) => {
       if (e.target === drawerOverlay) {
-        drawerOverlay.classList.remove('open');
-        document.body.style.overflow = '';
+        window.toggleMobileDrawer(false);
       }
     });
 
     const links = drawerOverlay.querySelectorAll('.mobile-nav-link');
     links.forEach(link => {
       link.addEventListener('click', () => {
-        drawerOverlay.classList.remove('open');
-        document.body.style.overflow = '';
+        window.toggleMobileDrawer(false);
       });
     });
   }
