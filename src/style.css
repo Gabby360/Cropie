@@ -145,11 +145,13 @@ a {
 }
 
 .header-nav.scrolled {
-  background: #ffffff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: rgba(3, 32, 24, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   padding-top: 0.85rem;
   padding-bottom: 0.85rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .nav-container {
@@ -171,7 +173,7 @@ a {
 }
 
 .header-nav.scrolled .brand-logo {
-  color: #111827;
+  color: #ffffff;
 }
 
 .logo-icon {
@@ -211,12 +213,12 @@ a {
 }
 
 .header-nav.scrolled .nav-link {
-  color: #374151;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .header-nav.scrolled .nav-link:hover, 
 .header-nav.scrolled .nav-link.active {
-  color: #16a34a;
+  color: #86efac;
 }
 
 .nav-actions {
@@ -230,11 +232,11 @@ a {
 }
 
 .header-nav.scrolled .nav-signin-link {
-  color: #374151;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .header-nav.scrolled .nav-signin-link:hover {
-  color: #16a34a;
+  color: #ffffff;
 }
 
 /* BUTTONS */
