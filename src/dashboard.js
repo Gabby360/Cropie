@@ -11,6 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileDrawer(auth);
 });
 
+window.toggleMobileDrawer = function() {
+  const drawerOverlay = document.getElementById('mobileDrawerOverlay');
+  if (drawerOverlay) {
+    if (drawerOverlay.classList.contains('open')) {
+      drawerOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    } else {
+      drawerOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+};
+
 function initMobileDrawer(auth) {
   const user = auth.getCurrentUser();
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
