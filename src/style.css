@@ -3117,10 +3117,75 @@ a {
     overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
+
+  /* LAPTOP MOCKUP SHOWCASE CONVERSION FOR MOBILE PHONES */
+  .laptop-mockup-frame {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    background: transparent !important;
+  }
+
+  .laptop-img-frame,
+  .laptop-ground-shadow {
+    display: none !important;
+  }
+
+  .laptop-screen-content {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    border-radius: 20px !important;
+    border: 2px solid #e2e8f0 !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1) !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  .laptop-screen-content .dash-hero-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1.25rem !important;
+    padding: 1.25rem !important;
+  }
+
+  .laptop-screen-content .weather-card-top {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .laptop-screen-content .weather-metrics-subgrid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .laptop-screen-content .weather-metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  .laptop-screen-content .dashboard-two-col-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .laptop-screen-content .crop-info-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 640px) {
   .weather-metrics-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .laptop-screen-content .weather-metrics-grid {
     grid-template-columns: 1fr !important;
   }
 
