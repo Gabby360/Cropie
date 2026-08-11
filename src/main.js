@@ -36,10 +36,10 @@ function initUserSessionNav() {
   }
 }
 
-window.toggleMobileDrawer = function() {
+window.toggleMobileDrawer = function(closeOnly = false) {
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
   if (drawerOverlay) {
-    if (drawerOverlay.classList.contains('open')) {
+    if (closeOnly || drawerOverlay.classList.contains('open')) {
       drawerOverlay.classList.remove('open');
       document.body.style.overflow = '';
     } else {
@@ -83,31 +83,45 @@ function initMobileDrawer() {
     }
   }
 
-  if (mobileMenuBtn && drawerOverlay) {
-    mobileMenuBtn.addEventListener('click', () => {
-      drawerOverlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    });
+  if (drawerOverlay) {
+    if (mobileMenuBtn) {
+      mobileMenuBtn.addEventListener('click', () => {
+        window.toggleMobileDrawer(false);
+      });
+    }
 
     if (drawerClose) {
       drawerClose.addEventListener('click', () => {
-        drawerOverlay.classList.remove('open');
-        document.body.style.overflow = '';
+        window.toggleMobileDrawer(true);
       });
     }
 
     drawerOverlay.addEventListener('click', (e) => {
       if (e.target === drawerOverlay) {
-        drawerOverlay.classList.remove('open');
-        document.body.style.overflow = '';
+        window.toggleMobileDrawer(true);
       }
     });
 
     const links = drawerOverlay.querySelectorAll('.mobile-nav-link');
     links.forEach(link => {
-      link.addEventListener('click', () => {
-        drawerOverlay.classList.remove('open');
-        document.body.style.overflow = '';
+      link.addEventListener('click', (e) => {
+        const href = link.getAttribute('href');
+        
+        // 1. Immediately close drawer and restore page scroll
+        window.toggleMobileDrawer(true);
+
+        // 2. Smooth scroll to hash target if link has section anchor
+        if (href && href.includes('#')) {
+          const hashIndex = href.indexOf('#');
+          const hash = href.substring(hashIndex);
+          const targetEl = document.querySelector(hash);
+          if (targetEl) {
+            e.preventDefault();
+            setTimeout(() => {
+              targetEl.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+          }
+        }
       });
     });
   }

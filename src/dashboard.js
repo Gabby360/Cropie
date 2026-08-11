@@ -11,10 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileDrawer(auth);
 });
 
-window.toggleMobileDrawer = function() {
+window.toggleMobileDrawer = function(closeOnly = false) {
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
   if (drawerOverlay) {
-    if (drawerOverlay.classList.contains('open')) {
+    if (closeOnly || drawerOverlay.classList.contains('open')) {
       drawerOverlay.classList.remove('open');
       document.body.style.overflow = '';
     } else {
