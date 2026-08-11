@@ -199,6 +199,18 @@ function initDashboardApp(dataService, auth, weatherService) {
       if (farmTitleEl) farmTitleEl.textContent = activeFarm.farmName || "My Farm";
       if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${activeFarm.locationName}`;
 
+      // Update Farmer Picture Card Location Badges dynamically
+      const shortCity = (activeFarm.locationName || 'Laterbiokorshie').split(',')[0].trim();
+      const picLocBadge = document.getElementById('dashPicLocationBadge');
+      const picFooterStation = document.getElementById('dashPicFooterStation');
+      const picFooterGps = document.getElementById('dashPicFooterGps');
+      
+      if (picLocBadge) picLocBadge.textContent = `${shortCity} Field • 2 Acres`;
+      if (picFooterStation) picFooterStation.textContent = `${shortCity} Field Station • Ghana`;
+      if (picFooterGps) {
+        picFooterGps.textContent = `${activeFarm.locationName} (${activeFarm.latitude?.toFixed(4)}° N, ${Math.abs(activeFarm.longitude)?.toFixed(4)}° W)`;
+      }
+
       // Save to active local storage cache
       localStorage.setItem('cropie_active_farm', JSON.stringify(activeFarm));
 
@@ -279,11 +291,22 @@ function initDashboardApp(dataService, auth, weatherService) {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
           
-          let locName = `GPS Location (${lat.toFixed(4)}°, ${lon.toFixed(4)}°)`;
+          let locName = `Laterbiokorshie, Accra, Ghana`;
           try {
+            const revUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+            const res = await fetch(revUrl);
+            if (res.ok) {
+              const rData = await res.json();
+              const addr = rData.address || {};
+              const suburb = addr.suburb || addr.neighbourhood || addr.quarter || addr.residential || '';
+              const city = addr.city || addr.town || addr.village || addr.county || 'Accra';
+              const country = addr.country || 'Ghana';
+              locName = suburb ? `${suburb}, ${city}, ${country}` : `${city}, ${country}`;
+            }
+          } catch {
             const geo = await weatherService.geocodeLocation(`${lat.toFixed(4)},${lon.toFixed(4)}`);
             if (geo && geo.name) locName = geo.name;
-          } catch {}
+          }
 
           const gpsFarm = {
             id: `farm_gps_${Date.now()}`,
