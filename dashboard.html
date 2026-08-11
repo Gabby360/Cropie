@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Dashboard — Cropie Farm Intelligence</title>
+  <meta name="description" content="Monitor your farm conditions, weather, estimated growth stage, and receive timely recommendations with Cropie Live Dashboard." />
+  
+  <!-- Font Awesome Icons & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="dashboard-page-body">
+
+  <!-- NAVIGATION HEADER OVERLAY -->
+  <header class="header-nav scrolled" id="header">
+    <div class="container nav-container">
+      <a href="/" class="brand-logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-seedling"></i>
+        </div>
+        <span>Cropie</span>
+      </a>
+
+      <ul class="nav-menu">
+        <li><a href="/" class="nav-link">Home</a></li>
+        <li><a href="/dashboard.html" class="nav-link active"><i class="fa-solid fa-chart-line" style="margin-right: 0.25rem;"></i> Live Dashboard</a></li>
+        <li><a href="/#features" class="nav-link">Features</a></li>
+        <li><a href="/#dashboard-showcase" class="nav-link">For Farmers</a></li>
+        <li><a href="/#faq" class="nav-link">About</a></li>
+      </ul>
+
+      <div class="nav-actions" id="dashNavActions">
+        <a href="/login.html" class="nav-link nav-signin-link">Sign In</a>
+        <a href="/signup.html" class="btn btn-primary">
+          <span>Get Started</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD CONTENT WRAPPER -->
+  <main class="dashboard-main-content">
+    <div class="container">
+
+      <!-- 1. DASHBOARD HEADER & STATUS BAR -->
+      <div class="dashboard-header-bar">
+        <div class="dash-title-block">
+          <div class="dash-breadcrumb">
+            <a href="/">Home</a> / <span>Live Monitoring</span>
+          </div>
+          <h1 class="dash-main-title">Live Dashboard</h1>
+          <p class="dash-subtext">Monitor your farm conditions and receive timely recommendations.</p>
+        </div>
+
+        <div class="dash-control-actions">
+          <div class="live-pulse-badge">
+            <span class="pulse-green-dot"></span>
+            <span id="dashStatusLabel">Demo Data</span>
+          </div>
+
+          <div class="dash-updated-timestamp" id="dashLastUpdatedText">
+            Updated 2 mins ago
+          </div>
+
+          <button class="btn btn-refresh" id="refreshDashBtn" title="Refresh Live Farm Telemetry">
+            <i class="fa-solid fa-rotate-right" id="refreshIcon"></i>
+            <span>Refresh</span>
+          </button>
+
+          <button class="btn btn-toggle-sim" id="toggleErrorSimBtn" title="Test Connection Loss Fallback State">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Simulate Connection Loss</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ERROR / OFFLINE FALLBACK BANNER -->
+      <div id="dashboardErrorState" class="dashboard-error-banner" style="display: none;">
+        <div class="error-banner-content">
+          <i class="fa-solid fa-wifi-slash error-icon"></i>
+          <div>
+            <strong>Weather &amp; Sensor Data Unavailable</strong>
+            <p id="errorMessageText">Unable to retrieve weather telemetry. Check network or try refreshing.</p>
+          </div>
+        </div>
+        <button id="retryErrorBtn" class="btn btn-retry">
+          <i class="fa-solid fa-rotate-right"></i> Try Refreshing
+        </button>
+      </div>
+
+      <!-- 2. CURRENT WEATHER & LIVE FIELD SNAPSHOT SECTION -->
+      <section class="dashboard-section-block weather-hero-block">
+        <div class="weather-hero-grid">
+          
+          <!-- WEATHER DATA CARD -->
+          <div class="weather-main-card">
+            <div class="weather-card-top">
+              <div class="weather-left-info">
+                <span class="weather-card-label"><i class="fa-solid fa-cloud-sun-rain" style="color: #16a34a;"></i> Current Weather</span>
+                <span class="source-tag-pill" id="dashWeatherSourceTag">Source: Weather API (Demo)</span>
+                <div class="temp-display-row" style="margin-top: 0.5rem;">
+                  <div class="temp-big-value" id="dashTemp">28°C</div>
+                  <div class="temp-condition-box">
+                    <i class="fa-solid fa-cloud-sun weather-hero-icon" id="dashWeatherIcon" style="color: #3b82f6;"></i>
+                    <span class="condition-text" id="dashCondition">Partly Cloudy</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rain-forecast-badge" id="dashRainNotice">
+                Rain expected within the next 4 hours.
+              </div>
+            </div>
+
+            <div class="weather-metrics-subgrid">
+              <div class="weather-subitem">
+                <div class="subitem-icon"><i class="fa-solid fa-droplet" style="color: #0284c7;"></i></div>
+                <div class="subitem-data">
+                  <span class="subitem-label">Humidity</span>
+                  <strong class="subitem-val" id="dashHumidity">74%</strong>
+                </div>
+              </div>
+
+              <div class="weather-subitem">
+                <div class="subitem-icon"><i class="fa-solid fa-wind" style="color: #6b7280;"></i></div>
+                <div class="subitem-data">
+                  <span class="subitem-label">Wind Speed</span>
+                  <strong class="subitem-val" id="dashWind">12 km/h</strong>
+                </div>
+              </div>
+
+              <div class="weather-subitem">
+                <div class="subitem-icon"><i class="fa-solid fa-cloud-showers-heavy" style="color: #2563eb;"></i></div>
+                <div class="subitem-data">
+                  <span class="subitem-label">Rain Probability</span>
+                  <strong class="subitem-val" id="dashRainProb">68%</strong>
+                </div>
+              </div>
+
+              <div class="weather-subitem">
+                <div class="subitem-icon"><i class="fa-solid fa-sun" style="color: #eab308;"></i></div>
+                <div class="subitem-data">
+                  <span class="subitem-label">UV Index</span>
+                  <strong class="subitem-val">6 (Moderate)</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LIVE FIELD PHOTO CARD -->
+          <div class="farm-field-image-card">
+            <div class="field-img-wrapper">
+              <img src="/dashboard-farm-hero.png" alt="Live Ejura Maize Field Snapshot" class="field-photo-img" />
+              <div class="field-img-overlay"></div>
+
+              <!-- FLOATING TELEMETRY BADGES -->
+              <div class="field-badge tag-location">
+                <i class="fa-solid fa-circle-dot" style="color: #22c55e;"></i>
+                <span>Ejura Field • 2 Acres</span>
+              </div>
+
+              <div class="field-badge tag-vitality">
+                <i class="fa-solid fa-seedling" style="color: #86efac;"></i>
+                <span>Flowering Stage • Day 62</span>
+              </div>
+            </div>
+
+            <div class="field-card-footer">
+              <div class="field-footer-title">
+                <i class="fa-solid fa-location-dot" style="color: #16a34a;"></i>
+                <span>Ejura Field Station • Ghana</span>
+              </div>
+              <span class="field-coord-tag">GPS: 7.3824° N, 1.3621° W</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 2. CROP STATUS SECTION -->
+      <section class="dashboard-section-block">
+        <div class="dash-card crop-status-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <i class="fa-solid fa-wheat-awn" style="color: #16a34a;"></i>
+              <span>Crop Status</span>
+            </div>
+            <span class="source-tag-pill" id="dashCropSourceTag">Source: Farm Information (Calculated)</span>
+          </div>
+
+          <div class="crop-info-grid">
+            <div class="crop-info-item">
+              <span class="crop-info-lbl">Crop Type</span>
+              <strong class="crop-info-val" id="dashCropName">Maize</strong>
+            </div>
+
+            <div class="crop-info-item">
+              <span class="crop-info-lbl">Days After Planting</span>
+              <strong class="crop-info-val" id="dashDaysAfterPlanting">62 days</strong>
+            </div>
+
+            <div class="crop-info-item">
+              <span class="crop-info-lbl">Growth Stage</span>
+              <strong class="crop-info-val" id="dashGrowthStage" style="color: #166534;">Flowering / Tasseling</strong>
+              <span style="font-size: 0.72rem; color: #6b7280; margin-top: 0.15rem;">Estimated from planting date</span>
+            </div>
+          </div>
+
+          <!-- VISUAL CROP GROWTH PROGRESS STEPPER -->
+          <div class="stage-stepper-wrapper">
+            <span class="stepper-title-lbl">Growth Stage Progression (Based on Farm Information)</span>
+            <div class="stage-stepper" id="dashStageStepper">
+              <!-- Rendered via JavaScript -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. LIVE ALERTS SECTION -->
+      <section class="dashboard-section-block">
+        <div class="dash-card live-alerts-container">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <i class="fa-solid fa-triangle-exclamation" style="color: #d97706;"></i>
+              <span>Live Alerts</span>
+            </div>
+            <span class="badge-tag-mini">Active System Notifications</span>
+          </div>
+
+          <div class="alerts-list" id="dashLiveAlertsList">
+            <!-- Rendered via JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. CROPIE INSIGHT SECTION (EVIDENCE-BASED ENGINE OUTPUT) -->
+      <section class="dashboard-section-block">
+        <div class="cropie-ai-insight-card">
+          <div class="ai-card-glow-bg"></div>
+
+          <div class="ai-card-header">
+            <div class="ai-badge-pill">
+              <i class="fa-solid fa-robot"></i>
+              <span>CROPIE INSIGHT</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <span class="badge-tag-mini" style="background: #dcfce7; color: #166534; border-color: #bbf7d0;">Source Approved</span>
+              <span class="ai-model-tag">Cropie Intelligence Engine</span>
+            </div>
+          </div>
+
+          <h3 class="ai-section-title">Cropie Agricultural Recommendation</h3>
+
+          <!-- RECOMMENDATION -->
+          <div class="insight-block-group">
+            <span class="insight-label-sm">Recommendation</span>
+            <blockquote class="ai-recommendation-quote" id="dashAiQuote">
+              "Rain is expected within the next 4 hours. Your maize is estimated to be in the flowering/tasseling stage. If irrigation or fertilizer application is planned, review the timing against expected rainfall and reassess field conditions afterward."
+            </blockquote>
+          </div>
+
+          <!-- WHY? -->
+          <div class="insight-block-group">
+            <span class="insight-label-sm"><i class="fa-solid fa-circle-question" style="color: #16a34a;"></i> Why?</span>
+            <p class="insight-reason-text" id="dashAiReason">
+              Precipitation shortly after fertilizer application or supplemental irrigation during flowering can increase the risk of nutrient runoff and leaching.
+            </p>
+          </div>
+
+          <!-- BASED ON -->
+          <div class="ai-factors-box">
+            <div class="factors-label"><i class="fa-solid fa-list-check" style="color: #16a34a;"></i> Based on:</div>
+            <ul class="ai-factors-list" id="dashAiFactors">
+              <!-- Rendered via JavaScript -->
+            </ul>
+          </div>
+
+          <!-- NOT CONSIDERED -->
+          <div class="not-considered-box">
+            <span class="not-considered-lbl"><i class="fa-solid fa-circle-minus" style="color: #6b7280;"></i> Not considered:</span>
+            <span id="dashAiNotConsidered" style="font-size: 0.88rem; color: #4b5563;">Soil moisture data is currently unavailable.</span>
+          </div>
+
+          <!-- METADATA FOOTER: CONFIDENCE & SOURCE -->
+          <div class="insight-meta-row">
+            <div class="meta-item">
+              <span class="meta-lbl">Confidence:</span>
+              <span class="badge-tag-mini" id="dashAiConfidence" style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">Moderate</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-lbl">Verified Source:</span>
+              <span id="dashAiSource" class="meta-source-val">Ghana Ministry of Food and Agriculture (MoFA) &amp; CSIR-Crops Research Institute</span>
+            </div>
+          </div>
+
+          <div class="ai-card-footer">
+            <button class="btn btn-primary btn-insight-action" id="viewFullInsightBtn">
+              <span>View Full Insight →</span>
+            </button>
+            <span class="ai-disclaimer-note"><i class="fa-solid fa-shield-halved"></i> Built with Ghana-relevant agricultural guidance</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. CROP GROWTH STAGE INSIGHT (SECTION 12) -->
+      <section class="dashboard-section-block">
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <i class="fa-solid fa-seedling" style="color: #16a34a;"></i>
+              <span>Crop Growth Stage Insight</span>
+            </div>
+            <span class="badge-tag-estimate">Estimated Stage Analysis</span>
+          </div>
+
+          <div id="dashStageAnalysisContainer">
+            <!-- Rendered via JavaScript -->
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- AGRONOMIC INSIGHT BREAKDOWN MODAL -->
+  <div class="modal-backdrop" id="insightModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-window">
+      <button class="modal-close-btn" id="closeModalBtn">&times;</button>
+
+      <div class="modal-header-block">
+        <div class="ai-badge-pill">
+          <i class="fa-solid fa-brain"></i>
+          <span>CROPIE INSIGHT DETAILS</span>
+        </div>
+        <h2 class="modal-title">Agronomic Recommendation Breakdown</h2>
+        <p class="modal-subtitle">Ejura Field • Maize (Day 62 Estimated Flowering Stage)</p>
+      </div>
+
+      <div class="modal-body-content">
+        <div class="modal-summary-box">
+          <i class="fa-solid fa-circle-info" style="color: #16a34a; font-size: 1.2rem;"></i>
+          <p>Cropie combined weather forecast data (68% rain chance) with your planting date calculation (Day 62 flowering stage) to guide your daily farm decision.</p>
+        </div>
+
+        <ul class="modal-reasoning-list">
+          <li class="reasoning-card">
+            <div class="reasoning-icon recommended">
+              <i class="fa-solid fa-droplet-slash"></i>
+            </div>
+            <div class="reasoning-content">
+              <strong>Irrigation Action: Review Plan</strong>
+              <p>Natural rain is expected within the next 4 hours. Supplemental irrigation today is unnecessary and risks root waterlogging.</p>
+            </div>
+          </li>
+
+          <li class="reasoning-card">
+            <div class="reasoning-icon warning">
+              <i class="fa-solid fa-ban"></i>
+            </div>
+            <div class="reasoning-content">
+              <strong>Input Protection: Postpone Fertilizer</strong>
+              <p>Delay granular Nitrogen top-dressing until heavy rain subsides to prevent fertilizer washout into field runoff.</p>
+            </div>
+          </li>
+
+        </ul>
+      </div>
+
+      <div class="modal-footer-block">
+        <button class="btn btn-outline-hero" style="background: #f3f4f6; color: #374151; border-color: #e5e7eb;" onclick="document.getElementById('insightModal').classList.remove('open')">
+          Close Window
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="/" class="brand-logo" style="color: white;">
+            <div class="logo-icon">
+              <i class="fa-solid fa-seedling"></i>
+            </div>
+            <span>Cropie</span>
+          </a>
+          <p>Know your farm. Know what to do next. Purpose-built agricultural decision-support for African smallholders.</p>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Platform</h4>
+          <ul class="footer-links">
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/dashboard.html">Live Dashboard</a></li>
+            <li><a href="/#faq">About Cropie</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Supported Crops</h4>
+          <ul class="footer-links">
+            <li><a href="#">Maize</a></li>
+            <li><a href="#">Cassava</a></li>
+            <li><a href="#">Rice</a></li>
+            <li><a href="#">Cocoa</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Contact</h4>
+          <ul class="footer-links">
+            <li><a href="mailto:info@cropie.africa">info@cropie.africa</a></li>
+            <li><a href="#">Accra, Ghana 🇬🇭</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 Cropie Agritech Technologies Ltd. All rights reserved. Built for African farmers.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/dashboard.js"></script>
+</body>
+</html>

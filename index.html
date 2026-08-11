@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CROPIE — Know your farm. Know what to do next.</title>
+  <meta name="description" content="Cropie is a modern agricultural decision-support platform for smallholder farmers in Ghana and across Africa, combining weather, crop growth stage, and agronomic knowledge." />
+  <meta name="keywords" content="Cropie, agritech Ghana, African farming, farm insights, crop decision support, weather for farmers" />
+  
+  <!-- Font Awesome Icons & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+
+  <!-- ECOLAND-INSPIRED HERO CONTAINER -->
+  <div class="hero-wrapper-outer" id="hero">
+    <div class="hero-farmer-bg"></div>
+    <!-- NAVIGATION HEADER OVERLAY -->
+    <header class="header-nav" id="header">
+      <div class="container nav-container">
+        <a href="#" class="brand-logo">
+          <div class="logo-icon">
+            <i class="fa-solid fa-seedling"></i>
+          </div>
+          <span>Cropie</span>
+        </a>
+
+        <ul class="nav-menu">
+          <li><a href="/" class="nav-link active">Home</a></li>
+          <li><a href="/dashboard.html" class="nav-link"><i class="fa-solid fa-chart-line" style="margin-right: 0.25rem;"></i> Live Dashboard</a></li>
+          <li><a href="/#features" class="nav-link">Features</a></li>
+          <li><a href="/#dashboard-showcase" class="nav-link">For Farmers</a></li>
+          <li><a href="/#faq" class="nav-link">About</a></li>
+        </ul>
+
+        <div class="nav-actions" id="mainNavActions">
+          <a href="/login.html" class="nav-link nav-signin-link">Sign In</a>
+          <a href="/signup.html" class="btn btn-primary">
+            <span>Get Started</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO BODY CONTENT -->
+    <section class="hero-body">
+      <div class="container hero-grid">
+        <!-- LEFT SIDE: TITLE, SUBTITLE & CTA BUTTONS -->
+        <div class="hero-content">
+          <h1 class="hero-title">
+            Know your <span class="title-highlight-circle">farm.</span><br>
+            <span class="hero-lime-text">Know what to do next.</span>
+          </h1>
+
+          <p class="hero-subtitle">
+            Cropie brings weather, crop and farm insights together to help smallholder farmers make smarter decisions at the right time.
+          </p>
+
+          <div class="hero-cta-group">
+            <a href="#dashboard-showcase" class="btn btn-primary">
+              <span>Get Started</span>
+            </a>
+            <a href="#how-it-works" class="btn btn-outline-hero">
+              <span>See How It Works</span>
+            </a>
+          </div>
+
+          <div class="hero-tagline">
+            Built for African farmers. Powered by agronomic data.
+          </div>
+        </div>
+
+        <!-- RIGHT SIDE: ANIMATED ORBITAL CIRCULAR COMPOSITION -->
+        <div class="hero-visual-container">
+          <!-- Ambient Backlight Glow -->
+          <div class="hero-ambient-glow"></div>
+
+          <!-- Sparkle Micro Floating Particles -->
+          <div class="sparkle-dot sparkle-1">✦</div>
+          <div class="sparkle-dot sparkle-2">✧</div>
+
+          <!-- Multi-Layer Animated Circular Shapes -->
+          <div class="hero-green-circle-backdrop"></div>
+          <div class="hero-orbit-dashed-ring"></div>
+          <div class="hero-green-ring-arc">
+            <span class="orbiting-dot"></span>
+          </div>
+          <div class="hero-inner-orbit-ring"></div>
+
+          <!-- Circular Farmer Portrait -->
+          <div class="hero-farmer-circle-frame">
+            <img src="/farmer-circle.png" alt="Cropie Farmer Insight" class="farmer-portrait-img" />
+          </div>
+
+          <!-- Floating Micro Weather & Crop Stage Tags -->
+          <div class="hero-micro-pill tag-weather">
+            <i class="fa-solid fa-cloud-sun-rain" style="color: #0284c7;"></i>
+            <span>Ejura • 29°C</span>
+          </div>
+
+          <div class="hero-micro-pill tag-crop">
+            <span>Maize (Veg Stage)</span>
+          </div>
+
+          <!-- Floating Metric Card 1: Top Right (Yield Target Ring) -->
+          <div class="hero-float-widget widget-yield">
+            <div class="widget-header-mini">
+              <span>Yield Target</span>
+              <span class="widget-icon-pill"><i class="fa-solid fa-leaf" style="color: #16a34a;"></i></span>
+            </div>
+            <div class="widget-stat-row">
+              <div class="ring-indicator">
+                <svg viewBox="0 0 36 36" class="ring-svg">
+                  <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                  <path class="ring-val" stroke-dasharray="95, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                </svg>
+                <span class="ring-percent">95%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Metric Card 2: Mid Left (Rain Forecast Precision) -->
+          <div class="hero-float-widget widget-accuracy">
+            <div class="widget-header-mini">
+              <span>Rain Accuracy</span>
+              <span class="widget-tag-green">+98.4%</span>
+            </div>
+            <div class="widget-chart-row">
+              <div class="chart-icon-box">
+                <i class="fa-solid fa-chart-line"></i>
+              </div>
+              <div>
+                <strong style="display: block; font-size: 0.92rem; color: #111827;">Hyper-local Radar</strong>
+                <span style="font-size: 0.76rem; color: #6b7280;">Ejura Field Station</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Metric Card 3: Bottom Right (Action Tracker) -->
+          <div class="hero-float-widget widget-actions">
+            <div class="widget-header-mini">
+              <span>Daily Priorities</span>
+              <span class="status-pulse-dot"></span>
+            </div>
+            <div class="widget-bar-bg">
+              <div class="widget-bar-fill" style="width: 100%;"></div>
+            </div>
+            <div class="widget-sub-text">
+              <i class="fa-solid fa-circle-check" style="color: #22c55e;"></i>
+              <span>100% Actions Verified</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- PRODUCT DIFFERENTIATOR: NOT ANOTHER WEATHER APP -->
+  <section class="differentiator-section" id="differentiator">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge-tag" style="background: #16a34a; color: #ffffff; border: none; outline: none; box-shadow: none;">
+          The Key Difference
+        </div>
+        <h2 class="section-title">Farmers don't need more data.<br>They need better decisions.</h2>
+        <p class="section-description">
+          Most weather apps dump raw meteorological numbers on farmers and expect them to figure it out. Cropie turns data into direct, field-ready instructions.
+        </p>
+      </div>
+
+      <div class="diff-grid">
+        <!-- Existing Approach -->
+        <div class="diff-card old-way">
+          <span class="diff-badge">Existing Approach</span>
+          <h3>Standard Weather App</h3>
+          <p style="color: #6b7280; font-size: 0.95rem; margin-top: 0.5rem;">Raw disconnected metrics leave farmers guessing</p>
+          
+          <div class="diff-flow">
+            <div class="flow-step">
+              <i class="fa-solid fa-cloud-showers-heavy" style="color: #0284c7;"></i>
+              <span>Weather Data (80% Rain, 29°C)</span>
+            </div>
+            <div class="flow-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+            <div class="flow-step">
+              <i class="fa-solid fa-circle-question" style="color: #eab308;"></i>
+              <span>Farmer figures out what to do</span>
+            </div>
+            <div class="flow-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+            <div class="flow-step" style="background: #fef2f2; border-color: #fecaca; color: #991b1b;">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Risk: Fertilizer washed away or wasted spray</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cropie Approach -->
+        <div class="diff-card cropie-way">
+          <span class="diff-badge">The Cropie Advantage</span>
+          <h3>Cropie Intelligence Engine</h3>
+          <p style="color: #15803d; font-size: 0.95rem; margin-top: 0.5rem;">Fuses farm context, crop stage &amp; weather into action</p>
+          
+          <div class="diff-flow">
+            <div class="flow-step">
+              <i class="fa-solid fa-diagram-project" style="color: #16a34a;"></i>
+              <span>Farm Info + Weather + Agricultural Knowledge</span>
+            </div>
+            <div class="flow-arrow"><i class="fa-solid fa-arrow-down" style="color: #16a34a;"></i></div>
+            <div class="flow-step highlight">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>Cropie Agronomic Insight</span>
+            </div>
+            <div class="flow-arrow"><i class="fa-solid fa-arrow-down" style="color: #16a34a;"></i></div>
+            <div class="flow-step" style="background: #f0fdf4; border-color: #dcfce7; color: #166534;">
+              <i class="fa-solid fa-circle-check" style="color: #22c55e;"></i>
+              <span>Farmer makes an informed, profitable decision</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FARMER TESTIMONIAL FEATURE CARD (FROM USER SPECIFICATION) -->
+      <div class="testimonial-hero-card">
+        <div class="testimonial-grid">
+          <div class="testimonial-img-box">
+            <img src="/kwame-testimonial-farmer.jpg" alt="Kwame Mensah — Maize Farmer, Ejura" class="testimonial-img" />
+          </div>
+
+          <div class="testimonial-content">
+            <div class="quote-mark">“</div>
+            <p class="testimonial-quote-text">
+              “Before Cropie, I lost half my fertilizer whenever unexpected rains hit Ejura. Now, Cropie warns me in the morning. I save money every week and my maize yields have never been higher.”
+            </p>
+
+            <div class="author-block">
+              <h4 class="author-name">Kwame Mensah</h4>
+              <p class="author-title">Maize Farmer &amp; Community Leader — Ejura, Ashanti Region</p>
+            </div>
+
+            <div class="testimonial-stats-divider"></div>
+
+            <div class="testimonial-stats-grid">
+              <div class="stat-item">
+                <span class="stat-num">+35%</span>
+                <span class="stat-lbl">Harvest Yield Increase</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-num">40%</span>
+                <span class="stat-lbl">Input Cost Savings</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-num">0</span>
+                <span class="stat-lbl">Rain Washout Losses</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- HOW CROPIE WORKS -->
+  <section class="how-it-works-section" id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">How Cropie Works</h2>
+        <p class="section-description">Four simple steps to transform how you manage your field every single day.</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <h3 class="step-title">Connect Your Farm</h3>
+          <p class="step-desc">Enter your farm location, acreage, planted crop type (e.g. Maize, Cassava), and planting date.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <h3 class="step-title">Continuous Analysis</h3>
+          <p class="step-desc">Cropie tracks satellite weather, soil moisture models, and your crop's exact growth stage.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <h3 class="step-title">Daily Action Priorities</h3>
+          <p class="step-desc">Receive clear, color-coded daily recommendations on when to inspect, fertilize, or spray.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">04</div>
+          <h3 class="step-title">Thrive &amp; Maximize Yield</h3>
+          <p class="step-desc">Prevent costly input waste, protect crops from unseasonable rain, and increase harvest yields.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- INTERACTIVE PRODUCT DASHBOARD SHOWCASE -->
+  <section class="dashboard-section" id="dashboard-showcase">
+    <!-- PURE WHITE CLOUD TOP SHAPE DIVIDER -->
+    <div class="cloud-wave-divider-top">
+      <svg viewBox="0 0 1440 120" preserveAspectRatio="none" class="wave-svg">
+        <path fill="#ffffff" d="M0,0 L1440,0 L1440,60 Q1310,0 1180,60 Q1120,35 1060,60 Q995,20 930,60 Q895,40 860,60 Q785,5 710,60 Q640,15 570,60 Q535,40 500,60 Q420,5 340,60 Q300,45 260,60 Q200,30 140,60 Q70,10 0,60 Z"></path>
+      </svg>
+    </div>
+
+    <div class="container">
+      <div class="section-header">
+        <div class="badge-tag" style="background: #16a34a; color: #ffffff; border: none; outline: none; box-shadow: none;">
+          <i class="fa-solid fa-desktop"></i> Live Product Interactive Demo
+        </div>
+        <h2 class="section-title">Experience the Cropie Dashboard</h2>
+        <p class="section-description">See how a farmer in Ejura, Ghana views their daily dashboard and understands the reasoning behind every recommendation.</p>
+      </div>
+
+      <!-- LAPTOP MOCKUP SHOWCASE -->
+      <div class="laptop-mockup-frame">
+        <img src="/laptop-mockup-3d.png" alt="Cropie Dashboard Laptop Mockup" class="laptop-img-frame" />
+
+        <div class="laptop-screen-content">
+          <!-- Dashboard Device Window -->
+          <div class="dashboard-window">
+            <div class="dash-topbar">
+              <div class="dash-user-greeting">
+                <span>Good morning 👋</span>
+              </div>
+              <div class="dash-farm-specs">
+                <span class="dash-spec-pill">📍 Ejura, Ghana</span>
+                <span class="dash-spec-pill">🌽 Maize</span>
+                <span class="dash-spec-pill" id="currentStageBadge">🌱 Vegetative stage</span>
+                <span class="dash-spec-pill">📐 2 acres</span>
+              </div>
+            </div>
+
+            <div class="dash-body">
+              <!-- Weather Grid Cards -->
+              <div class="weather-metrics-grid">
+                <div class="weather-metric-card">
+                  <div class="weather-icon">🌡️</div>
+                  <div class="weather-val" id="tempVal">29°C</div>
+                  <div class="weather-lbl">Temperature</div>
+                </div>
+
+                <div class="weather-metric-card">
+                  <div class="weather-icon">🌧️</div>
+                  <div class="weather-val" id="rainVal">72%</div>
+                  <div class="weather-lbl">Rain Probability</div>
+                </div>
+
+                <div class="weather-metric-card">
+                  <div class="weather-icon">💧</div>
+                  <div class="weather-val" id="humidityVal">78%</div>
+                  <div class="weather-lbl">Humidity</div>
+                </div>
+
+                <div class="weather-metric-card">
+                  <div class="weather-icon">💨</div>
+                  <div class="weather-val" id="windVal">14 km/h</div>
+                  <div class="weather-lbl">Wind Speed</div>
+                </div>
+              </div>
+
+              <!-- Priorities Section -->
+              <div class="priorities-container">
+                <div class="priorities-header">
+                  <div class="priorities-title">Today's Priorities</div>
+                  <div style="font-size: 0.85rem; color: #6b7280; font-weight: 600;">Updated 15 mins ago</div>
+                </div>
+
+                <div class="priority-list">
+                  <!-- Item 1 -->
+                  <div class="priority-item" id="prioItem1">
+                    <div class="priority-item-left">
+                      <span class="status-dot green"></span>
+                      <span class="priority-text">Field inspection</span>
+                    </div>
+                    <span class="status-badge recommended">Recommended</span>
+                  </div>
+
+                  <!-- Item 2 -->
+                  <div class="priority-item" id="prioItem2">
+                    <div class="priority-item-left">
+                      <span class="status-dot yellow"></span>
+                      <span class="priority-text">Fertilizer application</span>
+                    </div>
+                    <span class="status-badge caution">Review timing</span>
+                  </div>
+
+                  <!-- Item 3 -->
+                  <div class="priority-item" id="prioItem3">
+                    <div class="priority-item-left">
+                      <span class="status-dot red"></span>
+                      <span class="priority-text">Spraying</span>
+                    </div>
+                    <span class="status-badge check">Check conditions</span>
+                  </div>
+                </div>
+
+                <!-- "WHY AM I SEEING THIS?" INTERACTIVE FEATURE -->
+                <div class="why-seeing-trigger">
+                  <button class="btn-why" id="whyToggleBtn" aria-expanded="false">
+                    <i class="fa-regular fa-circle-question"></i>
+                    <span id="whyBtnLabel">Why am I seeing this?</span>
+                    <i class="fa-solid fa-chevron-down" id="whyChevron"></i>
+                  </button>
+                </div>
+
+                <!-- Drawer Container -->
+                <div class="why-drawer" id="whyDrawer">
+                  <div class="why-card-content">
+                    <div class="why-title">
+                      <i class="fa-solid fa-brain" style="color: #16a34a;"></i>
+                      <span>Agronomic Reasoning Breakdown for Ejura Maize (Vegetative Stage):</span>
+                    </div>
+                    
+                    <ul class="why-rule-list" id="whyRuleList">
+                      <li>
+                        <i class="fa-solid fa-check-circle"></i>
+                        <div><strong>Field Inspection (Recommended):</strong> Rain probability at 72% with 78% humidity during early vegetative stage creates ideal microclimate for Fall Armyworm larva emergence. Checking leaves today prevents infestation.</div>
+                      </li>
+                      <li>
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #d97706;"></i>
+                        <div><strong>Fertilizer Application (Review Timing):</strong> High 72% rain probability in the afternoon means applied granular N-P-K fertilizer will likely wash away before root absorption. Postpone until tomorrow morning.</div>
+                      </li>
+                      <li>
+                        <i class="fa-solid fa-ban" style="color: #dc2626;"></i>
+                        <div><strong>Spraying (Check Conditions):</strong> Rain within 3-4 hours of chemical application strips crop protection product, rendering it ineffective and contaminating runoff.</div>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="laptop-ground-shadow"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES SECTION -->
+  <section class="features-section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge-tag">Platform Features</div>
+        <h2 class="section-title">Everything smallholder farmers need to farm smarter</h2>
+        <p class="section-description">Purpose-built for African farming conditions, connectivity challenges, and everyday farm management.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-cloud-sun-rain"></i></div>
+          <h3 class="feature-title">Field-Level Weather</h3>
+          <p class="feature-desc">Weather and rainfall forecasts tailored to your farm's location, helping you make better decisions about planting, irrigation, and input application.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-wheat-awn"></i></div>
+          <h3 class="feature-title">Crop Growth Stages</h3>
+          <p class="feature-desc">Tracks crop development for Maize, Cassava, Rice, and Cocoa to help align farming activities and inputs with important growth stages.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-brain"></i></div>
+          <h3 class="feature-title">Cropie Intelligence Engine</h3>
+          <p class="feature-desc">Combines farm information, weather conditions, crop growth stages, and agricultural knowledge to turn complex data into simple, actionable recommendations.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-shield-heart"></i></div>
+          <h3 class="feature-title">Input Protection Advisor</h3>
+          <p class="feature-desc">Helps reduce wasted fertilizer and chemical applications by warning farmers when weather conditions could affect recently applied inputs.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-bell"></i></div>
+          <h3 class="feature-title">Smart Farm Alerts</h3>
+          <p class="feature-desc">Receive timely alerts inside Cropie when weather conditions, crop development, or available farm data require attention.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-chart-line"></i></div>
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <h3 class="feature-title" style="margin-bottom: 0;">Market Intelligence</h3>
+            <span class="badge-tag-mini" style="background: #f3f4f6; color: #4b5563; border-color: #e5e7eb;">Coming Soon</span>
+          </div>
+          <p class="feature-desc">Connect farm outputs with regional market information to help farmers understand crop prices and make better selling decisions.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FREQUENTLY ASKED QUESTIONS (FAQ) -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <div class="badge-tag">Got Questions?</div>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-description">Clear answers on how Cropie helps smallholders, cooperatives, and agricultural extension officers across Ghana.</p>
+      </div>
+
+      <div class="faq-container">
+        <!-- FAQ 1 -->
+        <div class="faq-item open">
+          <button class="faq-question">
+            <span>How is Cropie different from standard weather apps?</span>
+            <i class="fa-solid fa-chevron-down faq-chevron"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Standard weather apps only show generic temperature and rain percentages. Cropie combines local weather with your farm information and crop stage to tell you what action to consider today.</p>
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>How are farm alerts delivered to farmers?</span>
+            <i class="fa-solid fa-chevron-down faq-chevron"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Alerts are delivered directly inside the Cropie application and Live Dashboard whenever weather conditions, crop development, or available farm data require your attention.</p>
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Which crops and regions in Ghana are supported?</span>
+            <i class="fa-solid fa-chevron-down faq-chevron"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Cropie currently supports Maize, Cassava, Rice, and Cocoa across key farming hubs including Ejura, Techiman, Sunyani, Tamale, and the Volta Basin, with expansion underway across West Africa.</p>
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>How accurate are location-specific rainfall alerts?</span>
+            <i class="fa-solid fa-chevron-down faq-chevron"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Cropie utilizes hyper-local satellite radar telemetry and regional meteorological calibration models to deliver field-level rainfall accuracy within a 2 km radius.</p>
+          </div>
+        </div>
+
+        <!-- FAQ 5 -->
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Is Cropie free for individual smallholder farmers?</span>
+            <i class="fa-solid fa-chevron-down faq-chevron"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Yes, the core decision-support features are free for individual smallholder farmers. Premium tiers with advanced yield modeling and cooperative management tools are available for farming groups and aggregators.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FARMER STORY SECTION -->
+  <section class="farmer-story-section" id="story">
+    <div class="container story-grid">
+      <div class="story-img-container">
+        <img src="/kwame-story.png" alt="Kwame Mensah holding smartphone in Ejura maize field" />
+      </div>
+
+      <div class="story-content">
+        <div class="story-quote-mark">“</div>
+        <p class="story-quote">
+          “Before Cropie, I lost half my fertilizer whenever unexpected rains hit Ejura. Now, Cropie warns me in the morning. I save money every week and my maize yields have never been higher.”
+        </p>
+
+        <div class="story-author">
+          <strong>Kwame Mensah</strong>
+          <span>Maize Farmer &amp; Community Leader — Ejura, Ashanti Region</span>
+        </div>
+
+        <div class="story-stats-row">
+          <div>
+            <div class="stat-num">+35%</div>
+            <div class="stat-label">Harvest Yield Increase</div>
+          </div>
+          <div>
+            <div class="stat-num">40%</div>
+            <div class="stat-label">Input Cost Savings</div>
+          </div>
+          <div>
+            <div class="stat-num">0</div>
+            <div class="stat-label">Rain Washout Losses</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CALL TO ACTION -->
+  <section class="cta-section" id="cta">
+    <div class="container">
+      <div class="cta-box">
+        <h2 class="cta-title">Ready to know your farm's next move?</h2>
+        <p class="cta-subtitle">
+          Join thousands of farmers in Ghana making smarter agricultural decisions every single day.
+        </p>
+
+        <form class="cta-form" id="onboardForm">
+          <input type="text" class="cta-input" placeholder="Enter Phone Number or Email" required id="contactInput" />
+          <button type="submit" class="btn btn-primary">
+            <span>Get Started Now</span>
+          </button>
+        </form>
+        
+        <div id="formSuccessMsg" style="display: none; margin-top: 1rem; color: #16a34a; font-weight: 700;">
+          🎉 Welcome to Cropie! We'll send your farm setup link shortly.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="#" class="brand-logo" style="color: white;">
+            <div class="logo-icon">
+              <i class="fa-solid fa-seedling"></i>
+            </div>
+            <span>Cropie</span>
+          </a>
+          <p>Know your farm. Know what to do next. Empowering African smallholders with intelligent agricultural decision-support.</p>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Platform</h4>
+          <ul class="footer-links">
+            <li><a href="#differentiator">Why Cropie</a></li>
+            <li><a href="#dashboard-showcase">Live Dashboard</a></li>
+            <li><a href="#simulator">Crop Insights</a></li>
+            <li><a href="#features">Features</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Regions</h4>
+          <ul class="footer-links">
+            <li><a href="#">Ejura, Ashanti</a></li>
+            <li><a href="#">Techiman, Bono East</a></li>
+            <li><a href="#">Tamale, Northern</a></li>
+            <li><a href="#">Sunyani, Bono</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Contact</h4>
+          <ul class="footer-links">
+            <li><a href="mailto:info@cropie.africa">info@cropie.africa</a></li>
+            <li><a href="#">+233 (0) 30 290 8812</a></li>
+            <li><a href="#">Accra, Ghana 🇬🇭</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 Cropie Agritech Technologies Ltd. All rights reserved. Built with ❤️ for African farmers.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

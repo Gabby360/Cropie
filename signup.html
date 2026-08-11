@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account — Cropie</title>
+  <meta name="description" content="Create a Cropie account to start managing your farm smarter with personalized growth stage analysis and verified weather guidance." />
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Core Design System CSS -->
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body class="auth-page-body">
+
+  <!-- AUTH HEADER NAVBAR -->
+  <header class="auth-header">
+    <div class="container auth-header-inner">
+      <a href="/" class="brand-logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-seedling"></i>
+        </div>
+        <span>Cropie</span>
+      </a>
+      <a href="/login.html" class="btn btn-outline-sm">Sign In</a>
+    </div>
+  </header>
+
+  <!-- AUTH MAIN CONTAINER -->
+  <main class="auth-container">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <h1 class="auth-title">Create Account</h1>
+      </div>
+
+      <!-- ERROR BANNER -->
+      <div id="authAlertBanner" class="auth-alert-banner" style="display: none;"></div>
+
+      <form id="signupForm" class="auth-form" novalidate>
+        <!-- FULL NAME -->
+        <div class="form-group">
+          <label for="fullName" class="form-label">Full Name</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-regular fa-user input-icon"></i>
+            <input 
+              type="text" 
+              id="fullName" 
+              class="form-input" 
+              placeholder="Enter your full name" 
+              required 
+            />
+          </div>
+          <span class="field-error-msg" id="fullNameError"></span>
+        </div>
+
+        <!-- EMAIL ADDRESS -->
+        <div class="form-group">
+          <label for="email" class="form-label">Email Address</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-regular fa-envelope input-icon"></i>
+            <input 
+              type="email" 
+              id="email" 
+              class="form-input" 
+              placeholder="Enter your email address" 
+              required 
+            />
+          </div>
+          <span class="field-error-msg" id="emailError"></span>
+        </div>
+
+        <!-- PASSWORD -->
+        <div class="form-group">
+          <label for="signupPassword" class="form-label">Password</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-lock input-icon"></i>
+            <input 
+              type="password" 
+              id="signupPassword" 
+              class="form-input" 
+              placeholder="Create a password" 
+              required 
+            />
+            <button type="button" class="btn-toggle-password" id="toggleSignupPasswordBtn" title="Toggle Password Visibility">
+              <i class="fa-regular fa-eye" id="signupPasswordEye"></i>
+            </button>
+          </div>
+          <span class="field-error-msg" id="passwordError"></span>
+        </div>
+
+        <!-- CONFIRM PASSWORD -->
+        <div class="form-group">
+          <label for="confirmPassword" class="form-label">Confirm Password</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-lock-open input-icon"></i>
+            <input 
+              type="password" 
+              id="confirmPassword" 
+              class="form-input" 
+              placeholder="Confirm your password" 
+              required 
+            />
+            <button type="button" class="btn-toggle-password" id="toggleConfirmPasswordBtn" title="Toggle Password Visibility">
+              <i class="fa-regular fa-eye" id="confirmPasswordEye"></i>
+            </button>
+          </div>
+          <span class="field-error-msg" id="confirmPasswordError"></span>
+        </div>
+
+        <!-- SUBMIT BUTTON -->
+        <button type="submit" class="btn btn-primary btn-block" id="signupSubmitBtn">
+          <span id="signupBtnText">Create Account</span>
+          <i class="fa-solid fa-arrow-right btn-icon-right"></i>
+        </button>
+      </form>
+
+      <div class="auth-card-footer">
+        <p>Already have a Cropie account? <a href="/login.html" class="auth-link-bold">Sign in</a></p>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { CropieAuthService } from '/src/auth.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const auth = new CropieAuthService();
+      const form = document.getElementById('signupForm');
+      
+      const fullNameInput = document.getElementById('fullName');
+      const emailInput = document.getElementById('email');
+      const phoneInput = document.getElementById('phone');
+      const passwordInput = document.getElementById('signupPassword');
+      const confirmPasswordInput = document.getElementById('confirmPassword');
+      const agreeTermsCheckbox = document.getElementById('agreeTermsCheckbox');
+
+      const alertBanner = document.getElementById('authAlertBanner');
+      const submitBtn = document.getElementById('signupSubmitBtn');
+      const btnText = document.getElementById('signupBtnText');
+
+      // Toggles
+      document.getElementById('toggleSignupPasswordBtn').addEventListener('click', () => {
+        const isPass = passwordInput.type === 'password';
+        passwordInput.type = isPass ? 'text' : 'password';
+        document.getElementById('signupPasswordEye').className = isPass ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+      });
+
+      document.getElementById('toggleConfirmPasswordBtn').addEventListener('click', () => {
+        const isPass = confirmPasswordInput.type === 'password';
+        confirmPasswordInput.type = isPass ? 'text' : 'password';
+        document.getElementById('confirmPasswordEye').className = isPass ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+      });
+
+      passwordInput.addEventListener('input', () => hideError('passwordError'));
+      confirmPasswordInput.addEventListener('input', () => hideError('confirmPasswordError'));
+      fullNameInput.addEventListener('input', () => hideError('fullNameError'));
+      emailInput.addEventListener('input', () => hideError('emailError'));
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        showAlert(null);
+
+        const fullName = fullNameInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        let hasError = false;
+
+        if (!fullName) {
+          showFieldError('fullNameError', 'Please enter your full name.');
+          hasError = true;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRegex.test(email)) {
+          showFieldError('emailError', 'Please enter a valid email address.');
+          hasError = true;
+        }
+
+        if (!password || password.length < 4) {
+          showFieldError('passwordError', 'Please enter a password.');
+          hasError = true;
+        }
+
+        if (password !== confirmPassword) {
+          showFieldError('confirmPasswordError', 'Passwords do not match.');
+          hasError = true;
+        }
+
+        if (hasError) return;
+
+        // Set Loading State
+        submitBtn.disabled = true;
+        btnText.textContent = 'Creating your Cropie account...';
+
+        try {
+          const res = await auth.registerUser({ fullName, email, password, agreeTerms: true });
+          
+          showAlert(res.message, 'success');
+
+          setTimeout(() => {
+            window.location.href = '/farm-setup.html';
+          }, 500);
+
+        } catch (err) {
+          submitBtn.disabled = false;
+          btnText.textContent = 'Create Account';
+          showAlert(err.message || 'We couldn\'t create your account. Please try again.', 'error');
+        }
+      });
+
+      function showFieldError(id, msg) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = msg;
+      }
+
+      function hideError(id) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '';
+      }
+
+      function showAlert(msg, type = 'error') {
+        if (!msg) {
+          alertBanner.style.display = 'none';
+          return;
+        }
+        alertBanner.className = `auth-alert-banner ${type}`;
+        alertBanner.textContent = msg;
+        alertBanner.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
