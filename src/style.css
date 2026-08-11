@@ -4152,34 +4152,86 @@ html, body {
 
   .hero-visual-container {
     width: 100%;
-    max-width: 300px;
-    height: 300px;
-    margin: 1rem auto 0;
+    max-width: 320px;
+    height: 320px;
+    margin: 1.5rem auto 0;
+    position: relative;
+  }
+
+  .hero-farmer-circle-frame {
+    width: 250px;
+    height: 250px;
+    border-width: 4px;
+    margin: 0 auto;
   }
 
   .hero-green-circle-backdrop {
-    width: 250px;
-    height: 250px;
+    width: 260px;
+    height: 260px;
+    top: 30px;
+    right: 30px;
   }
 
   .hero-orbit-dashed-ring {
-    width: 280px;
-    height: 280px;
+    width: 290px;
+    height: 290px;
+    top: 15px;
+    right: 15px;
   }
 
-  .floating-badge {
-    padding: 0.35rem 0.65rem;
+  .hero-green-ring-arc {
+    width: 310px;
+    height: 310px;
+    top: 5px;
+    right: 5px;
+  }
+
+  .hero-inner-orbit-ring {
+    display: none;
+  }
+
+  /* Micro Pills & Widgets Mobile Formatting — Non-overlapping */
+  .hero-micro-pill.tag-weather {
+    top: 10px;
+    left: -5px;
     font-size: 0.72rem;
+    padding: 0.35rem 0.65rem;
+    z-index: 15;
   }
 
-  .badge-rain-radar {
-    left: -10px;
-    bottom: 10px;
+  .hero-micro-pill.tag-crop {
+    display: none;
   }
 
-  .badge-yield-target {
-    right: -10px;
-    top: 20px;
+  .hero-float-widget.widget-yield {
+    top: 0px;
+    right: -5px;
+    padding: 0.45rem 0.75rem;
+    min-width: auto;
+    font-size: 0.72rem;
+    z-index: 15;
+  }
+
+  .hero-float-widget.widget-accuracy {
+    display: none;
+  }
+
+  .hero-float-widget.widget-actions {
+    bottom: 5px;
+    right: 5px;
+    padding: 0.45rem 0.75rem;
+    min-width: auto;
+    font-size: 0.72rem;
+    z-index: 15;
+  }
+
+  .widget-header-mini {
+    font-size: 0.7rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .widget-sub-text {
+    font-size: 0.7rem;
   }
 
   .auth-card {
@@ -4215,5 +4267,15 @@ html, body {
   .nav-actions .btn {
     padding: 0.4rem 0.65rem;
     font-size: 0.78rem;
+  }
+
+  .hero-float-widget.widget-yield {
+    top: -10px;
+    right: -10px;
+  }
+
+  .hero-micro-pill.tag-weather {
+    top: -10px;
+    left: -10px;
   }
 }
