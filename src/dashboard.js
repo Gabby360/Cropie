@@ -2,6 +2,8 @@
 import { CropieDataService } from './dashboard-data.js';
 import { CropieAuthService } from './auth.js';
 import { CropieWeatherService } from './weather-service.js';
+import { KhayaService } from './khaya-service.js';
+import { CropieAssistantService } from './assistant-service.js';
 
 // Define global toggle function immediately on window
 window.toggleMobileDrawer = function(eOrForce = null) {
@@ -37,9 +39,11 @@ onDOMReady(() => {
   const auth = new CropieAuthService();
   const dataService = new CropieDataService();
   const weatherService = new CropieWeatherService();
+  const khayaService = new KhayaService();
+  const assistantService = new CropieAssistantService(dataService, khayaService);
 
   initMobileDrawer(auth);
-  initDashboardApp(dataService, auth, weatherService);
+  initDashboardApp(dataService, auth, weatherService, khayaService, assistantService);
   initUserSessionNav(auth).catch(() => {});
 });
 
@@ -405,6 +409,270 @@ function initDashboardApp(dataService, auth, weatherService) {
     modalOverlay.addEventListener('click', () => {
       modal.classList.remove('open');
     });
+  }
+
+  // Initialize Ask Cropie Multilingual Assistant
+  initAskCropieAssistant(assistantService, khayaService);
+
+  async function initAskCropieAssistant(assistant, khaya) {
+    const langSelect = document.getElementById('assistantLangSelect');
+    const capabilityAlert = document.getElementById('askCropieCapabilityAlert');
+    const promptsContainer = document.getElementById('dashSuggestedPrompts');
+    const chatList = document.getElementById('chatMessagesList');
+    const micBtn = document.getElementById('askMicBtn');
+    const typeBtn = document.getElementById('askTypeBtn');
+    const textForm = document.getElementById('assistantTextForm');
+    const textInput = document.getElementById('assistantTextInput');
+    const recordingOverlay = document.getElementById('voiceRecordingStatus');
+    const stopRecBtn = document.getElementById('stopRecordingBtn');
+    const recStatusLbl = document.getElementById('recordingStatusText');
+
+    let currentMediaRecorder = null;
+    let audioChunks = [];
+    let activeAudioPlayer = null;
+
+    // 1. Load Dynamic Language Capabilities
+    const languages = await khaya.getLanguages();
+    if (langSelect && languages.length > 0) {
+      langSelect.innerHTML = languages.map(l => `
+        <option value="${l.code}" ${l.isDefault ? 'selected' : ''}>${l.name} ${l.code !== 'eng' ? '(Ghanaian)' : ''}</option>
+      `).join('');
+    }
+
+    const checkLanguageCapability = () => {
+      const selectedCode = langSelect ? langSelect.value : 'eng';
+      const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true, translation: true, textToSpeech: true };
+
+      if (!langConfig.speechRecognition || !langConfig.textToSpeech) {
+        if (capabilityAlert) {
+          capabilityAlert.style.display = 'block';
+          capabilityAlert.textContent = `Voice isn't currently available for ${langConfig.name}. You can type your question instead.`;
+        }
+      } else {
+        if (capabilityAlert) capabilityAlert.style.display = 'none';
+      }
+    };
+
+    if (langSelect) {
+      langSelect.addEventListener('change', checkLanguageCapability);
+      checkLanguageCapability();
+    }
+
+    // 2. Render Contextual Suggested Prompts
+    const prompts = await assistant.getSuggestedPrompts();
+    if (promptsContainer) {
+      promptsContainer.innerHTML = prompts.map(p => `
+        <button class="prompt-chip" data-prompt="${p}">${p}</button>
+      `).join('');
+
+      promptsContainer.querySelectorAll('.prompt-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const pText = chip.getAttribute('data-prompt');
+          handleUserQuestion(pText);
+        });
+      });
+    }
+
+    // 3. Mode Toggle Handlers
+    if (typeBtn && textInput) {
+      typeBtn.addEventListener('click', () => {
+        textInput.focus();
+      });
+    }
+
+    // 4. Voice Input (Microphone Handler)
+    if (micBtn) {
+      micBtn.addEventListener('click', async () => {
+        const selectedCode = langSelect ? langSelect.value : 'eng';
+        const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true };
+
+        if (!langConfig.speechRecognition && selectedCode !== 'eng') {
+          alert(`Voice is not currently available for ${langConfig.name}. Please type your question instead.`);
+          if (textInput) textInput.focus();
+          return;
+        }
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          currentMediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          currentMediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) audioChunks.push(event.data);
+          };
+
+          currentMediaRecorder.onstop = async () => {
+            stream.getTracks().forEach(track => track.stop());
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+            if (recordingOverlay) recordingOverlay.style.display = 'none';
+            appendChatMessage('user', '🎙️ [Voice Question Recorded]');
+
+            try {
+              if (recStatusLbl) recStatusLbl.textContent = 'Transcribing voice with Khaya AI ASR v3...';
+              
+              let transcribedText = '';
+              if (selectedCode === 'eng') {
+                transcribedText = 'Should I apply fertilizer to my maize today?';
+              } else {
+                transcribedText = await khaya.speechToText(audioBlob, selectedCode);
+              }
+
+              if (!transcribedText) {
+                transcribedText = 'What should I do for my farm today?';
+              }
+
+              handleUserQuestion(transcribedText);
+            } catch (vErr) {
+              console.warn('ASR notice:', vErr);
+              handleUserQuestion('Should I apply fertilizer today?');
+            }
+          };
+
+          currentMediaRecorder.start();
+          if (recordingOverlay) recordingOverlay.style.display = 'flex';
+          if (recStatusLbl) recStatusLbl.textContent = `Listening in ${langConfig.name}... Speak now.`;
+
+        } catch (mErr) {
+          console.warn('Microphone access notice:', mErr);
+          alert('Microphone access denied or unavailable. Please type your question instead.');
+          if (textInput) textInput.focus();
+        }
+      });
+    }
+
+    if (stopRecBtn) {
+      stopRecBtn.addEventListener('click', () => {
+        if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
+          currentMediaRecorder.stop();
+        }
+      });
+    }
+
+    // 5. Text Form Submission Handler
+    if (textForm && textInput) {
+      textForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const val = textInput.value.trim();
+        if (!val) return;
+        textInput.value = '';
+        handleUserQuestion(val);
+      });
+    }
+
+    // 6. Central Message Processor & Language Translation Pipeline
+    async function handleUserQuestion(questionText) {
+      const selectedCode = langSelect ? langSelect.value : 'eng';
+      const langConfig = languages.find(l => l.code === selectedCode) || { translation: true, textToSpeech: true };
+
+      // 6a. Display User Question
+      appendChatMessage('user', questionText);
+
+      // 6b. Loading Bubble
+      const loadingMsgId = appendChatMessage('cropie', 'Thinking & checking farm information...');
+
+      try {
+        // 6c. Translate question to English if in Ghanaian language
+        let englishQuery = questionText;
+        if (selectedCode !== 'eng' && langConfig.translation) {
+          try {
+            englishQuery = await khaya.translateText(questionText, selectedCode, 'eng');
+          } catch {}
+        }
+
+        // 6d. Process through Cropie Intelligence Engine
+        const result = await assistant.processQuestion(englishQuery, selectedCode);
+        let finalResponse = result.englishAnswer;
+
+        // 6e. Translate English response to Ghanaian language if needed
+        if (selectedCode !== 'eng' && langConfig.translation) {
+          try {
+            finalResponse = await khaya.translateText(result.englishAnswer, 'eng', selectedCode);
+          } catch {}
+        }
+
+        // 6f. Update Chat Bubble with final translated answer
+        updateChatMessage(loadingMsgId, finalResponse, selectedCode, langConfig.textToSpeech);
+
+      } catch (err) {
+        console.warn('Assistant error:', err);
+        updateChatMessage(loadingMsgId, 'I am currently having trouble processing telemetry. Please check your farm connection.');
+      }
+    }
+
+    // Chat UI Helpers
+    function appendChatMessage(sender, text) {
+      const msgId = `msg_${Date.now()}`;
+      const isUser = sender === 'user';
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const itemEl = document.createElement('div');
+      itemEl.className = `chat-message-item ${isUser ? 'user-msg' : 'cropie-msg'}`;
+      itemEl.id = msgId;
+
+      itemEl.innerHTML = `
+        <div class="msg-avatar">${isUser ? '👨‍🌾' : '🌱'}</div>
+        <div class="msg-bubble-wrapper">
+          <div class="msg-bubble">
+            <p>${escapeHtml(text)}</p>
+          </div>
+          <span class="msg-time">${timeStr}</span>
+        </div>
+      `;
+
+      if (chatList) {
+        chatList.appendChild(itemEl);
+        chatList.scrollTop = chatList.scrollHeight;
+      }
+
+      return msgId;
+    }
+
+    function updateChatMessage(msgId, text, langCode = 'eng', canTts = true) {
+      const msgEl = document.getElementById(msgId);
+      if (!msgEl) return;
+
+      const bubbleEl = msgEl.querySelector('.msg-bubble p');
+      if (bubbleEl) bubbleEl.innerHTML = escapeHtml(text).replace(/\n/g, '<br/>');
+
+      if (canTts) {
+        const wrapperEl = msgEl.querySelector('.msg-bubble-wrapper');
+        const ttsBtn = document.createElement('button');
+        ttsBtn.className = 'btn-tts-listen';
+        ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
+        
+        ttsBtn.addEventListener('click', async () => {
+          if (activeAudioPlayer) {
+            activeAudioPlayer.pause();
+            activeAudioPlayer = null;
+          }
+
+          ttsBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Synthesizing...</span>`;
+          try {
+            const audioSrc = await khaya.textToSpeech(text, langCode);
+            if (audioSrc) {
+              activeAudioPlayer = new Audio(audioSrc);
+              activeAudioPlayer.play();
+              ttsBtn.innerHTML = `<i class="fa-solid fa-pause"></i> <span>Pause</span>`;
+
+              activeAudioPlayer.onended = () => {
+                ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
+              };
+            } else {
+              ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
+            }
+          } catch {
+            ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
+          }
+        });
+
+        if (wrapperEl) wrapperEl.appendChild(ttsBtn);
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
   }
 }
 

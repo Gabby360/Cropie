@@ -1,7 +1,41 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import khayaHandler from './api/khaya.js';
 
 export default defineConfig({
+  plugins: [
+    {
+      name: 'khaya-api-proxy',
+      configureServer(server) {
+        server.middlewares.use('/api/khaya', async (req, res) => {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              req.body = body ? JSON.parse(body) : {};
+            } catch {
+              req.body = {};
+            }
+            
+            const urlObj = new URL(req.url, 'http://localhost');
+            req.query = Object.fromEntries(urlObj.searchParams);
+
+            res.status = (code) => {
+              res.statusCode = code;
+              return res;
+            };
+            res.json = (data) => {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(data));
+              return res;
+            };
+
+            await khayaHandler(req, res);
+          });
+        });
+      }
+    }
+  ],
   build: {
     rollupOptions: {
       input: {

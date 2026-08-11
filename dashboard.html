@@ -209,7 +209,91 @@
         </div>
       </section>
 
-      <!-- 2. CROP STATUS SECTION -->
+      <!-- 2. ASK CROPIE — VOICE & MULTILINGUAL ASSISTANT -->
+      <section class="dashboard-section-block">
+        <div class="ask-cropie-card">
+          <div class="ask-cropie-header">
+            <div class="ask-cropie-title-box">
+              <div class="assistant-icon-badge">
+                <i class="fa-solid fa-microphone-lines"></i>
+              </div>
+              <div>
+                <h2 class="assistant-card-title">Ask Cropie</h2>
+                <p class="assistant-card-sub">Have a question about your farm?</p>
+              </div>
+            </div>
+
+            <!-- LANGUAGE SELECTOR -->
+            <div class="assistant-lang-box">
+              <label for="assistantLangSelect" class="lang-select-label">Language:</label>
+              <select id="assistantLangSelect" class="assistant-lang-dropdown">
+                <option value="eng">English</option>
+                <option value="twi">Twi (Ghanaian)</option>
+                <option value="ewe">Ewe (Ghanaian)</option>
+                <option value="gaa">Ga (Ghanaian)</option>
+                <option value="hau">Hausa (African)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- FALLBACK / CAPABILITY ALERT BANNER -->
+          <div id="askCropieCapabilityAlert" class="assistant-capability-alert" style="display: none;"></div>
+
+          <!-- MODE TOGGLE BUTTONS & SUGGESTED PROMPTS -->
+          <div class="ask-cropie-action-row">
+            <div class="mode-btn-group">
+              <button id="askMicBtn" class="btn btn-assistant-action btn-mic-action">
+                <i class="fa-solid fa-microphone"></i>
+                <span>Speak</span>
+              </button>
+              <button id="askTypeBtn" class="btn btn-assistant-action btn-type-action">
+                <i class="fa-solid fa-keyboard"></i>
+                <span>Type</span>
+              </button>
+            </div>
+
+            <!-- SUGGESTED PROMPTS CHIPS -->
+            <div class="suggested-prompts-container" id="dashSuggestedPrompts">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- CONVERSATIONAL CHAT CONTAINER -->
+          <div class="assistant-chat-window" id="assistantChatWindow">
+            <div class="chat-messages-list" id="chatMessagesList">
+              <!-- Initial Welcome Message -->
+              <div class="chat-message-item cropie-msg">
+                <div class="msg-avatar">🌱</div>
+                <div class="msg-bubble-wrapper">
+                  <div class="msg-bubble">
+                    <p>Hello! I'm <strong>Cropie</strong>, your AI farm assistant. Tap <strong>Speak</strong> or type any question below to check recommendations for your farm!</p>
+                  </div>
+                  <span class="msg-time">Just now</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- VOICE RECORDING PULSE STATUS OVERLAY -->
+            <div id="voiceRecordingStatus" class="voice-recording-overlay" style="display: none;">
+              <div class="mic-pulse-wave">
+                <i class="fa-solid fa-microphone"></i>
+              </div>
+              <span id="recordingStatusText" class="recording-status-lbl">Listening to your question...</span>
+              <button id="stopRecordingBtn" class="btn btn-sm btn-stop-rec">Stop &amp; Send</button>
+            </div>
+
+            <!-- TEXT INPUT BAR -->
+            <form id="assistantTextForm" class="assistant-input-form">
+              <input type="text" id="assistantTextInput" class="assistant-input-field" placeholder="Ask Cropie e.g. Should I apply fertilizer today?" autocomplete="off" />
+              <button type="submit" id="sendAssistantTextBtn" class="btn btn-send-assistant">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. CROP STATUS SECTION -->
       <section class="dashboard-section-block">
         <div class="dash-card crop-status-card">
           <div class="dash-card-header">
