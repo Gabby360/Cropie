@@ -91,10 +91,10 @@ async function initMobileDrawer() {
       link.addEventListener('click', (e) => {
         const href = link.getAttribute('href');
         
-        // 1. Immediately close drawer and restore page scroll
-        window.toggleMobileDrawer(true);
+        // 1. Immediately close drawer overlay completely
+        window.toggleMobileDrawer(false);
 
-        // 2. Smooth scroll to hash target if link has section anchor
+        // 2. Smooth scroll to section target if link has hash anchor
         if (href && href.includes('#')) {
           const hashIndex = href.indexOf('#');
           const hash = href.substring(hashIndex);
@@ -102,8 +102,8 @@ async function initMobileDrawer() {
           if (targetEl) {
             e.preventDefault();
             setTimeout(() => {
-              targetEl.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
+              targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
           }
         }
       });
