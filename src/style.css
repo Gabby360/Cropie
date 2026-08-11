@@ -3317,16 +3317,18 @@ a {
 }
 
 .testimonial-img-box {
-  width: 100%;
-  max-width: 400px;
-  height: 420px;
+  width: 360px;
+  height: 360px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
   margin: 0 auto;
-  border-radius: 240px 12px 240px 12px;
+  border-radius: 50%;
   overflow: hidden;
-  border: 5px solid rgba(255, 255, 255, 0.25);
+  border: 6px solid #ffffff;
   box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.4),
-    0 0 35px rgba(34, 197, 94, 0.25);
+    0 25px 50px rgba(0, 0, 0, 0.45),
+    0 0 45px rgba(34, 197, 94, 0.4),
+    inset 0 0 25px rgba(0, 0, 0, 0.2);
   position: relative;
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -3340,11 +3342,11 @@ a {
 }
 
 .testimonial-img-box:hover {
-  transform: translateY(-6px);
+  transform: scale(1.03) translateY(-4px);
   border-color: #86efac;
   box-shadow: 
-    0 30px 60px rgba(0, 0, 0, 0.5),
-    0 0 50px rgba(34, 197, 94, 0.45);
+    0 30px 60px rgba(0, 0, 0, 0.55),
+    0 0 60px rgba(34, 197, 94, 0.6);
 }
 
 .quote-mark {
@@ -4255,9 +4257,10 @@ html, body {
   }
 
   .testimonial-img-box {
-    height: 280px;
-    max-width: 280px;
-    border-radius: 140px 12px 140px 12px;
+    width: 260px;
+    height: 260px;
+    max-width: 260px;
+    border-radius: 50%;
   }
 }
 
