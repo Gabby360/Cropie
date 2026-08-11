@@ -24,20 +24,21 @@ window.toggleMobileDrawer = function(closeOnly = false) {
   }
 };
 
-function initMobileDrawer(auth) {
-  const user = auth.getCurrentUser();
+async function initMobileDrawer(auth) {
+  const user = await auth.getCurrentUser();
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
   const drawerClose = document.getElementById('mobileDrawerClose');
   const mobileDrawerUser = document.getElementById('mobileDrawerUser');
 
   if (mobileDrawerUser && user) {
+    const displayName = user.fullName || user.email || 'Farmer';
     mobileDrawerUser.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
         <div style="display: flex; align-items: center; justify-content: space-between; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.75rem 1rem; border-radius: 12px;">
           <div style="display: flex; align-items: center; gap: 0.5rem; color: #166534; font-weight: 700; font-size: 0.95rem;">
             <i class="fa-solid fa-user-circle"></i>
-            <span>${user.fullName}</span>
+            <span>${displayName}</span>
           </div>
         </div>
         <button id="mobileSignOutBtn" class="btn btn-outline-hero btn-block" style="color: #dc2626; border-color: #fecaca; background: #fef2f2;">

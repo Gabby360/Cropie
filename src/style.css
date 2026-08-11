@@ -3084,47 +3084,77 @@ a {
   padding-top: 1.25rem;
 }
 
-/* RESPONSIVE MEDIA QUERIES FOR DASHBOARD */
-@media (max-width: 1024px) {
+/* RESPONSIVE MEDIA QUERIES FOR DASHBOARD & HEADER NAV */
+@media (max-width: 992px) {
+  /* Hide desktop header nav-actions on phone so header user pill does not display "undefined" or overlap hamburger icon */
+  .nav-actions {
+    display: none !important;
+  }
+
   .dashboard-two-col-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+  }
+
+  .weather-metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.85rem !important;
   }
 
   .weather-metrics-subgrid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .dash-main-title {
-    font-size: 2rem;
+    font-size: 1.75rem !important;
+  }
+
+  .cropie-dashboard-app,
+  .dashboard-section,
+  .dashboard-container {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
 }
 
 @media (max-width: 640px) {
+  .weather-metrics-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   .weather-card-top {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
   }
 
   .temp-big-value {
-    font-size: 3.2rem;
+    font-size: 2.8rem !important;
   }
 
   .weather-metrics-subgrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
   .crop-info-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
   .ai-recommendation-quote {
-    font-size: 1.1rem;
-    padding: 1rem;
+    font-size: 1.05rem !important;
+    padding: 1rem !important;
   }
 
   .dashboard-header-bar {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.85rem !important;
+  }
+
+  .dash-card {
+    padding: 1.15rem !important;
   }
 }
 

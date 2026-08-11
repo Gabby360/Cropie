@@ -9,17 +9,18 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileDrawer();
 });
 
-function initUserSessionNav() {
+async function initUserSessionNav() {
   const auth = new CropieAuthService();
-  const user = auth.getCurrentUser();
+  const user = await auth.getCurrentUser();
   const mainNav = document.getElementById('mainNavActions');
 
   if (mainNav && user) {
+    const displayName = (user.fullName || user.email || 'Farmer').split(' ')[0];
     mainNav.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <a href="/dashboard.html" class="btn btn-outline-sm" style="display: flex; align-items: center; gap: 0.4rem;">
           <i class="fa-solid fa-user"></i>
-          <span>${user.fullName.split(' ')[0]}</span>
+          <span>${displayName}</span>
         </a>
         <button id="navLogoutBtn" class="nav-link" style="background: none; border: none; cursor: pointer; color: #dc2626; font-weight: 600;">
           Sign Out
@@ -49,9 +50,9 @@ window.toggleMobileDrawer = function(closeOnly = false) {
   }
 };
 
-function initMobileDrawer() {
+async function initMobileDrawer() {
   const auth = new CropieAuthService();
-  const user = auth.getCurrentUser();
+  const user = await auth.getCurrentUser();
 
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
   const drawerOverlay = document.getElementById('mobileDrawerOverlay');
@@ -59,12 +60,13 @@ function initMobileDrawer() {
   const mobileDrawerUser = document.getElementById('mobileDrawerUser');
 
   if (mobileDrawerUser && user) {
+    const displayName = user.fullName || user.email || 'Farmer';
     mobileDrawerUser.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
         <div style="display: flex; align-items: center; justify-content: space-between; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.75rem 1rem; border-radius: 12px;">
           <div style="display: flex; align-items: center; gap: 0.5rem; color: #166534; font-weight: 700; font-size: 0.95rem;">
             <i class="fa-solid fa-user-circle"></i>
-            <span>${user.fullName}</span>
+            <span>${displayName}</span>
           </div>
           <a href="/dashboard.html" style="font-size: 0.82rem; color: #16a34a; font-weight: 700; text-decoration: underline;">Dashboard</a>
         </div>
