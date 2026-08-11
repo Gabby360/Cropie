@@ -3299,14 +3299,77 @@ a {
 /* ==========================================================================
    FARMER TESTIMONIAL FEATURE CARD (EXACTLY MATCHING USER SCREENSHOT)
    ========================================================================== */
-.testimonial-hero-card {
+.testimonial-hero-card,
+.story-card-centered {
   background: linear-gradient(135deg, #032018 0%, #064e3b 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-xl);
-  padding: 2.75rem;
+  padding: 3.5rem 3rem;
   margin-top: 3.5rem;
   color: white;
   box-shadow: var(--shadow-card);
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.story-quote-mark {
+  font-family: var(--font-display);
+  font-size: 4rem;
+  color: #22c55e;
+  line-height: 1;
+  margin-bottom: -0.5rem;
+}
+
+.story-quote {
+  font-size: 1.35rem;
+  font-weight: 500;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.6;
+  margin-bottom: 1.75rem;
+}
+
+.story-author {
+  margin-bottom: 2rem;
+}
+
+.story-author strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.story-author span {
+  font-size: 0.9rem;
+  color: #86efac;
+  font-weight: 600;
+}
+
+.story-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 2rem;
+  margin-top: 1rem;
+}
+
+.story-stats-row .stat-num {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #22c55e;
+}
+
+.story-stats-row .stat-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+  margin-top: 0.25rem;
 }
 
 .testimonial-grid {
