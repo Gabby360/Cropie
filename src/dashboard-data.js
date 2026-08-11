@@ -87,10 +87,10 @@ export const AGRICULTURAL_RULE_LIBRARY = [
 
 export const initialDashboardData = {
   headerInfo: {
-    farmName: "Kwame's Maize Field",
-    location: "Ejura, Ashanti Region, Ghana",
-    gps: "7.3824° N, 1.3621° W",
-    statusLabel: "Demo Data",
+    farmName: "My Local Farm",
+    location: "Laterbiokorshie, Accra, Ghana",
+    gps: "5.5492° N, 0.2315° W",
+    statusLabel: "Open-Meteo Live API",
     lastUpdatedText: "Updated 2 mins ago",
     timestamp: Date.now() - 120000
   },

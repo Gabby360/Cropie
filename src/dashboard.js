@@ -152,35 +152,57 @@ function initDashboardApp(dataService, auth, weatherService) {
 
   loadAndRenderData();
 
-  async function loadAndRenderData() {
+  const gpsBtn = document.getElementById('dashDetectGpsBtn');
+  const locationForm = document.getElementById('dashLocationForm');
+  const locationInput = document.getElementById('dashLocationSearchInput');
+
+  loadAndRenderData();
+
+  async function loadAndRenderData(customFarm = null) {
     if (refreshIcon) refreshIcon.classList.add('fa-spin');
     if (refreshBtn) refreshBtn.disabled = true;
 
     try {
-      let activeFarm = {
-        id: 'farm_default',
-        farmName: "Kwame's Maize Field",
-        locationName: 'Ejura, Ashanti Region, Ghana',
-        latitude: 7.3824,
-        longitude: -1.3621,
-        crop: 'maize',
-        plantingDate: '2026-06-10'
-      };
+      let activeFarm = customFarm;
 
-      const user = await auth.getCurrentUser();
-      if (user) {
-        const userFarm = await auth.getUserFarm(user.id);
-        if (userFarm) {
-          activeFarm = userFarm;
-          dataService.applyUserFarmContext(userFarm);
-          const farmTitleEl = document.getElementById('dashFarmTitle');
-          const farmMetaLocation = document.getElementById('dashMetaLocation');
-          if (farmTitleEl) farmTitleEl.textContent = userFarm.farmName;
-          if (farmMetaLocation) farmMetaLocation.textContent = `${userFarm.locationName} (${userFarm.locationSource || 'GPS'})`;
+      if (!activeFarm) {
+        const savedFarmStr = localStorage.getItem('cropie_active_farm');
+        if (savedFarmStr) {
+          try { activeFarm = JSON.parse(savedFarmStr); } catch {}
         }
       }
 
-      // Fetch real live weather from Open-Meteo API for active farm
+      if (!activeFarm) {
+        activeFarm = {
+          id: 'farm_default',
+          farmName: "My Farm",
+          locationName: 'Laterbiokorshie, Accra, Ghana',
+          latitude: 5.5492,
+          longitude: -0.2315,
+          crop: 'maize',
+          plantingDate: '2026-06-10'
+        };
+      }
+
+      const user = await auth.getCurrentUser();
+      if (user && !customFarm) {
+        const userFarm = await auth.getUserFarm(user.id);
+        if (userFarm) {
+          activeFarm = { ...activeFarm, ...userFarm };
+        }
+      }
+
+      // Apply farm context
+      dataService.applyUserFarmContext(activeFarm);
+      const farmTitleEl = document.getElementById('dashFarmTitle');
+      const farmMetaLocation = document.getElementById('dashMetaLocation');
+      if (farmTitleEl) farmTitleEl.textContent = activeFarm.farmName || "My Farm";
+      if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${activeFarm.locationName}`;
+
+      // Save to active local storage cache
+      localStorage.setItem('cropie_active_farm', JSON.stringify(activeFarm));
+
+      // Fetch real live weather from Open-Meteo API for active farm location
       try {
         const weatherData = await weatherService.getWeatherForFarm(activeFarm);
         dataService.applyOpenMeteoWeather(weatherData);
@@ -208,6 +230,84 @@ function initDashboardApp(dataService, auth, weatherService) {
         if (refreshBtn) refreshBtn.disabled = false;
       }, 400);
     }
+  }
+
+  // Location Search Handler
+  if (locationForm && locationInput) {
+    locationForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = locationInput.value.trim();
+      if (!query) return;
+
+      const btn = locationForm.querySelector('button');
+      if (btn) btn.disabled = true;
+      try {
+        const geo = await weatherService.geocodeLocation(query);
+        if (geo) {
+          const newFarm = {
+            id: `farm_${Date.now()}`,
+            farmName: `Farm at ${geo.name.split(',')[0]}`,
+            locationName: geo.name,
+            latitude: geo.lat,
+            longitude: geo.lon,
+            crop: 'maize',
+            plantingDate: '2026-06-10'
+          };
+          await loadAndRenderData(newFarm);
+        }
+      } catch (gErr) {
+        console.warn('Search location error:', gErr);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
+
+  // GPS Auto-Detect Handler
+  if (gpsBtn) {
+    gpsBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser.');
+        return;
+      }
+
+      gpsBtn.disabled = true;
+      gpsBtn.querySelector('span').textContent = 'Detecting GPS...';
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          
+          let locName = `GPS Location (${lat.toFixed(4)}°, ${lon.toFixed(4)}°)`;
+          try {
+            const geo = await weatherService.geocodeLocation(`${lat.toFixed(4)},${lon.toFixed(4)}`);
+            if (geo && geo.name) locName = geo.name;
+          } catch {}
+
+          const gpsFarm = {
+            id: `farm_gps_${Date.now()}`,
+            farmName: `My Local Farm`,
+            locationName: locName,
+            latitude: lat,
+            longitude: lon,
+            crop: 'maize',
+            plantingDate: '2026-06-10'
+          };
+
+          await loadAndRenderData(gpsFarm);
+          gpsBtn.disabled = false;
+          gpsBtn.querySelector('span').textContent = 'Use My Current Location';
+        },
+        (error) => {
+          console.warn('GPS detection error:', error);
+          alert('Could not detect location. Please type your city in the search box.');
+          gpsBtn.disabled = false;
+          gpsBtn.querySelector('span').textContent = 'Use My Current Location';
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
   }
 
   // Refresh Handler

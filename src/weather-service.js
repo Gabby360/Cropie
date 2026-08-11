@@ -8,6 +8,60 @@ export class CropieWeatherService {
     this.CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache TTL
   }
 
+  // Geocode location string into latitude, longitude, and display name
+  async geocodeLocation(locationQuery) {
+    if (!locationQuery) return null;
+    const q = locationQuery.toLowerCase().trim();
+
+    const ghanaPresetMap = {
+      'laterbiokorshie': { name: 'Laterbiokorshie, Accra, Ghana', lat: 5.5492, lon: -0.2315 },
+      'laterbiokershie': { name: 'Laterbiokorshie, Accra, Ghana', lat: 5.5492, lon: -0.2315 },
+      'accra': { name: 'Accra, Greater Accra, Ghana', lat: 5.5593, lon: -0.1974 },
+      'dansoman': { name: 'Dansoman, Accra, Ghana', lat: 5.5526, lon: -0.2524 },
+      'madina': { name: 'Madina, Accra, Ghana', lat: 5.6681, lon: -0.1663 },
+      'east legon': { name: 'East Legon, Accra, Ghana', lat: 5.6358, lon: -0.1601 },
+      'spintex': { name: 'Spintex, Accra, Ghana', lat: 5.6268, lon: -0.1147 },
+      'kasoa': { name: 'Kasoa, Central Region, Ghana', lat: 5.5344, lon: -0.4168 },
+      'kumasi': { name: 'Kumasi, Ashanti Region, Ghana', lat: 6.6885, lon: -1.6244 },
+      'ejura': { name: 'Ejura, Ashanti Region, Ghana', lat: 7.3824, lon: -1.3621 },
+      'tamale': { name: 'Tamale, Northern Region, Ghana', lat: 9.4008, lon: -0.8393 },
+      'koforidua': { name: 'Koforidua, Eastern Region, Ghana', lat: 6.0941, lon: -0.2591 },
+      'sunyani': { name: 'Sunyani, Bono Region, Ghana', lat: 7.3349, lon: -2.3123 },
+      'cape coast': { name: 'Cape Coast, Central Region, Ghana', lat: 5.1053, lon: -1.2466 },
+      'ho': { name: 'Ho, Volta Region, Ghana', lat: 6.6008, lon: 0.4713 },
+      'takoradi': { name: 'Takoradi, Western Region, Ghana', lat: 4.9016, lon: -1.7831 },
+      'tema': { name: 'Tema, Greater Accra, Ghana', lat: 5.6698, lon: -0.0166 },
+      'wa': { name: 'Wa, Upper West Region, Ghana', lat: 10.0601, lon: -2.5099 },
+      'bolgatanga': { name: 'Bolgatanga, Upper East Region, Ghana', lat: 10.7856, lon: -0.8514 },
+      'techiman': { name: 'Techiman, Bono East Region, Ghana', lat: 7.5828, lon: -1.9395 }
+    };
+
+    for (const [key, preset] of Object.entries(ghanaPresetMap)) {
+      if (q.includes(key)) {
+        return preset;
+      }
+    }
+
+    try {
+      const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationQuery + ', Ghana')}&limit=1`;
+      const res = await fetch(searchUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          return {
+            name: data[0].display_name.split(',').slice(0, 3).join(','),
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Nominatim geocoding notice:', err);
+    }
+
+    return { name: `${locationQuery}, Ghana`, lat: 5.5593, lon: -0.1974 };
+  }
+
   // Map WMO Weather Codes to human labels and FontAwesome icon classes
   getWmoWeatherInfo(code) {
     const wmoMap = {
