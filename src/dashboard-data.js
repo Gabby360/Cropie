@@ -223,9 +223,7 @@ export class CropieDataService {
     this.data.weather.rain = `${cur.precipitation} mm`;
     this.data.weather.wind = `${cur.windSpeed} km/h`;
     this.data.weather.cloudCover = `${cur.cloudCover}%`;
-    this.data.weather.source = weatherData.isCached 
-      ? `Source: Open-Meteo (${weatherData.cacheAgeText || 'Cached'})` 
-      : `Source: Open-Meteo Live API`;
+
 
     if (weatherData.forecast && Array.isArray(weatherData.forecast)) {
       this.data.weather.forecastList = weatherData.forecast.slice(0, 7).map(d => ({
@@ -311,7 +309,7 @@ export class CropieDataService {
     if (userFarm.latitude && userFarm.longitude) {
       this.data.headerInfo.gps = `${userFarm.latitude}° N, ${Math.abs(userFarm.longitude)}° W`;
     }
-    this.data.headerInfo.statusLabel = "Connected to Supabase & Open-Meteo";
+
     
     if (userFarm.crops && Array.isArray(userFarm.crops) && userFarm.crops.length > 0) {
       this.data.cropStatus.cropsList = userFarm.crops;

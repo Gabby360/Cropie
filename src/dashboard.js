@@ -1242,9 +1242,9 @@ function renderCropStatus(c) {
   const cropSourceTag = document.getElementById('dashCropSourceTag');
 
   if (nameEl) nameEl.textContent = c.cropName;
-  if (stageEl) stageEl.textContent = c.estimatedGrowthStage;
+  // Show only the primary stage name (strip ' / Tasseling' etc.)
+  if (stageEl) stageEl.textContent = (c.estimatedGrowthStage || '').split(' / ')[0].trim() || c.estimatedGrowthStage;
   if (daysEl) daysEl.textContent = c.daysAfterPlanting;
-  if (cropSourceTag) cropSourceTag.textContent = `Source: ${c.source}`;
 
   if (stepperContainer && c.stages) {
     stepperContainer.innerHTML = c.stages.map((stage, idx) => {
