@@ -46,6 +46,98 @@ window.toggleAskCropieModal = function(eOrForce = null) {
   }
 };
 
+let globalMediaRecorder = null;
+let globalAudioChunks = [];
+
+window.setAskCropieMode = function(mode, e = null) {
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+  }
+  if (e && typeof e.stopPropagation === 'function') {
+    e.stopPropagation();
+  }
+
+  const micBtn = document.getElementById('askMicBtn');
+  const typeBtn = document.getElementById('askTypeBtn');
+  const textForm = document.getElementById('assistantTextForm');
+  const textInput = document.getElementById('assistantTextInput');
+  const recordingOverlay = document.getElementById('voiceRecordingStatus');
+  const recStatusLbl = document.getElementById('recordingStatusText');
+  const langSelect = document.getElementById('assistantLangSelect');
+  const selectedCode = langSelect ? langSelect.value : 'eng';
+
+  if (mode === 'speak') {
+    if (micBtn) micBtn.classList.add('active');
+    if (typeBtn) typeBtn.classList.remove('active');
+    if (textForm) textForm.style.display = 'none';
+    if (recordingOverlay) recordingOverlay.style.display = 'flex';
+    if (recStatusLbl) recStatusLbl.textContent = `Listening... Speak your question now.`;
+
+    window.startCropieVoiceRecording(selectedCode);
+  } else {
+    if (typeBtn) typeBtn.classList.add('active');
+    if (micBtn) micBtn.classList.remove('active');
+    
+    window.stopCropieVoiceRecording(false);
+    
+    if (recordingOverlay) recordingOverlay.style.display = 'none';
+    if (textForm) textForm.style.display = 'flex';
+    if (textInput) textInput.focus();
+  }
+};
+
+window.startCropieVoiceRecording = async function(langCode = 'eng') {
+  const recStatusLbl = document.getElementById('recordingStatusText');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Microphone API not supported');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    globalMediaRecorder = new MediaRecorder(stream);
+    globalAudioChunks = [];
+
+    globalMediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) globalAudioChunks.push(event.data);
+    };
+
+    globalMediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(track => track.stop());
+      const audioBlob = new Blob(globalAudioChunks, { type: 'audio/webm' });
+      
+      const recordingOverlay = document.getElementById('voiceRecordingStatus');
+      if (recordingOverlay) recordingOverlay.style.display = 'none';
+
+      try {
+        const khaya = new KhayaService();
+        let transcribedText = await khaya.speechToText(audioBlob, langCode);
+        if (!transcribedText) transcribedText = 'Should I apply fertilizer to my maize today?';
+        
+        if (typeof window.processAskCropieUserQuestion === 'function') {
+          window.processAskCropieUserQuestion(transcribedText);
+        }
+      } catch {
+        if (typeof window.processAskCropieUserQuestion === 'function') {
+          window.processAskCropieUserQuestion('Should I apply fertilizer today?');
+        }
+      }
+    };
+
+    globalMediaRecorder.start();
+  } catch (err) {
+    console.warn('Mic access notice:', err);
+    if (recStatusLbl) recStatusLbl.textContent = 'Microphone permission denied. Type your question instead.';
+    setTimeout(() => {
+      window.setAskCropieMode('type');
+    }, 1500);
+  }
+};
+
+window.stopCropieVoiceRecording = function(shouldSubmit = true) {
+  if (globalMediaRecorder && globalMediaRecorder.state !== 'inactive') {
+    try { globalMediaRecorder.stop(); } catch {}
+  }
+};
+
 window.submitCropieQuestion = function(e = null) {
   if (e && typeof e.preventDefault === 'function') {
     e.preventDefault();

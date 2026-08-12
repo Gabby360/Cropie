@@ -485,11 +485,11 @@
       <!-- MODE TOGGLE BUTTONS & SUGGESTED PROMPTS -->
       <div class="ask-cropie-action-row">
         <div class="mode-btn-group">
-          <button id="askMicBtn" class="btn btn-assistant-action btn-mic-action">
+          <button type="button" id="askMicBtn" class="btn btn-assistant-action btn-mic-action" onclick="window.setAskCropieMode &amp;&amp; window.setAskCropieMode('speak', event)">
             <i class="fa-solid fa-microphone"></i>
             <span>Speak</span>
           </button>
-          <button id="askTypeBtn" class="btn btn-assistant-action btn-type-action">
+          <button type="button" id="askTypeBtn" class="btn btn-assistant-action btn-type-action active" onclick="window.setAskCropieMode &amp;&amp; window.setAskCropieMode('type', event)">
             <i class="fa-solid fa-keyboard"></i>
             <span>Type</span>
           </button>
