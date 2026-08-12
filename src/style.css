@@ -5141,7 +5141,7 @@ html, body {
 }
 
 /* ============================================================ */
-/* FLOATING VOICE LISTENING CARD                                */
+/* FLOATING VOICE LISTENING CARD (Cropie brand style)          */
 /* ============================================================ */
 .voice-listening-card {
   position: fixed;
@@ -5149,22 +5149,20 @@ html, body {
   right: 24px;
   z-index: 99999;
   width: 320px;
-  background: #111827;
-  border-radius: 28px;
-  padding: 1.75rem 1.5rem 1.5rem;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 1.5rem 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.1rem;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.06),
-    0 24px 60px rgba(0,0,0,0.55),
-    0 8px 24px rgba(0,0,0,0.35);
-  animation: vlc-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  gap: 1rem;
+  border: 1.5px solid #dcfce7;
+  box-shadow: 0 20px 40px -12px rgba(22, 163, 74, 0.2), 0 8px 20px -4px rgba(0, 0, 0, 0.08);
+  animation: vlc-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes vlc-slide-up {
-  from { opacity: 0; transform: translateY(28px) scale(0.94); }
+  from { opacity: 0; transform: translateY(24px) scale(0.95); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -5172,29 +5170,29 @@ html, body {
 .vlc-lang-badge {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
+  gap: 0.45rem;
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
   border-radius: 9999px;
-  padding: 0.3rem 0.85rem;
+  padding: 0.28rem 0.85rem;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #e2e8f0;
-  letter-spacing: 0.03em;
+  color: #166534;
+  letter-spacing: 0.02em;
 }
 
 .vlc-live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ef4444;
+  background: #dc2626;
   flex-shrink: 0;
   animation: vlc-dot-blink 1s infinite;
 }
 
 @keyframes vlc-dot-blink {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.25; }
+  50%       { opacity: 0.2; }
 }
 
 /* Animated mic ring wrapper */
@@ -5205,99 +5203,98 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0.5rem 0;
+  margin: 0.25rem 0;
 }
 
-/* Concentric pulse rings */
+/* Concentric pulse rings — green brand colour */
 .vlc-pulse-ring {
   position: absolute;
   border-radius: 50%;
-  border: 2px solid rgba(239, 68, 68, 0.35);
+  border: 2px solid rgba(22, 163, 74, 0.3);
   animation: vlc-ring-expand 2.4s ease-out infinite;
 }
 
 .vlc-pulse-ring-1 {
-  width: 90px;
-  height: 90px;
+  width: 88px;
+  height: 88px;
   animation-delay: 0s;
 }
 
 .vlc-pulse-ring-2 {
-  width: 115px;
-  height: 115px;
-  animation-delay: 0.6s;
-  border-color: rgba(239, 68, 68, 0.22);
+  width: 112px;
+  height: 112px;
+  animation-delay: 0.65s;
+  border-color: rgba(22, 163, 74, 0.18);
 }
 
 .vlc-pulse-ring-3 {
   width: 130px;
   height: 130px;
-  animation-delay: 1.2s;
-  border-color: rgba(239, 68, 68, 0.12);
+  animation-delay: 1.3s;
+  border-color: rgba(22, 163, 74, 0.08);
 }
 
 @keyframes vlc-ring-expand {
-  0%   { transform: scale(0.7); opacity: 0.9; }
+  0%   { transform: scale(0.72); opacity: 1; }
   80%  { opacity: 0; }
-  100% { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(1.12); opacity: 0; }
 }
 
-/* Center mic button */
+/* Center mic circle */
 .vlc-mic-center {
   position: relative;
   z-index: 2;
-  width: 70px;
-  height: 70px;
-  background: #ef4444;
+  width: 68px;
+  height: 68px;
+  background: #16a34a;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
+  font-size: 1.7rem;
   color: #ffffff;
-  box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.2), 0 8px 24px rgba(239, 68, 68, 0.4);
-  animation: vlc-mic-pulse 1.4s ease-in-out infinite;
+  box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.15), 0 8px 24px rgba(22, 163, 74, 0.35);
+  animation: vlc-mic-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes vlc-mic-pulse {
-  0%, 100% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.2), 0 8px 24px rgba(239, 68, 68, 0.4); }
-  50%       { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0.1), 0 8px 32px rgba(239, 68, 68, 0.5); }
+  0%, 100% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.15), 0 8px 24px rgba(22, 163, 74, 0.35); }
+  50%       { box-shadow: 0 0 0 14px rgba(22, 163, 74, 0.08), 0 8px 32px rgba(22, 163, 74, 0.45); }
 }
 
 /* Status text */
 .vlc-status-text {
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: #166534;
   text-align: center;
   margin: 0;
-  letter-spacing: 0.01em;
 }
 
 /* Live transcript preview */
 .vlc-transcript-box {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 14px;
-  padding: 0.7rem 1rem;
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 0.65rem 1rem;
   width: 100%;
   min-height: 44px;
   text-align: center;
 }
 
 .vlc-transcript-box p {
-  font-size: 0.88rem;
-  color: #94a3b8;
+  font-size: 0.87rem;
+  color: #166534;
   margin: 0;
   line-height: 1.5;
   font-style: italic;
 }
 
-/* Action buttons */
+/* Action buttons row */
 .vlc-actions {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.6rem;
   width: 100%;
 }
 
@@ -5306,35 +5303,38 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  padding: 0.7rem 0.5rem;
-  border-radius: 14px;
+  gap: 0.4rem;
+  padding: 0.65rem 0.5rem;
+  border-radius: 12px;
   font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
   border: none;
   transition: all 0.2s ease;
+  font-family: var(--font-main);
 }
 
+/* Stop & Send — green primary */
 .vlc-btn-stop {
-  background: #ef4444;
+  background: #16a34a;
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);
 }
 
 .vlc-btn-stop:hover {
-  background: #dc2626;
+  background: #15803d;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.4);
 }
 
+/* Cancel — soft outlined */
 .vlc-btn-cancel {
-  background: rgba(255,255,255,0.08);
-  color: #94a3b8;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
 }
 
 .vlc-btn-cancel:hover {
-  background: rgba(255,255,255,0.14);
-  color: #e2e8f0;
+  background: #e2e8f0;
+  color: #1e293b;
 }
