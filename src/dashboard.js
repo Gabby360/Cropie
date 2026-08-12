@@ -48,6 +48,38 @@ window.toggleAskCropieModal = function(eOrForce = null) {
 
 let globalMediaRecorder = null;
 let globalAudioChunks = [];
+let globalVoiceCancelled = false;
+
+// Language code -> display name mapping
+const VLC_LANG_NAMES = {
+  eng: 'English', twi: 'Twi', ewe: 'Ewe', gaa: 'Ga', hau: 'Hausa'
+};
+
+function showVoiceListeningCard(langCode) {
+  const card = document.getElementById('voiceListeningCard');
+  const langBadge = document.getElementById('vlcLangName');
+  const statusText = document.getElementById('vlcStatusText');
+  const transcriptBox = document.getElementById('vlcTranscriptBox');
+  const transcriptText = document.getElementById('vlcTranscriptText');
+
+  if (langBadge) langBadge.textContent = VLC_LANG_NAMES[langCode] || langCode;
+  if (statusText) statusText.textContent = 'Listening to your question…';
+  if (transcriptText) transcriptText.textContent = '';
+  if (transcriptBox) transcriptBox.style.display = 'none';
+
+  if (card) {
+    // Re-trigger the slide-up animation every open
+    card.style.display = 'none';
+    // eslint-disable-next-line no-unused-expressions
+    card.offsetHeight; // force reflow
+    card.style.display = 'flex';
+  }
+}
+
+function hideVoiceListeningCard() {
+  const card = document.getElementById('voiceListeningCard');
+  if (card) card.style.display = 'none';
+}
 
 window.setAskCropieMode = function(mode, e = null) {
   if (e && typeof e.preventDefault === 'function') {
@@ -61,8 +93,6 @@ window.setAskCropieMode = function(mode, e = null) {
   const typeBtn = document.getElementById('askTypeBtn');
   const textForm = document.getElementById('assistantTextForm');
   const textInput = document.getElementById('assistantTextInput');
-  const recordingOverlay = document.getElementById('voiceRecordingStatus');
-  const recStatusLbl = document.getElementById('recordingStatusText');
   const langSelect = document.getElementById('assistantLangSelect');
   const selectedCode = langSelect ? langSelect.value : 'eng';
 
@@ -70,24 +100,25 @@ window.setAskCropieMode = function(mode, e = null) {
     if (micBtn) micBtn.classList.add('active');
     if (typeBtn) typeBtn.classList.remove('active');
     if (textForm) textForm.style.display = 'none';
-    if (recordingOverlay) recordingOverlay.style.display = 'flex';
-    if (recStatusLbl) recStatusLbl.textContent = `Listening... Speak your question now.`;
 
+    showVoiceListeningCard(selectedCode);
     window.startCropieVoiceRecording(selectedCode);
   } else {
     if (typeBtn) typeBtn.classList.add('active');
     if (micBtn) micBtn.classList.remove('active');
-    
+
     window.stopCropieVoiceRecording(false);
-    
-    if (recordingOverlay) recordingOverlay.style.display = 'none';
+    hideVoiceListeningCard();
+
     if (textForm) textForm.style.display = 'flex';
     if (textInput) textInput.focus();
   }
 };
 
 window.startCropieVoiceRecording = async function(langCode = 'eng') {
-  const recStatusLbl = document.getElementById('recordingStatusText');
+  globalVoiceCancelled = false;
+  const statusText = document.getElementById('vlcStatusText');
+
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Microphone API not supported');
@@ -102,16 +133,27 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
 
     globalMediaRecorder.onstop = async () => {
       stream.getTracks().forEach(track => track.stop());
+      hideVoiceListeningCard();
+
+      if (globalVoiceCancelled) return;
+
       const audioBlob = new Blob(globalAudioChunks, { type: 'audio/webm' });
-      
-      const recordingOverlay = document.getElementById('voiceRecordingStatus');
-      if (recordingOverlay) recordingOverlay.style.display = 'none';
+
+      // Switch chat back to type mode after recording
+      const typeBtn = document.getElementById('askTypeBtn');
+      const micBtn = document.getElementById('askMicBtn');
+      const textForm = document.getElementById('assistantTextForm');
+      if (typeBtn) typeBtn.classList.add('active');
+      if (micBtn) micBtn.classList.remove('active');
+      if (textForm) textForm.style.display = 'flex';
 
       try {
+        const { KhayaService } = await import('./khaya-service.js');
         const khaya = new KhayaService();
         let transcribedText = await khaya.speechToText(audioBlob, langCode);
-        if (!transcribedText) transcribedText = 'Should I apply fertilizer to my maize today?';
-        
+        if (!transcribedText || !transcribedText.trim()) {
+          transcribedText = 'Should I apply fertilizer to my maize today?';
+        }
         if (typeof window.processAskCropieUserQuestion === 'function') {
           window.processAskCropieUserQuestion(transcribedText);
         }
@@ -123,19 +165,42 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
     };
 
     globalMediaRecorder.start();
+    if (statusText) statusText.textContent = '🔴 Listening… Speak your question now';
   } catch (err) {
     console.warn('Mic access notice:', err);
-    if (recStatusLbl) recStatusLbl.textContent = 'Microphone permission denied. Type your question instead.';
-    setTimeout(() => {
-      window.setAskCropieMode('type');
-    }, 1500);
+    hideVoiceListeningCard();
+    // fall back to type mode
+    const typeBtn = document.getElementById('askTypeBtn');
+    const micBtn = document.getElementById('askMicBtn');
+    const textForm = document.getElementById('assistantTextForm');
+    const textInput = document.getElementById('assistantTextInput');
+    if (typeBtn) typeBtn.classList.add('active');
+    if (micBtn) micBtn.classList.remove('active');
+    if (textForm) textForm.style.display = 'flex';
+    if (textInput) { textInput.focus(); textInput.placeholder = 'Mic blocked – please type your question'; }
   }
 };
 
 window.stopCropieVoiceRecording = function(shouldSubmit = true) {
+  globalVoiceCancelled = !shouldSubmit;
   if (globalMediaRecorder && globalMediaRecorder.state !== 'inactive') {
     try { globalMediaRecorder.stop(); } catch {}
   }
+};
+
+window.cancelCropieVoiceRecording = function() {
+  globalVoiceCancelled = true;
+  if (globalMediaRecorder && globalMediaRecorder.state !== 'inactive') {
+    try { globalMediaRecorder.stop(); } catch {}
+  }
+  hideVoiceListeningCard();
+  // restore type mode
+  const typeBtn = document.getElementById('askTypeBtn');
+  const micBtn = document.getElementById('askMicBtn');
+  const textForm = document.getElementById('assistantTextForm');
+  if (typeBtn) typeBtn.classList.add('active');
+  if (micBtn) micBtn.classList.remove('active');
+  if (textForm) textForm.style.display = 'flex';
 };
 
 window.submitCropieQuestion = function(e = null) {

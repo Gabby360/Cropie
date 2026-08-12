@@ -536,6 +536,47 @@
     </div>
   </div>
 
+  <!-- ============================================================ -->
+  <!-- FLOATING VOICE LISTENING CARD (shown when Speak is clicked) -->
+  <!-- ============================================================ -->
+  <div id="voiceListeningCard" class="voice-listening-card" aria-label="Voice Listening Card">
+    <!-- Language badge pill -->
+    <div class="vlc-lang-badge" id="vlcLangBadge">
+      <span class="vlc-live-dot"></span>
+      <span id="vlcLangName">English</span>
+    </div>
+
+    <!-- Large animated mic ring -->
+    <div class="vlc-mic-ring-wrap">
+      <div class="vlc-pulse-ring vlc-pulse-ring-3"></div>
+      <div class="vlc-pulse-ring vlc-pulse-ring-2"></div>
+      <div class="vlc-pulse-ring vlc-pulse-ring-1"></div>
+      <div class="vlc-mic-center">
+        <i class="fa-solid fa-microphone"></i>
+      </div>
+    </div>
+
+    <!-- Status label -->
+    <p class="vlc-status-text" id="vlcStatusText">Listening to your question…</p>
+
+    <!-- Live transcription preview -->
+    <div class="vlc-transcript-box" id="vlcTranscriptBox">
+      <p id="vlcTranscriptText"></p>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="vlc-actions">
+      <button type="button" class="vlc-btn vlc-btn-stop" id="vlcStopBtn" onclick="window.stopCropieVoiceRecording &amp;&amp; window.stopCropieVoiceRecording(true)">
+        <i class="fa-solid fa-stop"></i>
+        Stop &amp; Send
+      </button>
+      <button type="button" class="vlc-btn vlc-btn-cancel" id="vlcCancelBtn" onclick="window.cancelCropieVoiceRecording &amp;&amp; window.cancelCropieVoiceRecording()">
+        <i class="fa-solid fa-xmark"></i>
+        Cancel
+      </button>
+    </div>
+  </div>
+
   <script type="module" src="/src/dashboard.js"></script>
 </body>
 </html>
