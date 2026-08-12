@@ -123,26 +123,20 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
   if (langCode === 'eng') {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      // Browser doesn't support Web Speech API — fall back to type mode
       hideVoiceListeningCard();
-      const typeBtn = document.getElementById('askTypeBtn');
-      const micBtn = document.getElementById('askMicBtn');
-      const textForm = document.getElementById('assistantTextForm');
-      const textInput = document.getElementById('assistantTextInput');
-      if (typeBtn) typeBtn.classList.add('active');
-      if (micBtn) micBtn.classList.remove('active');
-      if (textForm) textForm.style.display = 'flex';
-      if (textInput) { textInput.focus(); textInput.placeholder = 'Voice not supported — type your question'; }
+      restoreTypeMode(true);
       return;
     }
 
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
-    recognition.interimResults = false;
+    recognition.interimResults = true;   // live preview as user speaks
     recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+    recognition.continuous = true;       // keep listening — don't auto-stop on silence
 
-    // Store ref so stopCropieVoiceRecording can stop it
+    let finalTranscript = '';
+
+    // Store ref so Stop & Send / Cancel can call recognition.stop()
     globalMediaRecorder = recognition;
 
     recognition.onstart = () => {
@@ -150,27 +144,57 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript.trim();
       if (globalVoiceCancelled) return;
-      hideVoiceListeningCard();
-      restoreTypeMode();
-      if (transcript && typeof window.processAskCropieUserQuestion === 'function') {
-        window.processAskCropieUserQuestion(transcript);
+
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
+
+      // Show live transcript in the card preview box
+      const transcriptBox = document.getElementById('vlcTranscriptBox');
+      const transcriptText = document.getElementById('vlcTranscriptText');
+      const displayText = finalTranscript + interimTranscript;
+      if (transcriptBox && transcriptText && displayText.trim()) {
+        transcriptBox.style.display = 'block';
+        transcriptText.textContent = displayText;
+      }
+      if (statusText) statusText.textContent = '🔴 Listening… Click Stop & Send when done';
     };
 
     recognition.onerror = (event) => {
+      if (event.error === 'no-speech') {
+        // Silence — just keep the card open and restart
+        try { recognition.start(); } catch {}
+        return;
+      }
       console.warn('SpeechRecognition error:', event.error);
-      hideVoiceListeningCard();
-      restoreTypeMode();
-      if (statusText) statusText.textContent = 'Could not hear you — please try again or type.';
-    };
-
-    recognition.onend = () => {
-      // If no result was fired (silence timeout), clean up UI
       if (!globalVoiceCancelled) {
         hideVoiceListeningCard();
         restoreTypeMode();
+      }
+    };
+
+    recognition.onend = () => {
+      if (globalVoiceCancelled) return;
+
+      const text = finalTranscript.trim();
+      if (text) {
+        // User explicitly stopped with a transcript — submit it
+        hideVoiceListeningCard();
+        restoreTypeMode();
+        if (typeof window.processAskCropieUserQuestion === 'function') {
+          window.processAskCropieUserQuestion(text);
+        }
+      }
+      // If no transcript yet and not cancelled — recognition ended unexpectedly,
+      // keep the card open and restart it
+      else if (!globalVoiceCancelled) {
+        try { recognition.start(); } catch {}
       }
     };
 
@@ -178,10 +202,11 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
       recognition.start();
     } catch (err) {
       hideVoiceListeningCard();
-      restoreTypeMode();
+      restoreTypeMode(true);
     }
     return;
   }
+
 
   // ─── GHANAIAN LANGUAGES: use Khaya ASR v3 ────────────────────────────────
   try {
