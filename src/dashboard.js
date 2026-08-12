@@ -419,15 +419,20 @@ function onDOMReady(fn) {
   }
 }
 
-onDOMReady(() => {
+onDOMReady(async () => {
   const auth = new CropieAuthService();
+
+  // 🔒 ROUTE GUARD: Require signed-in user session
+  const currentUser = await auth.requireAuth('/login.html');
+  if (!currentUser) return;
+
   const dataService = new CropieDataService();
   const weatherService = new CropieWeatherService();
   const khayaService = new KhayaService();
   const assistantService = new CropieAssistantService(dataService, khayaService);
 
   initMobileDrawer(auth);
-  initDashboardApp(dataService, auth, weatherService, khayaService, assistantService);
+  initDashboardApp(dataService, auth, weatherService, khayaService, assistantService, currentUser);
   initUserSessionNav(auth).catch(() => {});
 });
 
@@ -522,15 +527,15 @@ function initMobileDrawer(auth) {
   }
 }
 
-function initDashboardApp(dataService, auth, weatherService, khayaService, assistantService) {
-  const currentUser = auth.getCurrentUser();
+function initDashboardApp(dataService, auth, weatherService, khayaService, assistantService, currentUser = null) {
   const dashNavActions = document.getElementById('dashNavActions');
 
   if (dashNavActions && currentUser) {
+    const displayName = currentUser.fullName || currentUser.email || 'Farmer';
     dashNavActions.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <span class="badge-tag-mini" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;">
-          <i class="fa-solid fa-circle-user" style="margin-right: 0.25rem;"></i> ${currentUser.fullName}
+          <i class="fa-solid fa-circle-user" style="margin-right: 0.25rem;"></i> ${displayName}
         </span>
         <button id="dashLogoutBtn" class="nav-link" style="background: none; border: none; cursor: pointer; color: #dc2626; font-weight: 600;">
           Sign Out

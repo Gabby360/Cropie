@@ -13,6 +13,17 @@
 
   <!-- Core Design System CSS -->
   <link rel="stylesheet" href="/src/style.css">
+
+  <!-- Instant Session Guard: Redirect unauthenticated visitors to login immediately -->
+  <script>
+    (function() {
+      const userSession = localStorage.getItem('cropie_active_user_session');
+      const sbToken = localStorage.getItem('sb-ghsbdlyzxluhmsqhyefx-auth-token');
+      if (!userSession && !sbToken) {
+        window.location.href = '/login.html';
+      }
+    })();
+  </script>
 </head>
 <body class="auth-page-body">
 
@@ -241,15 +252,10 @@
   <script type="module">
     import { CropieAuthService } from '/src/auth.js';
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const auth = new CropieAuthService();
-      const currentUser = auth.getCurrentUser();
-
-      // Redirect if user not signed in
-      if (!currentUser) {
-        window.location.href = '/login.html';
-        return;
-      }
+      const currentUser = await auth.requireAuth('/login.html');
+      if (!currentUser) return;
 
       // Pre-fill planting date default
       const plantingInput = document.getElementById('plantingDate');

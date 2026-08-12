@@ -103,8 +103,9 @@
   <script type="module">
     import { CropieAuthService } from '/src/auth.js';
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const auth = new CropieAuthService();
+      await auth.redirectIfAuthenticated('/dashboard.html');
       const form = document.getElementById('loginForm');
       const emailInput = document.getElementById('emailOrPhone');
       const passwordInput = document.getElementById('loginPassword');

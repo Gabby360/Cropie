@@ -30,6 +30,26 @@ export class CropieAuthService {
     }
   }
 
+  // Require authentication — redirect to /login.html if no active user session exists
+  async requireAuth(redirectTo = '/login.html') {
+    const user = await this.getCurrentUser();
+    if (!user) {
+      window.location.href = redirectTo;
+      return null;
+    }
+    return user;
+  }
+
+  // Redirect authenticated users away from login/signup pages to /dashboard.html
+  async redirectIfAuthenticated(redirectTo = '/dashboard.html') {
+    const user = await this.getCurrentUser();
+    if (user) {
+      window.location.href = redirectTo;
+      return user;
+    }
+    return null;
+  }
+
   // Get User Profile from public.profiles table
   async getUserProfile(userId) {
     try {
