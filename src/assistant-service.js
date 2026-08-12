@@ -104,19 +104,100 @@ export class CropieAssistantService {
       responseText = `For your farm in ${context.location} (${context.crops.join(', ')}): Current weather is ${context.currentWeather.temp}, ${context.currentWeather.condition} with ${context.currentWeather.rainProb} rain probability. Your ${activeCrop} is in the ${context.growthStage} stage.`;
     }
 
-    // 6. Record turn in conversation history
+    // 6. Native Ghanaian Language Translation Pipeline (Twi, Ewe, Ga, Hausa)
+    let finalAnswer = responseText;
+    if (selectedLanguage && selectedLanguage !== 'eng') {
+      try {
+        const translatedFromKhaya = await this.khayaService.translateText(responseText, 'eng', selectedLanguage);
+        if (translatedFromKhaya && translatedFromKhaya !== responseText) {
+          finalAnswer = translatedFromKhaya;
+        } else {
+          finalAnswer = this.translateResponseToLanguage(responseText, selectedLanguage, context, activeCrop);
+        }
+      } catch {
+        finalAnswer = this.translateResponseToLanguage(responseText, selectedLanguage, context, activeCrop);
+      }
+    }
+
+    // 7. Record turn in conversation history
     this.conversationHistory.push({
       question: userQuestionInEnglish,
-      response: responseText,
+      response: finalAnswer,
+      language: selectedLanguage,
       timestamp: Date.now()
     });
 
     return {
-      englishAnswer: responseText,
+      englishAnswer: finalAnswer,
+      rawEnglish: responseText,
+      language: selectedLanguage,
       cropContext: activeCrop,
       locationContext: context.location,
       weatherContext: context.currentWeather
     };
+  }
+
+  // Localized Ghanaian Language Translation Engine
+  translateResponseToLanguage(responseText, selectedLanguage, context, activeCrop) {
+    if (selectedLanguage === 'eng' || !selectedLanguage) return responseText;
+
+    const lang = selectedLanguage.toLowerCase();
+    const rainProb = context.currentWeather.rainProb || "68%";
+    const location = context.location || "Laterbiokorshie, Accra";
+    const temp = context.currentWeather.temp || "28°C";
+    const days = context.daysAfterPlanting || "62 days";
+    const stage = context.growthStage || "Flowering / Tasseling";
+
+    if (lang === 'twi') {
+      if (responseText.includes('Akwaaba') || responseText.includes('Hello')) {
+        return `Akwaaba! Me ne Cropie, wo afuo AI boafoɔ wɔ ${location}. Wo ${activeCrop} wɔ Da ${days} (${stage}). Ɛyɛ deɛn na me tumi boa wo nnɛ?`;
+      }
+      if (responseText.includes('Rain probability') || responseText.includes('rain is expected')) {
+        return `Nsuo tɔ nteteeɔ wɔ ${location} mu yɛ kɛseɛ (${rainProb}). Wo ${activeCrop} wɔ ${stage} mu hia nsuo hwɛsoɔ pa. Twɛn fertilizer guo kosi sesei.`;
+      }
+      if (responseText.includes('fertilizer') || responseText.includes('field activities')) {
+        return `Wo ${activeCrop} (Da ${days}, ${stage}) wɔ ${location}. Ewiemu tebea yɛ ${temp}. Yɛkamfo kyerɛ sɛ wosɔ asase ewiemu nsuo ahwɛ na woyɛ afuo ho ndwuma.`;
+      }
+      if (responseText.includes('growth stage') || responseText.includes('stage')) {
+        return `Wo ${activeCrop} wɔ ${stage} mu (Da ${days}) wɔ ${location} afuo so.`;
+      }
+      return `Wɔ wo afuo so wɔ ${location} (${activeCrop}): Ewiemu yɛ ${temp}, nsuo tɔ nteteeɔ yɛ ${rainProb}. Wo ${activeCrop} wɔ ${stage} mpuntuo mu.`;
+    }
+
+    if (lang === 'ewe') {
+      if (responseText.includes('Akwaaba') || responseText.includes('Hello')) {
+        return `Woezɔ! Nye wnye Cropie, wò agble AI kpekpedenuwola le ${location}. Wò ${activeCrop} le ŋkeke ${days} dzi (${stage}). Aleke mate ŋu akpe kpe wo egbe?`;
+      }
+      if (responseText.includes('Rain probability') || responseText.includes('rain is expected')) {
+        return `Tsidza le ${location} kɔ dzi (${rainProb}). Wò ${activeCrop} le ${stage} hiã tsidza ŋu dɔwɔwɔ. Megada duu egbe o.`;
+      }
+      if (responseText.includes('fertilizer') || responseText.includes('field activities')) {
+        return `Wò ${activeCrop} (Ŋkeke ${days}, ${stage}) le ${location}. Xexeme le ${temp}. Dzro anyigba me ahasia nuxɔxɔwo dzi.`;
+      }
+      return `Le wò agble dzi le ${location} (${activeCrop}): Xexeme le ${temp}, tsidza le ${rainProb}. Wò ${activeCrop} le ${stage} dzi.`;
+    }
+
+    if (lang === 'gaa' || lang === 'ga') {
+      if (responseText.includes('Akwaaba') || responseText.includes('Hello')) {
+        return `Blema baa! Mi ji Cropie, o-ŋmɔɔ AI yelɔ le ${location}. O-ŋmɔɔ ${activeCrop} yɛ gbi ${days} nɔ (${stage}). Mɛni mafe ma-ye obua o ŋmɛnɛ?`;
+      }
+      if (responseText.includes('Rain probability') || responseText.includes('rain is expected')) {
+        return `Nshɔ nu tɔɔ le ${location} nɔ yɛ nɔ (${rainProb}). O-ŋmɔɔ ${activeCrop} yɛ ${stage} he miihia nu kwɛmɔ. Kaafã nsoo amrɔ nɛɛ.`;
+      }
+      return `Yɛ o-ŋmɔɔ nɔ le ${location} (${activeCrop}): Je ŋmɛnɛ yɛ ${temp}, nu tɔɔ yɛ ${rainProb}. O-ŋmɔɔ ${activeCrop} yɛ ${stage} nɔ.`;
+    }
+
+    if (lang === 'hau' || lang === 'hausa') {
+      if (responseText.includes('Akwaaba') || responseText.includes('Hello')) {
+        return `Sannu! Ni ne Cropie, mai taimaka maka gona na AI a ${location}. Shuka ${activeCrop} tana Ranar ${days} (${stage}). Ta yaya zan iya taimaka maka a yau?`;
+      }
+      if (responseText.includes('Rain probability') || responseText.includes('rain is expected')) {
+        return `Yiwuwar ruwa a ${location} tana da yawa (${rainProb}). Shuka ${activeCrop} a matakin ${stage} tana buƙatar kula da ruwa. A dakata da saka taki a yau.`;
+      }
+      return `A gonar ku a ${location} (${activeCrop}): Yanayin da aiyuka ${temp}, yiwuwar ruwa ${rainProb}. Shuka ${activeCrop} tana a matakin ${stage}.`;
+    }
+
+    return responseText;
   }
 
   // Generate suggested quick prompts based on farm context
