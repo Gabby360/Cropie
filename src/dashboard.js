@@ -447,6 +447,7 @@ function initDashboardApp(dataService, auth, weatherService) {
     const typeBtn = document.getElementById('askTypeBtn');
     const textForm = document.getElementById('assistantTextForm');
     const textInput = document.getElementById('assistantTextInput');
+    const sendBtn = document.getElementById('sendAssistantTextBtn');
     const recordingOverlay = document.getElementById('voiceRecordingStatus');
     const stopRecBtn = document.getElementById('stopRecordingBtn');
     const recStatusLbl = document.getElementById('recordingStatusText');
@@ -605,15 +606,39 @@ function initDashboardApp(dataService, auth, weatherService) {
       });
     }
 
-    // 4. Text Form Submission Handler (Synchronous!)
+    // 4. Text Form & Send Button Handlers (Synchronous!)
+    const doSubmitQuery = () => {
+      if (!textInput) return;
+      const val = textInput.value.trim();
+      if (!val) return;
+      textInput.value = '';
+      handleUserQuestion(val);
+    };
+
+    if (sendBtn) {
+      sendBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        doSubmitQuery();
+      });
+    }
+
     if (textForm) {
       textForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (!textInput) return;
-        const val = textInput.value.trim();
-        if (!val) return;
-        textInput.value = '';
-        handleUserQuestion(val);
+        e.stopPropagation();
+        doSubmitQuery();
+        return false;
+      });
+    }
+
+    if (textInput) {
+      textInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          doSubmitQuery();
+        }
       });
     }
 
