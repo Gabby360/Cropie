@@ -4811,21 +4811,21 @@ html, body {
 
 .ask-cropie-close-btn {
   position: absolute;
-  top: 1.25rem;
-  right: 1.25rem;
+  top: 0.75rem;
+  right: 0.85rem;
   background: #f1f5f9;
-  border: none;
-  width: 36px;
-  height: 36px;
+  border: 1px solid #cbd5e1;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   color: #64748b;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  z-index: 10;
+  z-index: 20;
 }
 
 .ask-cropie-close-btn:hover {
@@ -4849,6 +4849,7 @@ html, body {
   flex-wrap: wrap;
   border-bottom: 1px solid #f1f5f9;
   padding-bottom: 1rem;
+  padding-right: 2.5rem;
 }
 
 .ask-cropie-title-box {
