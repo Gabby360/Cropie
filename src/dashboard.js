@@ -525,18 +525,42 @@ function initDashboardApp(dataService, auth, weatherService) {
     };
     renderPrompts(initialPrompts);
 
-    // 2. Initial Mode Toggles (Synchronous!)
-    if (typeBtn && textInput) {
+    // 2. Mode Switching Logic (Speak vs Type)
+    const setAssistantMode = (mode) => {
+      if (mode === 'speak') {
+        if (micBtn) micBtn.classList.add('active');
+        if (typeBtn) typeBtn.classList.remove('active');
+        if (textForm) textForm.style.display = 'none';
+        if (recordingOverlay) recordingOverlay.style.display = 'flex';
+      } else {
+        if (typeBtn) typeBtn.classList.add('active');
+        if (micBtn) micBtn.classList.remove('active');
+        if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
+          try { currentMediaRecorder.stop(); } catch {}
+        }
+        if (recordingOverlay) recordingOverlay.style.display = 'none';
+        if (textForm) textForm.style.display = 'flex';
+        if (textInput) textInput.focus();
+      }
+    };
+    setAssistantMode('type');
+
+    if (typeBtn) {
       typeBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        textInput.focus();
+        e.stopPropagation();
+        setAssistantMode('type');
       });
     }
 
-    // 3. Voice Input Handler (Synchronous!)
+    // 3. Voice Input Handler (Speak Mode)
     if (micBtn) {
       micBtn.addEventListener('click', async (e) => {
         e.preventDefault();
+        e.stopPropagation();
+
+        setAssistantMode('speak');
+
         const selectedCode = langSelect ? langSelect.value : 'eng';
         const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true, name: 'English' };
 
@@ -545,12 +569,10 @@ function initDashboardApp(dataService, auth, weatherService) {
             capabilityAlert.style.display = 'block';
             capabilityAlert.textContent = `Voice is not currently available for ${langConfig.name}. Please type your question.`;
           }
-          if (textInput) textInput.focus();
+          setAssistantMode('type');
           return;
         }
 
-        // Show instant visual listening overlay
-        if (recordingOverlay) recordingOverlay.style.display = 'flex';
         if (recStatusLbl) recStatusLbl.textContent = `Listening in ${langConfig.name}... Speak your question now.`;
 
         try {
@@ -570,7 +592,7 @@ function initDashboardApp(dataService, auth, weatherService) {
             stream.getTracks().forEach(track => track.stop());
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
-            if (recordingOverlay) recordingOverlay.style.display = 'none';
+            setAssistantMode('type');
             appendChatMessage('user', '🎙️ [Voice Question Recorded]');
 
             try {
@@ -596,13 +618,11 @@ function initDashboardApp(dataService, auth, weatherService) {
 
         } catch (mErr) {
           console.warn('Microphone access notice:', mErr);
-          if (recordingOverlay) recordingOverlay.style.display = 'none';
+          setAssistantMode('type');
           
           const promptQuestion = prompt('Microphone access denied or permission required. Type your question below:', 'Should I apply fertilizer today?');
           if (promptQuestion && promptQuestion.trim()) {
             handleUserQuestion(promptQuestion.trim());
-          } else if (textInput) {
-            textInput.focus();
           }
         }
       });
@@ -611,22 +631,31 @@ function initDashboardApp(dataService, auth, weatherService) {
     if (stopRecBtn) {
       stopRecBtn.addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        setAssistantMode('type');
         if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
-          currentMediaRecorder.stop();
-        } else {
-          if (recordingOverlay) recordingOverlay.style.display = 'none';
-          handleUserQuestion('Should I apply fertilizer today?');
+          try { currentMediaRecorder.stop(); } catch {}
         }
       });
     }
 
-    // 4. Text Form & Send Button Handlers (Synchronous!)
+    // 4. Text Form & Send Button Handlers (Synchronous & Global!)
     const doSubmitQuery = () => {
-      if (!textInput) return;
-      const val = textInput.value.trim();
-      if (!val) return;
-      textInput.value = '';
-      handleUserQuestion(val);
+      const textEl = document.getElementById('assistantTextInput');
+      if (!textEl) return;
+      const val = textEl.value;
+      if (!val || !val.trim()) return;
+      const textToProcess = val.trim();
+      textEl.value = '';
+      setAssistantMode('type');
+      handleUserQuestion(textToProcess);
+    };
+
+    window.submitCropieQuestion = function(e = null) {
+      if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+      }
+      doSubmitQuery();
     };
 
     if (sendBtn) {

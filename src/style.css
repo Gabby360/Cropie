@@ -4942,23 +4942,35 @@ html, body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
 }
 
 .btn-mic-action {
-  background: #16a34a;
-  color: #ffffff;
-  border: none;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+  background: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
 }
 
-.btn-mic-action:hover {
-  background: #15803d;
+.btn-mic-action.active {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
 }
 
 .btn-type-action {
   background: #f1f5f9;
-  color: #334155;
-  border: 1px solid #cbd5e1;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
+}
+
+.btn-type-action.active {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
 }
 
 .suggested-prompts-container {
