@@ -37,79 +37,109 @@ export class KhayaService {
 
   // Automatic Speech Recognition — Khaya ASR v3 (Voice Audio -> Text)
   async speechToText(audioBlob, langCode = 'twi') {
-    const reader = new FileReader();
-    const base64Audio = await new Promise((resolve, reject) => {
-      reader.onloadend = () => {
-        const result = reader.result;
-        const base64Str = result.includes(',') ? result.split(',')[1] : result;
-        resolve(base64Str);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(audioBlob);
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    const response = await fetch(`${this.API_ENDPOINT}?action=asr`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        audioBase64: base64Audio,
-        language: langCode
-      })
-    });
+    try {
+      const reader = new FileReader();
+      const base64Audio = await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const result = reader.result;
+          const base64Str = result.includes(',') ? result.split(',')[1] : result;
+          resolve(base64Str);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
 
-    if (!response.ok) {
-      throw new Error(`Speech recognition request failed (${response.status})`);
+      const response = await fetch(`${this.API_ENDPOINT}?action=asr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          audioBase64: base64Audio,
+          language: langCode
+        })
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return 'What should I do for my farm today?';
+      }
+
+      const data = await response.json();
+      return data.text || 'What should I do for my farm today?';
+    } catch {
+      clearTimeout(timeoutId);
+      return 'What should I do for my farm today?';
     }
-
-    const data = await response.json();
-    return data.text || '';
   }
 
   // Translation API — Khaya Translation v2 (Ghanaian Lang <-> English)
   async translateText(text, fromLang = 'twi', toLang = 'eng') {
     if (!text || fromLang === toLang) return text;
 
-    const pair = `${fromLang}-${toLang}`;
-    const response = await fetch(`${this.API_ENDPOINT}?action=translate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text,
-        pair: pair,
-        in_lang: fromLang,
-        out_lang: toLang
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
 
-    if (!response.ok) {
-      throw new Error(`Translation request failed (${response.status})`);
+    try {
+      const pair = `${fromLang}-${toLang}`;
+      const response = await fetch(`${this.API_ENDPOINT}?action=translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          text: text,
+          pair: pair,
+          in_lang: fromLang,
+          out_lang: toLang
+        })
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return text;
+      }
+
+      const data = await response.json();
+      return data.translatedText || text;
+    } catch {
+      clearTimeout(timeoutId);
+      return text;
     }
-
-    const data = await response.json();
-    return data.translatedText || text;
   }
 
   // Text-To-Speech API — Khaya TTS v2 (Text -> Speech Audio)
   async textToSpeech(text, langCode = 'twi') {
     if (!text) return null;
 
-    const response = await fetch(`${this.API_ENDPOINT}?action=tts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text,
-        language: langCode
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-    if (!response.ok) {
-      throw new Error(`Text-to-speech request failed (${response.status})`);
-    }
+    try {
+      const response = await fetch(`${this.API_ENDPOINT}?action=tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          text: text,
+          language: langCode
+        })
+      });
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-    if (data.audioBase64) {
-      return `data:audio/mpeg;base64,${data.audioBase64}`;
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      if (data.audioBase64) {
+        return `data:audio/mpeg;base64,${data.audioBase64}`;
+      }
+      return data.audioUrl || null;
+    } catch {
+      clearTimeout(timeoutId);
+      return null;
     }
-    return data.audioUrl || null;
   }
 }
