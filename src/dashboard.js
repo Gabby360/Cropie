@@ -5,7 +5,7 @@ import { CropieWeatherService } from './weather-service.js';
 import { KhayaService } from './khaya-service.js';
 import { CropieAssistantService } from './assistant-service.js';
 
-// Define global toggle function immediately on window
+// Define global toggle functions immediately on window
 window.toggleMobileDrawer = function(eOrForce = null) {
   if (eOrForce && typeof eOrForce.stopPropagation === 'function') {
     eOrForce.stopPropagation();
@@ -22,6 +22,26 @@ window.toggleMobileDrawer = function(eOrForce = null) {
     document.body.style.overflow = 'hidden';
   } else {
     drawerOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+};
+
+window.toggleAskCropieModal = function(eOrForce = null) {
+  if (eOrForce && typeof eOrForce.stopPropagation === 'function') {
+    eOrForce.stopPropagation();
+  }
+  const modalOverlay = document.getElementById('askCropieModalOverlay');
+  if (!modalOverlay) return;
+
+  const isOpen = modalOverlay.classList.contains('open');
+  const forceOpen = (typeof eOrForce === 'boolean') ? eOrForce : null;
+  const shouldOpen = forceOpen !== null ? forceOpen : !isOpen;
+
+  if (shouldOpen) {
+    modalOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  } else {
+    modalOverlay.classList.remove('open');
     document.body.style.overflow = '';
   }
 };
@@ -414,7 +434,7 @@ function initDashboardApp(dataService, auth, weatherService) {
   // Initialize Ask Cropie Multilingual Assistant
   initAskCropieAssistant(assistantService, khayaService);
 
-  async function initAskCropieAssistant(assistant, khaya) {
+  function initAskCropieAssistant(assistant, khaya) {
     const floatingBtn = document.getElementById('floatingAskCropieBtn');
     const modalOverlay = document.getElementById('askCropieModalOverlay');
     const closeBtn = document.getElementById('closeAskCropieModalBtn');
@@ -434,82 +454,76 @@ function initDashboardApp(dataService, auth, weatherService) {
     let currentMediaRecorder = null;
     let audioChunks = [];
     let activeAudioPlayer = null;
+    let languages = [
+      { code: 'eng', name: 'English', speechRecognition: true, translation: true, textToSpeech: true, isDefault: true },
+      { code: 'twi', name: 'Twi', speechRecognition: true, translation: true, textToSpeech: true },
+      { code: 'ewe', name: 'Ewe', speechRecognition: true, translation: true, textToSpeech: true },
+      { code: 'gaa', name: 'Ga', speechRecognition: false, translation: true, textToSpeech: false },
+      { code: 'hau', name: 'Hausa', speechRecognition: true, translation: true, textToSpeech: true }
+    ];
 
-    // 0. Floating Trigger Modal Controls
+    // 0. Floating Trigger Modal Controls (Synchronous!)
     if (floatingBtn && modalOverlay) {
-      floatingBtn.addEventListener('click', () => {
-        modalOverlay.classList.add('open');
+      floatingBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.toggleAskCropieModal(true);
       });
     }
 
     if (closeBtn && modalOverlay) {
-      closeBtn.addEventListener('click', () => {
-        modalOverlay.classList.remove('open');
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.toggleAskCropieModal(false);
       });
     }
 
     if (modalOverlay) {
       modalOverlay.addEventListener('click', (e) => {
         if (e.target === modalOverlay) {
-          modalOverlay.classList.remove('open');
+          window.toggleAskCropieModal(false);
         }
       });
     }
 
-    // 1. Load Dynamic Language Capabilities
-    const languages = await khaya.getLanguages();
-    if (langSelect && languages.length > 0) {
-      langSelect.innerHTML = languages.map(l => `
-        <option value="${l.code}" ${l.isDefault ? 'selected' : ''}>${l.name} ${l.code !== 'eng' ? '(Ghanaian)' : ''}</option>
-      `).join('');
-    }
+    // 1. Initial Prompt Chips Setup (Synchronous!)
+    const initialPrompts = [
+      "🌧️ Will rain affect my farm today?",
+      "🌱 How is my crop doing in its growth stage?",
+      "🌾 What should I do for my farm today?",
+      "☔ Should I apply fertilizer to my farm today?"
+    ];
 
-    const checkLanguageCapability = () => {
-      const selectedCode = langSelect ? langSelect.value : 'eng';
-      const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true, translation: true, textToSpeech: true };
+    const renderPrompts = (promptList) => {
+      if (promptsContainer) {
+        promptsContainer.innerHTML = promptList.map(p => `
+          <button type="button" class="prompt-chip" data-prompt="${p}">${p}</button>
+        `).join('');
 
-      if (!langConfig.speechRecognition || !langConfig.textToSpeech) {
-        if (capabilityAlert) {
-          capabilityAlert.style.display = 'block';
-          capabilityAlert.textContent = `Voice isn't currently available for ${langConfig.name}. You can type your question instead.`;
-        }
-      } else {
-        if (capabilityAlert) capabilityAlert.style.display = 'none';
+        promptsContainer.querySelectorAll('.prompt-chip').forEach(chip => {
+          chip.addEventListener('click', (e) => {
+            e.preventDefault();
+            const pText = chip.getAttribute('data-prompt');
+            handleUserQuestion(pText);
+          });
+        });
       }
     };
+    renderPrompts(initialPrompts);
 
-    if (langSelect) {
-      langSelect.addEventListener('change', checkLanguageCapability);
-      checkLanguageCapability();
-    }
-
-    // 2. Render Contextual Suggested Prompts
-    const prompts = await assistant.getSuggestedPrompts();
-    if (promptsContainer) {
-      promptsContainer.innerHTML = prompts.map(p => `
-        <button class="prompt-chip" data-prompt="${p}">${p}</button>
-      `).join('');
-
-      promptsContainer.querySelectorAll('.prompt-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          const pText = chip.getAttribute('data-prompt');
-          handleUserQuestion(pText);
-        });
-      });
-    }
-
-    // 3. Mode Toggle Handlers
+    // 2. Initial Mode Toggles (Synchronous!)
     if (typeBtn && textInput) {
-      typeBtn.addEventListener('click', () => {
+      typeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
         textInput.focus();
       });
     }
 
-    // 4. Voice Input (Microphone Handler)
+    // 3. Voice Input Handler (Synchronous!)
     if (micBtn) {
-      micBtn.addEventListener('click', async () => {
+      micBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
         const selectedCode = langSelect ? langSelect.value : 'eng';
-        const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true };
+        const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true, name: 'English' };
 
         if (!langConfig.speechRecognition && selectedCode !== 'eng') {
           if (capabilityAlert) {
@@ -520,7 +534,7 @@ function initDashboardApp(dataService, auth, weatherService) {
           return;
         }
 
-        // Show instant visual listening feedback
+        // Show instant visual listening overlay
         if (recordingOverlay) recordingOverlay.style.display = 'flex';
         if (recStatusLbl) recStatusLbl.textContent = `Listening in ${langConfig.name}... Speak your question now.`;
 
@@ -569,7 +583,7 @@ function initDashboardApp(dataService, auth, weatherService) {
           console.warn('Microphone access notice:', mErr);
           if (recordingOverlay) recordingOverlay.style.display = 'none';
           
-          const promptQuestion = prompt('Microphone access denied or browser permission required. Type your question below:', 'Should I apply fertilizer today?');
+          const promptQuestion = prompt('Microphone access denied or permission required. Type your question below:', 'Should I apply fertilizer today?');
           if (promptQuestion && promptQuestion.trim()) {
             handleUserQuestion(promptQuestion.trim());
           } else if (textInput) {
@@ -580,7 +594,8 @@ function initDashboardApp(dataService, auth, weatherService) {
     }
 
     if (stopRecBtn) {
-      stopRecBtn.addEventListener('click', () => {
+      stopRecBtn.addEventListener('click', (e) => {
+        e.preventDefault();
         if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
           currentMediaRecorder.stop();
         } else {
@@ -590,16 +605,35 @@ function initDashboardApp(dataService, auth, weatherService) {
       });
     }
 
-    // 5. Text Form Submission Handler
-    if (textForm && textInput) {
+    // 4. Text Form Submission Handler (Synchronous!)
+    if (textForm) {
       textForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        if (!textInput) return;
         const val = textInput.value.trim();
         if (!val) return;
         textInput.value = '';
         handleUserQuestion(val);
       });
     }
+
+    // 5. Async Dynamic Loading of Remote Capabilities
+    khaya.getLanguages().then(remoteLangs => {
+      if (remoteLangs && Array.isArray(remoteLangs) && remoteLangs.length > 0) {
+        languages = remoteLangs;
+        if (langSelect) {
+          langSelect.innerHTML = languages.map(l => `
+            <option value="${l.code}" ${l.isDefault ? 'selected' : ''}>${l.name} ${l.code !== 'eng' ? '(Ghanaian)' : ''}</option>
+          `).join('');
+        }
+      }
+    }).catch(() => {});
+
+    assistant.getSuggestedPrompts().then(remotePrompts => {
+      if (remotePrompts && Array.isArray(remotePrompts) && remotePrompts.length > 0) {
+        renderPrompts(remotePrompts);
+      }
+    }).catch(() => {});
 
     // 6. Central Message Processor & Language Translation Pipeline
     async function handleUserQuestion(questionText) {
