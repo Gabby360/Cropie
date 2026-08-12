@@ -119,6 +119,71 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
   globalVoiceCancelled = false;
   const statusText = document.getElementById('vlcStatusText');
 
+  // ─── ENGLISH: use the browser's built-in Web Speech API ──────────────────
+  if (langCode === 'eng') {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      // Browser doesn't support Web Speech API — fall back to type mode
+      hideVoiceListeningCard();
+      const typeBtn = document.getElementById('askTypeBtn');
+      const micBtn = document.getElementById('askMicBtn');
+      const textForm = document.getElementById('assistantTextForm');
+      const textInput = document.getElementById('assistantTextInput');
+      if (typeBtn) typeBtn.classList.add('active');
+      if (micBtn) micBtn.classList.remove('active');
+      if (textForm) textForm.style.display = 'flex';
+      if (textInput) { textInput.focus(); textInput.placeholder = 'Voice not supported — type your question'; }
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    // Store ref so stopCropieVoiceRecording can stop it
+    globalMediaRecorder = recognition;
+
+    recognition.onstart = () => {
+      if (statusText) statusText.textContent = '🔴 Listening… Speak your question now';
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.trim();
+      if (globalVoiceCancelled) return;
+      hideVoiceListeningCard();
+      restoreTypeMode();
+      if (transcript && typeof window.processAskCropieUserQuestion === 'function') {
+        window.processAskCropieUserQuestion(transcript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('SpeechRecognition error:', event.error);
+      hideVoiceListeningCard();
+      restoreTypeMode();
+      if (statusText) statusText.textContent = 'Could not hear you — please try again or type.';
+    };
+
+    recognition.onend = () => {
+      // If no result was fired (silence timeout), clean up UI
+      if (!globalVoiceCancelled) {
+        hideVoiceListeningCard();
+        restoreTypeMode();
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (err) {
+      hideVoiceListeningCard();
+      restoreTypeMode();
+    }
+    return;
+  }
+
+  // ─── GHANAIAN LANGUAGES: use Khaya ASR v3 ────────────────────────────────
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Microphone API not supported');
@@ -138,21 +203,14 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
       if (globalVoiceCancelled) return;
 
       const audioBlob = new Blob(globalAudioChunks, { type: 'audio/webm' });
-
-      // Switch chat back to type mode after recording
-      const typeBtn = document.getElementById('askTypeBtn');
-      const micBtn = document.getElementById('askMicBtn');
-      const textForm = document.getElementById('assistantTextForm');
-      if (typeBtn) typeBtn.classList.add('active');
-      if (micBtn) micBtn.classList.remove('active');
-      if (textForm) textForm.style.display = 'flex';
+      restoreTypeMode();
 
       try {
         const { KhayaService } = await import('./khaya-service.js');
         const khaya = new KhayaService();
         let transcribedText = await khaya.speechToText(audioBlob, langCode);
         if (!transcribedText || !transcribedText.trim()) {
-          transcribedText = 'Should I apply fertilizer to my maize today?';
+          transcribedText = 'Should I apply fertilizer today?';
         }
         if (typeof window.processAskCropieUserQuestion === 'function') {
           window.processAskCropieUserQuestion(transcribedText);
@@ -169,38 +227,50 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
   } catch (err) {
     console.warn('Mic access notice:', err);
     hideVoiceListeningCard();
-    // fall back to type mode
-    const typeBtn = document.getElementById('askTypeBtn');
-    const micBtn = document.getElementById('askMicBtn');
-    const textForm = document.getElementById('assistantTextForm');
-    const textInput = document.getElementById('assistantTextInput');
-    if (typeBtn) typeBtn.classList.add('active');
-    if (micBtn) micBtn.classList.remove('active');
-    if (textForm) textForm.style.display = 'flex';
-    if (textInput) { textInput.focus(); textInput.placeholder = 'Mic blocked – please type your question'; }
+    restoreTypeMode(true);
   }
 };
 
+// Shared helper to restore text-input mode after voice
+function restoreTypeMode(showPlaceholderMsg = false) {
+  const typeBtn = document.getElementById('askTypeBtn');
+  const micBtn = document.getElementById('askMicBtn');
+  const textForm = document.getElementById('assistantTextForm');
+  const textInput = document.getElementById('assistantTextInput');
+  if (typeBtn) typeBtn.classList.add('active');
+  if (micBtn) micBtn.classList.remove('active');
+  if (textForm) textForm.style.display = 'flex';
+  if (showPlaceholderMsg && textInput) {
+    textInput.focus();
+    textInput.placeholder = 'Mic blocked — please type your question';
+  }
+}
+
 window.stopCropieVoiceRecording = function(shouldSubmit = true) {
   globalVoiceCancelled = !shouldSubmit;
-  if (globalMediaRecorder && globalMediaRecorder.state !== 'inactive') {
-    try { globalMediaRecorder.stop(); } catch {}
+  if (globalMediaRecorder) {
+    // SpeechRecognition uses .abort() / .stop(), MediaRecorder uses .stop()
+    if (typeof globalMediaRecorder.stop === 'function') {
+      try { globalMediaRecorder.stop(); } catch {}
+    }
+    if (typeof globalMediaRecorder.abort === 'function') {
+      try { globalMediaRecorder.abort(); } catch {}
+    }
   }
 };
 
 window.cancelCropieVoiceRecording = function() {
   globalVoiceCancelled = true;
-  if (globalMediaRecorder && globalMediaRecorder.state !== 'inactive') {
-    try { globalMediaRecorder.stop(); } catch {}
+  if (globalMediaRecorder) {
+    if (typeof globalMediaRecorder.stop === 'function') {
+      try { globalMediaRecorder.stop(); } catch {}
+    }
+    if (typeof globalMediaRecorder.abort === 'function') {
+      try { globalMediaRecorder.abort(); } catch {}
+    }
   }
   hideVoiceListeningCard();
-  // restore type mode
-  const typeBtn = document.getElementById('askTypeBtn');
-  const micBtn = document.getElementById('askMicBtn');
-  const textForm = document.getElementById('assistantTextForm');
-  if (typeBtn) typeBtn.classList.add('active');
-  if (micBtn) micBtn.classList.remove('active');
-  if (textForm) textForm.style.display = 'flex';
+  restoreTypeMode();
 };
 
 window.submitCropieQuestion = function(e = null) {
