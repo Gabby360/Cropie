@@ -394,31 +394,7 @@ window.processAskCropieUserQuestion = async function(questionText) {
       bubbleEl.innerHTML = escapeHtml(finalAnswer).replace(/\n/g, '<br/>');
     }
 
-    const wrapperEl = document.querySelector(`#${cropieMsgId} .msg-bubble-wrapper`);
-    if (wrapperEl) {
-      const ttsBtn = document.createElement('button');
-      ttsBtn.className = 'btn-tts-listen';
-      ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
-      let activePlayer = null;
-      ttsBtn.addEventListener('click', async () => {
-        if (activePlayer) { activePlayer.pause(); activePlayer = null; }
-        ttsBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Synthesizing...</span>`;
-        try {
-          const audioSrc = await khaya.textToSpeech(finalAnswer, selectedCode);
-          if (audioSrc) {
-            activePlayer = new Audio(audioSrc);
-            activePlayer.play();
-            ttsBtn.innerHTML = `<i class="fa-solid fa-pause"></i> <span>Pause</span>`;
-            activePlayer.onended = () => { ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`; };
-          } else {
-            ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
-          }
-        } catch {
-          ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
-        }
-      });
-      wrapperEl.appendChild(ttsBtn);
-    }
+
 
   } catch (err) {
     console.error('Ask Cropie processing error:', err);
