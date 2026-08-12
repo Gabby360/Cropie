@@ -526,9 +526,9 @@
         </div>
 
         <!-- TEXT INPUT BAR -->
-        <form id="assistantTextForm" class="assistant-input-form" onsubmit="event.preventDefault(); return false;">
+        <form id="assistantTextForm" class="assistant-input-form" onsubmit="window.submitCropieQuestion &amp;&amp; window.submitCropieQuestion(event); return false;">
           <input type="text" id="assistantTextInput" class="assistant-input-field" placeholder="Ask Cropie e.g. Should I apply fertilizer today?" autocomplete="off" />
-          <button type="button" id="sendAssistantTextBtn" class="btn btn-send-assistant">
+          <button type="button" id="sendAssistantTextBtn" class="btn btn-send-assistant" onclick="window.submitCropieQuestion &amp;&amp; window.submitCropieQuestion(event)" aria-label="Send Question">
             <i class="fa-solid fa-paper-plane"></i>
           </button>
         </form>

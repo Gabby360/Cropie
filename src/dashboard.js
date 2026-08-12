@@ -46,6 +46,20 @@ window.toggleAskCropieModal = function(eOrForce = null) {
   }
 };
 
+window.submitCropieQuestion = function(e = null) {
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+  }
+  const textInput = document.getElementById('assistantTextInput');
+  if (!textInput) return;
+  const val = textInput.value.trim();
+  if (!val) return;
+  textInput.value = '';
+  if (typeof window.processAskCropieUserQuestion === 'function') {
+    window.processAskCropieUserQuestion(val);
+  }
+};
+
 // Safe DOMReady listener that runs immediately if DOM is already parsed
 function onDOMReady(fn) {
   if (document.readyState === 'loading') {
@@ -661,6 +675,7 @@ function initDashboardApp(dataService, auth, weatherService) {
     }).catch(() => {});
 
     // 6. Central Message Processor & Language Translation Pipeline
+    window.processAskCropieUserQuestion = handleUserQuestion;
     async function handleUserQuestion(questionText) {
       const selectedCode = langSelect ? langSelect.value : 'eng';
       const langConfig = languages.find(l => l.code === selectedCode) || { translation: true, textToSpeech: true };

@@ -55,8 +55,12 @@ export class CropieAssistantService {
 
     let responseText = '';
 
-    // 2. Weather & Rain Sensitivity Analysis
-    if (qLower.includes('rain') || qLower.includes('precipitation') || qLower.includes('water') || qLower.includes('storm')) {
+    // 2. Greetings & Introductions
+    if (qLower.includes('hi') || qLower.includes('hello') || qLower.includes('hey') || qLower.includes('akwaaba') || qLower.includes('greetings')) {
+      responseText = `Hello! Akwaaba! I'm Cropie, your AI farm assistant for ${context.location}. Your ${activeCrop} is currently at Day ${context.daysAfterPlanting} (${context.growthStage}). How can I help you today?`;
+    }
+    // 3. Weather & Rain Sensitivity Analysis
+    else if (qLower.includes('rain') || qLower.includes('precipitation') || qLower.includes('water') || qLower.includes('storm')) {
       const rainProbVal = parseInt(context.currentWeather.rainProb) || 68;
       if (rainProbVal >= 50) {
         responseText = `Rain probability for ${context.location} is currently high (${context.currentWeather.rainProb}). ${activeCrop} in the ${context.growthStage} stage requires careful moisture management. Postpone top-dressing fertilizer to prevent nutrient washout into runoff.`;
