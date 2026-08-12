@@ -46,7 +46,16 @@ export class CropieAssistantService {
   // Process user question through Intelligence Engine
   async processQuestion(userQuestionInEnglish, selectedLanguage = 'eng') {
     const context = await this.buildFarmContext();
-    const qLower = (userQuestionInEnglish || '').toLowerCase().trim();
+    let qRaw = (userQuestionInEnglish || '').toLowerCase().trim();
+
+    // 0. Auto-correct common typos
+    qRaw = qRaw
+      .replace(/\brhsi\b|\bthsi\b|\btish\b/gi, 'this')
+      .replace(/\bwether\b|\bwather\b|\bweathr\b/gi, 'weather')
+      .replace(/\bfertlizer\b|\bfert\b|\bfertilzer\b/gi, 'fertilizer')
+      .replace(/\bpeste\b|\bpesticid\b|\bpsts\b/gi, 'pest');
+
+    const qLower = qRaw;
 
     // 1. Identify crop focus (Farm-level vs Specific Crop)
     let targetedCrop = null;
@@ -64,7 +73,7 @@ export class CropieAssistantService {
 
     if (/^\s*(hi|hello|hey|akwaaba|greetings|good\s*(morning|afternoon|evening))\b/i.test(qLower) && qLower.split(/\s+/).length <= 4) {
       category = 'greeting';
-    } else if (/\b(who are you|who r u|what is cropie|who is cropie|what is your name|who created you|who made you|what can you do|about cropie|about yourself|your name|identity|cropie)\b/i.test(qLower)) {
+    } else if (/\b(who are you|who r u|what is cropie|who is cropie|what is your name|who created you|who made you|what can you do|about cropie|about yourself|your name|identity|cropie|what is this|what is rhsi)\b/i.test(qLower)) {
       category = 'identity';
     } else if (/\b(help|how to use|commands|features|what to ask|guide|guidance)\b/i.test(qLower)) {
       category = 'help';
@@ -141,7 +150,7 @@ export class CropieAssistantService {
         break;
 
       default:
-        responseText = `For your farm in ${context.location} (${context.crops.join(', ')}): Current weather is ${context.currentWeather.temp}, ${context.currentWeather.condition} with ${context.currentWeather.rainProb} rain probability. Your ${activeCrop} is in the ${context.growthStage} stage (Day ${context.daysAfterPlanting}).`;
+        responseText = `I am monitoring your ${activeCrop} in ${context.location} (${context.growthStage} stage, Day ${context.daysAfterPlanting}). Current weather is ${context.currentWeather.temp} (${context.currentWeather.condition}, ${context.currentWeather.rainProb} rain chance).\n\nFeel free to ask me about:\n• 🌧️ Weather & rain forecasts\n• 🧪 Fertilizer & NPK application\n• 🐛 Pest control & Fall Armyworm\n• 🌽 Growth stages & harvest timing`;
         break;
     }
 
