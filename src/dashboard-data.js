@@ -8,20 +8,20 @@ export const AGRICULTURAL_RULE_LIBRARY = [
     ruleId: "MAIZE-GH-WEATHER-001",
     crop: "maize",
     region: "Ghana",
-    growthStage: "Flowering / Tasseling",
+    growthStage: "Flowering",
     requiredInputs: ["crop", "plantingDate", "weatherForecast"],
     optionalInputs: ["irrigationPlan", "fertilizerPlan"],
     missingInputsHandling: "EXPLICIT_DISCLAIMER",
     triggerConditions: {
-      estimatedGrowthStage: "Flowering / Tasseling",
+      estimatedGrowthStage: "Flowering",
       rainProbMin: 60
     },
-    recommendation: "Rain is expected within the next 4 hours. Your maize is estimated to be in the flowering/tasseling stage. If irrigation or fertilizer application is planned, review the timing against expected rainfall and reassess field conditions afterward.",
+    recommendation: "Rain is expected within the next 4 hours. Your maize is estimated to be in the flowering stage. If irrigation or fertilizer application is planned, review the timing against expected rainfall and reassess field conditions afterward.",
     reason: "Precipitation shortly after fertilizer application or supplemental irrigation during flowering can increase the risk of nutrient runoff and leaching.",
     risk: "Rainfall shortly after granular fertilizer application may increase the risk of nutrient loss through runoff or leaching.",
     confidence: "Moderate",
     basedOn: [
-      "Estimated crop growth stage (Flowering / Tasseling — Day 62)",
+      "Estimated crop growth stage (Flowering — Day 62)",
       "Weather forecast (68% Rain chance — Weather API)",
       "Farm location (Ejura, Ashanti Region)",
       "Based on verified agricultural guidance"
@@ -38,18 +38,18 @@ export const AGRICULTURAL_RULE_LIBRARY = [
     ruleId: "MAIZE-GH-STAGE-002",
     crop: "maize",
     region: "Ghana",
-    growthStage: "Flowering / Tasseling",
+    growthStage: "Flowering",
     requiredInputs: ["crop", "plantingDate"],
     triggerConditions: {
       daysAfterPlantingMin: 46,
       daysAfterPlantingMax: 70
     },
-    recommendation: "Your maize is currently estimated to be in the flowering/tasseling stage based on your planting date (June 10, 2026).",
+    recommendation: "Your maize is currently estimated to be in the flowering stage based on your planting date (June 10, 2026).",
     reason: "This is an important developmental stage where crop water and nutrient management directly impact cob formation and final yield.",
     risk: "Moisture deficiency or improper chemical spraying during silk exposure may affect pollination.",
     confidence: "Moderate",
     basedOn: [
-      "Estimated crop growth stage (Flowering / Tasseling — Day 62)",
+      "Estimated crop growth stage (Flowering — Day 62)",
       "Farmer planting date (June 10, 2026)",
       "Based on verified agricultural guidance"
     ],
@@ -114,11 +114,11 @@ export const initialDashboardData = {
     source: "Calculated from planting date",
     cropName: "Maize",
     cropVariety: "Obatanpa Quality Protein Maize",
-    estimatedGrowthStage: "Flowering / Tasseling",
+    estimatedGrowthStage: "Flowering",
     stageCalculationNote: "Estimated based on planting date (June 10, 2026)",
     daysAfterPlanting: "62 days",
     plantingDate: "June 10, 2026",
-    stages: ["Planting", "Vegetative", "Flowering / Tasseling", "Maturity", "Harvest"],
+    stages: ["Planting", "Vegetative", "Flowering", "Maturity", "Harvest"],
     currentStageIndex: 2
   },
 
@@ -151,12 +151,12 @@ export const initialDashboardData = {
 
   aiInsight: {
     title: "Cropie Intelligence Engine",
-    quote: "Rain is expected within the next 4 hours. Your maize is estimated to be in the flowering/tasseling stage. If irrigation or fertilizer application is planned, review the timing against expected rainfall and reassess field conditions afterward.",
+    quote: "Rain is expected within the next 4 hours. Your maize is estimated to be in the flowering stage. If irrigation or fertilizer application is planned, review the timing against expected rainfall and reassess field conditions afterward.",
     reason: "Precipitation shortly after fertilizer application or supplemental irrigation during flowering can increase the risk of nutrient runoff and leaching.",
     risk: "Rainfall shortly after granular fertilizer application may increase the risk of nutrient loss through runoff or leaching.",
     confidence: "Moderate",
     basedOn: [
-      "Estimated crop growth stage (Flowering / Tasseling — Day 62)",
+      "Estimated crop growth stage (Flowering — Day 62)",
       "Weather forecast (68% Rain chance — Weather API)",
       "Farm location (Ejura, Ashanti Region)",
       "Based on verified agricultural guidance"
@@ -169,9 +169,9 @@ export const initialDashboardData = {
     reviewer: "Dr. K. Owusu (CSIR Agronomist)",
     lastReviewed: "2025-11-15",
     stageAnalysis: {
-      stageName: "Flowering / Tasseling",
+      stageName: "Flowering",
       estimationBadge: "Estimated Growth Stage (Day 62)",
-      statusSummary: "Your maize is currently estimated to be in the flowering/tasseling stage based on your planting date (June 10, 2026).",
+      statusSummary: "Your maize is currently estimated to be in the flowering stage based on your planting date (June 10, 2026).",
       whatThisMeans: "This is an important developmental stage where crop water and nutrient management directly impact cob formation and final yield.",
       recommendedAction: "Precipitation is expected within 4 hours. If irrigation or fertilizer application is planned, review the timing against expected rainfall and reassess field conditions afterward.",
       supportedRisk: "Rainfall shortly after granular fertilizer application may increase the risk of nutrient loss through runoff or leaching."

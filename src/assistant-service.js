@@ -16,14 +16,20 @@ export class CropieAssistantService {
 
     const cropsList = cropStatus.cropsList || [cropStatus.cropName || 'Maize'];
     
+    // Sanitize string formatting to avoid 'Day 62 days' or 'Flowering / Tasseling'
+    const rawStage = cropStatus.estimatedGrowthStage || "Flowering";
+    const cleanStage = rawStage.split('/')[0].trim() || "Flowering";
+    const rawDays = (cropStatus.daysAfterPlanting || "62").toString();
+    const cleanDays = rawDays.replace(/[^0-9]/g, '') || "62";
+
     return {
       farmName: farmInfo.farmName || "My Farm",
       location: farmInfo.location || "Laterbiokorshie, Accra, Ghana",
       gps: farmInfo.gps || "5.5492° N, 0.2315° W",
       crops: cropsList,
       primaryCrop: cropsList[0] || 'Maize',
-      daysAfterPlanting: cropStatus.daysAfterPlanting || "62 days",
-      growthStage: cropStatus.estimatedGrowthStage || "Flowering / Tasseling",
+      daysAfterPlanting: cleanDays,
+      growthStage: cleanStage,
       plantingDate: cropStatus.plantingDate || "June 10, 2026",
       currentWeather: {
         temp: weather.temp || "28°C",
@@ -53,10 +59,16 @@ export class CropieAssistantService {
     const activeCrop = targetedCrop || context.primaryCrop;
     const isMultiCrop = context.crops.length > 1;
 
-    // 2. Classify intent using strict word boundaries to avoid false substring matches
+    // 2. Classify intent using strict word boundaries and smart conversational patterns
     let category = 'general';
 
-    if (/\b(rain|rainy|precipitation|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|climate|humidity)\b/i.test(qLower)) {
+    if (/\b(who are you|who r u|what is your name|who created you|who made you|what can you do|about yourself|your name|identity)\b/i.test(qLower)) {
+      category = 'identity';
+    } else if (/\b(help|how to use|commands|features|what to ask|guide|guidance)\b/i.test(qLower)) {
+      category = 'help';
+    } else if (qLower.length <= 4 || /^(how|what|why|when|who|where|ok|okay|can|tell|is|are|do)$/i.test(qLower)) {
+      category = 'ambiguous';
+    } else if (/\b(rain|rainy|precipitation|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|climate|humidity)\b/i.test(qLower)) {
       category = 'weather';
     } else if (/\b(fertilizer|fertiliser|npk|urea|nitrogen|topdress|topdressing|apply|manure|spray|spraying|chemical|pesticide|fungicide|nutrient|feed|soil)\b/i.test(qLower)) {
       category = 'fertilizer';
@@ -74,6 +86,18 @@ export class CropieAssistantService {
     const rainProbVal = parseInt(context.currentWeather.rainProb) || 68;
 
     switch (category) {
+      case 'identity':
+        responseText = `I'm Cropie, your AI agricultural assistant tailored for farming in Ghana! I combine live satellite weather telemetry with agronomic guidelines to provide real-time recommendations on crop health, fertilizer timing, rain sensitivity, and pest management. How can I assist your farm today?`;
+        break;
+
+      case 'help':
+        responseText = `I can assist you with your farm in ${context.location}! You can ask questions such as:\n• 🌧️ "Will rain affect my fertilizer today?"\n• 🌽 "How is my ${activeCrop} doing in its growth stage?"\n• 🐛 "How do I protect my crops from Fall Armyworm?"\n• 🌾 "What farming tasks should I prioritize today?"`;
+        break;
+
+      case 'ambiguous':
+        responseText = `Could you please clarify what you'd like to check? You can ask about weather forecasts, fertilizer application, pest control, or growth stages for your ${activeCrop} in ${context.location}.`;
+        break;
+
       case 'greeting':
         responseText = `Hello! Akwaaba! I'm Cropie, your AI farm assistant for ${context.location}. Your ${activeCrop} is currently at Day ${context.daysAfterPlanting} (${context.growthStage}). How can I help you today?`;
         break;
