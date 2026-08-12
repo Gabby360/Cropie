@@ -68,12 +68,12 @@ export class CropieAssistantService {
       category = 'help';
     } else if (qLower.length <= 4 || /^(how|what|why|when|who|where|ok|okay|can|tell|is|are|do)$/i.test(qLower)) {
       category = 'ambiguous';
+    } else if (/\b(pest|pests|pesticide|pesticides|disease|diseases|worm|armyworm|fall armyworm|insect|insects|bug|bugs|weed|weeds|weeding|blight|fungus|rot|caterpillar|yellowing|leaf|leaves|spot|spots|wilt|damage|attack|infestation)\b/i.test(qLower)) {
+      category = 'pests';
     } else if (/\b(rain|rainy|precipitation|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|climate|humidity)\b/i.test(qLower)) {
       category = 'weather';
-    } else if (/\b(fertilizer|fertiliser|npk|urea|nitrogen|topdress|topdressing|apply|manure|spray|spraying|chemical|pesticide|fungicide|nutrient|feed|soil)\b/i.test(qLower)) {
+    } else if (/\b(fertilizer|fertiliser|npk|urea|nitrogen|topdress|topdressing|apply|manure|spray|spraying|chemical|fungicide|nutrient|nutrients|feed|soil)\b/i.test(qLower)) {
       category = 'fertilizer';
-    } else if (/\b(pest|pests|disease|diseases|worm|armyworm|fall armyworm|insect|insects|bug|bugs|weed|weeds|weeding|blight|fungus|rot|caterpillar|yellowing|leaf|leaves|spot|spots|wilt|damage|attack)\b/i.test(qLower)) {
-      category = 'pests';
     } else if (/\b(stage|stages|growth|days|age|progress|tassel|tasseling|flower|flowering|plant|planted|planting|harvest|harvesting|yield|cob|grain|mature|maturity)\b/i.test(qLower)) {
       category = 'stage';
     } else if (/\b(cassava|rice|yam|plantain|vegetables|crop|crops|farm|overview)\b/i.test(qLower)) {
