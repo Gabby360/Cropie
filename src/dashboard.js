@@ -387,13 +387,7 @@ window.processAskCropieUserQuestion = async function(questionText) {
     }
 
     const result = await assistant.processQuestion(englishQuery, selectedCode);
-    let finalAnswer = result.englishAnswer || "I couldn't generate recommendations right now.";
-
-    if (selectedCode !== 'eng') {
-      try {
-        finalAnswer = await khaya.translateText(result.englishAnswer, 'eng', selectedCode);
-      } catch {}
-    }
+    const finalAnswer = result.finalAnswer || result.rawEnglish || "I couldn't generate recommendations right now.";
 
     const bubbleEl = document.querySelector(`#${cropieMsgId} .msg-bubble p`);
     if (bubbleEl) {
