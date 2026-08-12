@@ -1177,19 +1177,32 @@ function renderWeather(w) {
   const windEl = document.getElementById('dashWind');
   const rainProbEl = document.getElementById('dashRainProb');
   const rainNoticeEl = document.getElementById('dashRainNotice');
-  const weatherSourceTag = document.getElementById('dashWeatherSourceTag');
 
   if (tempEl) tempEl.textContent = w.temp;
   if (condEl) condEl.textContent = w.condition;
   if (iconEl) {
-    iconEl.className = `fa-solid ${w.iconClass}`;
-    iconEl.style.color = w.iconColor;
+    iconEl.className = `fa-solid ${w.conditionIcon || w.iconClass || 'fa-cloud-sun'}`;
   }
   if (humidityEl) humidityEl.textContent = w.humidity;
-  if (windEl) windEl.textContent = w.windSpeed;
+  if (windEl) windEl.textContent = w.wind;
   if (rainProbEl) rainProbEl.textContent = w.rainProb;
-  if (rainNoticeEl) rainNoticeEl.textContent = w.rainNotice;
-  if (weatherSourceTag) weatherSourceTag.textContent = `Source: ${w.source}`;
+
+  if (rainNoticeEl && w.rainNotice) {
+    rainNoticeEl.textContent = w.rainNotice;
+    if (w.rainNoticeType === 'alert' || w.rainNoticeType === 'warning') {
+      rainNoticeEl.style.background = '#fef2f2';
+      rainNoticeEl.style.color = '#991b1b';
+      rainNoticeEl.style.borderColor = '#fecaca';
+    } else if (w.rainNoticeType === 'clear') {
+      rainNoticeEl.style.background = '#f0fdf4';
+      rainNoticeEl.style.color = '#166534';
+      rainNoticeEl.style.borderColor = '#bbf7d0';
+    } else {
+      rainNoticeEl.style.background = '#e0f2fe';
+      rainNoticeEl.style.color = '#0369a1';
+      rainNoticeEl.style.borderColor = '#bae6fd';
+    }
+  }
 }
 
 function renderCropStatus(c) {

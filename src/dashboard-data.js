@@ -224,6 +224,27 @@ export class CropieDataService {
     this.data.weather.wind = `${cur.windSpeed} km/h`;
     this.data.weather.cloudCover = `${cur.cloudCover}%`;
 
+    const todayForecast = (weatherData.forecast && weatherData.forecast[0]) || {};
+    const rainProbVal = todayForecast.precipitationProbability !== undefined 
+      ? todayForecast.precipitationProbability 
+      : (cur.precipitation > 0 ? 90 : 20);
+
+    this.data.weather.rainProb = `${rainProbVal}%`;
+
+    // Dynamic rain notice calculated from live Open-Meteo telemetry
+    if (cur.precipitation > 0) {
+      this.data.weather.rainNotice = `🌧️ Currently raining (${cur.precipitation} mm). Field operations on pause.`;
+      this.data.weather.rainNoticeType = 'alert';
+    } else if (rainProbVal >= 60) {
+      this.data.weather.rainNotice = `🌧️ High rain chance today (${rainProbVal}%). Rain expected within 4–6 hours.`;
+      this.data.weather.rainNoticeType = 'warning';
+    } else if (rainProbVal >= 30) {
+      this.data.weather.rainNotice = `🌤️ Moderate rain chance today (${rainProbVal}%). Keep an eye on local sky.`;
+      this.data.weather.rainNoticeType = 'info';
+    } else {
+      this.data.weather.rainNotice = `☀️ Clear field weather today (${rainProbVal}% rain chance). Good for field operations.`;
+      this.data.weather.rainNoticeType = 'clear';
+    }
 
     if (weatherData.forecast && Array.isArray(weatherData.forecast)) {
       this.data.weather.forecastList = weatherData.forecast.slice(0, 7).map(d => ({
@@ -241,10 +262,10 @@ export class CropieDataService {
 
   evaluateIntelligenceEngine(weatherData) {
     const curWeather = weatherData ? weatherData.current : null;
-    const rainProb = curWeather ? (weatherData.forecast[0]?.precipitationProbability || 0) : 68;
-    const rainMm = curWeather ? curWeather.precipitation : 2.4;
+    const todayForecast = (weatherData && weatherData.forecast && weatherData.forecast[0]) || {};
+    const rainProb = todayForecast.precipitationProbability !== undefined ? todayForecast.precipitationProbability : (curWeather ? (curWeather.precipitation > 0 ? 90 : 20) : 68);
+    const rainMm = curWeather ? curWeather.precipitation : 0;
     const temp = curWeather ? curWeather.temperature : 28;
-    const windSpeed = curWeather ? curWeather.windSpeed : 12;
 
     const userCrops = (this.data.cropStatus.cropsList && this.data.cropStatus.cropsList.length > 0)
       ? this.data.cropStatus.cropsList
@@ -261,7 +282,7 @@ export class CropieDataService {
         } else if (temp > 32) {
           cropInsights.push(`For your Maize: High temperatures (${temp}°C) detected. Ensure field moisture is preserved during heat spells.`);
         } else {
-          cropInsights.push(`For your Maize: Current weather conditions are favorable for growth in the Flowering/Tasseling stage.`);
+          cropInsights.push(`For your Maize: Clear weather (${temp}°C, ${rainProb}% rain chance). Favorable field conditions for growth in the Flowering stage.`);
         }
       } else if (cropKey === 'cassava') {
         if (rainMm > 15) {
@@ -287,7 +308,6 @@ export class CropieDataService {
     });
 
     // Update primary AI Insight card
-    const primaryCrop = userCrops[0] || 'Maize';
     this.data.aiInsight.quote = cropInsights.join(" ");
     this.data.aiInsight.reason = `Live Open-Meteo telemetry shows ${temp}°C temperature and ${rainProb}% rain probability for ${this.data.headerInfo.location}.`;
     this.data.aiInsight.risk = rainProb > 60 ? "Precipitation within 4 hours increases risk of nutrient loss or soil erosion." : "No imminent extreme weather risks detected.";
