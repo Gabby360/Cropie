@@ -8,7 +8,30 @@ export class CropieWeatherService {
     this.CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache TTL
   }
 
-  // Geocode location string into latitude, longitude, and display name
+  // Reverse geocode latitude and longitude into locality display name
+  async reverseGeocode(latitude, longitude) {
+    try {
+      const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+      const res = await fetch(bdcUrl);
+      if (res.ok) {
+        const data = await res.json();
+        const locality = data.locality || data.city || data.localityInfo?.administrative?.[2]?.name || '';
+        const principalSubdivision = data.principalSubdivision || data.localityInfo?.administrative?.[1]?.name || '';
+        const country = data.countryName || 'Ghana';
+        
+        if (locality) {
+          const region = (principalSubdivision && principalSubdivision !== locality) ? `${principalSubdivision}, ` : '';
+          return `${locality}, ${region}${country}`;
+        }
+      }
+    } catch (err) {
+      console.warn('Reverse geocode notice:', err);
+    }
+
+    return `Location (${latitude.toFixed(4)}° N, ${Math.abs(longitude).toFixed(4)}° W)`;
+  }
+
+  // Geocode location string into latitude, longitude, and display name using Open-Meteo Geocoding API
   async geocodeLocation(locationQuery) {
     if (!locationQuery) return null;
     const q = locationQuery.toLowerCase().trim();
@@ -36,27 +59,32 @@ export class CropieWeatherService {
       'techiman': { name: 'Techiman, Bono East Region, Ghana', lat: 7.5828, lon: -1.9395 }
     };
 
+    // Strict word boundary matching so 'ho' doesn't match 'who' or 'wa' match 'swap'
     for (const [key, preset] of Object.entries(ghanaPresetMap)) {
-      if (q.includes(key)) {
+      if (new RegExp(`\\b${key}\\b`, 'i').test(q)) {
         return preset;
       }
     }
 
+    // Open-Meteo Geocoding API (Fast, free, reliable, no CORS restrictions)
     try {
-      const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationQuery + ', Ghana')}&limit=1`;
-      const res = await fetch(searchUrl);
+      const omUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locationQuery)}&count=5&language=en&format=json`;
+      const res = await fetch(omUrl);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.length > 0) {
+        if (data && data.results && data.results.length > 0) {
+          const gh = data.results.find(r => r.country_code === 'GH') || data.results[0];
+          const region = gh.admin1 ? `${gh.admin1} Region, ` : '';
+          const country = gh.country || 'Ghana';
           return {
-            name: data[0].display_name.split(',').slice(0, 3).join(','),
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
+            name: `${gh.name}, ${region}${country}`,
+            lat: parseFloat(gh.latitude),
+            lon: parseFloat(gh.longitude)
           };
         }
       }
     } catch (err) {
-      console.warn('Nominatim geocoding notice:', err);
+      console.warn('Open-Meteo geocoding notice:', err);
     }
 
     return { name: `${locationQuery}, Ghana`, lat: 5.5593, lon: -0.1974 };

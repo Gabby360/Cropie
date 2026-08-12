@@ -562,8 +562,6 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
   const closeModalBtn = document.getElementById('closeModalBtn');
   const modalOverlay = document.getElementById('modalOverlay');
 
-  loadAndRenderData();
-
   const gpsBtn = document.getElementById('dashDetectGpsBtn');
   const locationForm = document.getElementById('dashLocationForm');
   const locationInput = document.getElementById('dashLocationSearchInput');
@@ -703,22 +701,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
           
-          let locName = `Laterbiokorshie, Accra, Ghana`;
-          try {
-            const revUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-            const res = await fetch(revUrl);
-            if (res.ok) {
-              const rData = await res.json();
-              const addr = rData.address || {};
-              const suburb = addr.suburb || addr.neighbourhood || addr.quarter || addr.residential || '';
-              const city = addr.city || addr.town || addr.village || addr.county || 'Accra';
-              const country = addr.country || 'Ghana';
-              locName = suburb ? `${suburb}, ${city}, ${country}` : `${city}, ${country}`;
-            }
-          } catch {
-            const geo = await weatherService.geocodeLocation(`${lat.toFixed(4)},${lon.toFixed(4)}`);
-            if (geo && geo.name) locName = geo.name;
-          }
+          const locName = await weatherService.reverseGeocode(lat, lon);
 
           const gpsFarm = {
             id: `farm_gps_${Date.now()}`,
@@ -734,9 +717,9 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
           gpsBtn.disabled = false;
           gpsBtn.querySelector('span').textContent = 'Use My Current Location';
         },
-        (error) => {
-          console.warn('GPS detection error:', error);
-          alert('Could not detect location. Please type your city in the search box.');
+        (err) => {
+          console.warn('GPS detection notice:', err);
+          alert('Could not detect location. Please type your city or town in the search box.');
           gpsBtn.disabled = false;
           gpsBtn.querySelector('span').textContent = 'Use My Current Location';
         },
