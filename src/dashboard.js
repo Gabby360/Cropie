@@ -52,13 +52,124 @@ window.submitCropieQuestion = function(e = null) {
   }
   const textInput = document.getElementById('assistantTextInput');
   if (!textInput) return;
-  const val = textInput.value.trim();
+  const val = textInput.value ? textInput.value.trim() : '';
   if (!val) return;
+
   textInput.value = '';
   if (typeof window.processAskCropieUserQuestion === 'function') {
     window.processAskCropieUserQuestion(val);
   }
 };
+
+window.processAskCropieUserQuestion = async function(questionText) {
+  const chatList = document.getElementById('chatMessagesList');
+  const langSelect = document.getElementById('assistantLangSelect');
+  const selectedCode = langSelect ? langSelect.value : 'eng';
+
+  if (!questionText || !questionText.trim()) return;
+
+  // 1. Append User Question Bubble
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const userMsgId = `msg_user_${Date.now()}`;
+
+  if (chatList) {
+    const userEl = document.createElement('div');
+    userEl.className = 'chat-message-item user-msg';
+    userEl.id = userMsgId;
+    userEl.innerHTML = `
+      <div class="msg-avatar"><i class="fa-solid fa-user"></i></div>
+      <div class="msg-bubble-wrapper">
+        <div class="msg-bubble"><p>${escapeHtml(questionText)}</p></div>
+        <span class="msg-time">${timeStr}</span>
+      </div>
+    `;
+    chatList.appendChild(userEl);
+    chatList.scrollTop = chatList.scrollHeight;
+  }
+
+  // 2. Append Thinking Bubble
+  const cropieMsgId = `msg_cropie_${Date.now()}`;
+  if (chatList) {
+    const cropieEl = document.createElement('div');
+    cropieEl.className = 'chat-message-item cropie-msg';
+    cropieEl.id = cropieMsgId;
+    cropieEl.innerHTML = `
+      <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+      <div class="msg-bubble-wrapper">
+        <div class="msg-bubble"><p><i class="fa-solid fa-spinner fa-spin" style="margin-right: 0.4rem;"></i> Cropie is thinking...</p></div>
+        <span class="msg-time">${timeStr}</span>
+      </div>
+    `;
+    chatList.appendChild(cropieEl);
+    chatList.scrollTop = chatList.scrollHeight;
+  }
+
+  // 3. Process Question with Cropie Intelligence Engine
+  try {
+    const khaya = new KhayaService();
+    const dataService = new CropieDataService();
+    const assistant = new CropieAssistantService(dataService, khaya);
+
+    let englishQuery = questionText;
+    if (selectedCode !== 'eng') {
+      try {
+        englishQuery = await khaya.translateText(questionText, selectedCode, 'eng');
+      } catch {}
+    }
+
+    const result = await assistant.processQuestion(englishQuery, selectedCode);
+    let finalAnswer = result.englishAnswer || "I couldn't generate recommendations right now.";
+
+    if (selectedCode !== 'eng') {
+      try {
+        finalAnswer = await khaya.translateText(result.englishAnswer, 'eng', selectedCode);
+      } catch {}
+    }
+
+    const bubbleEl = document.querySelector(`#${cropieMsgId} .msg-bubble p`);
+    if (bubbleEl) {
+      bubbleEl.innerHTML = escapeHtml(finalAnswer).replace(/\n/g, '<br/>');
+    }
+
+    const wrapperEl = document.querySelector(`#${cropieMsgId} .msg-bubble-wrapper`);
+    if (wrapperEl) {
+      const ttsBtn = document.createElement('button');
+      ttsBtn.className = 'btn-tts-listen';
+      ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
+      let activePlayer = null;
+      ttsBtn.addEventListener('click', async () => {
+        if (activePlayer) { activePlayer.pause(); activePlayer = null; }
+        ttsBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Synthesizing...</span>`;
+        try {
+          const audioSrc = await khaya.textToSpeech(finalAnswer, selectedCode);
+          if (audioSrc) {
+            activePlayer = new Audio(audioSrc);
+            activePlayer.play();
+            ttsBtn.innerHTML = `<i class="fa-solid fa-pause"></i> <span>Pause</span>`;
+            activePlayer.onended = () => { ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`; };
+          } else {
+            ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
+          }
+        } catch {
+          ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> <span>Listen</span>`;
+        }
+      });
+      wrapperEl.appendChild(ttsBtn);
+    }
+
+  } catch (err) {
+    console.error('Ask Cropie processing error:', err);
+    const bubbleEl = document.querySelector(`#${cropieMsgId} .msg-bubble p`);
+    if (bubbleEl) {
+      bubbleEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color: #dc2626; margin-right: 0.35rem;"></i> Cropie couldn't connect to the assistant right now. Please check your network and try again.`;
+    }
+  }
+};
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 // Safe DOMReady listener that runs immediately if DOM is already parsed
 function onDOMReady(fn) {
