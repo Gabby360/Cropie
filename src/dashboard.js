@@ -172,7 +172,7 @@ function initMobileDrawer(auth) {
   }
 }
 
-function initDashboardApp(dataService, auth, weatherService) {
+function initDashboardApp(dataService, auth, weatherService, khayaService, assistantService) {
   const currentUser = auth.getCurrentUser();
   const dashNavActions = document.getElementById('dashNavActions');
 
@@ -449,6 +449,8 @@ function initDashboardApp(dataService, auth, weatherService) {
   initAskCropieAssistant(assistantService, khayaService);
 
   function initAskCropieAssistant(assistant, khaya) {
+    const activeKhaya = khaya || new KhayaService();
+    const activeAssistant = assistant || new CropieAssistantService(dataService || new CropieDataService(), activeKhaya);
     const floatingBtn = document.getElementById('floatingAskCropieBtn');
     const modalOverlay = document.getElementById('askCropieModalOverlay');
     const closeBtn = document.getElementById('closeAskCropieModalBtn');
@@ -686,7 +688,7 @@ function initDashboardApp(dataService, auth, weatherService) {
     }
 
     // 5. Async Dynamic Loading of Remote Capabilities
-    khaya.getLanguages().then(remoteLangs => {
+    activeKhaya.getLanguages().then(remoteLangs => {
       if (remoteLangs && Array.isArray(remoteLangs) && remoteLangs.length > 0) {
         languages = remoteLangs;
         if (langSelect) {
@@ -697,7 +699,7 @@ function initDashboardApp(dataService, auth, weatherService) {
       }
     }).catch(() => {});
 
-    assistant.getSuggestedPrompts().then(remotePrompts => {
+    activeAssistant.getSuggestedPrompts().then(remotePrompts => {
       if (remotePrompts && Array.isArray(remotePrompts) && remotePrompts.length > 0) {
         renderPrompts(remotePrompts);
       }
@@ -720,18 +722,18 @@ function initDashboardApp(dataService, auth, weatherService) {
         let englishQuery = questionText;
         if (selectedCode !== 'eng' && langConfig.translation) {
           try {
-            englishQuery = await khaya.translateText(questionText, selectedCode, 'eng');
+            englishQuery = await activeKhaya.translateText(questionText, selectedCode, 'eng');
           } catch {}
         }
 
         // 6d. Process through Cropie Intelligence Engine
-        const result = await assistant.processQuestion(englishQuery, selectedCode);
+        const result = await activeAssistant.processQuestion(englishQuery, selectedCode);
         let finalResponse = result.englishAnswer;
 
         // 6e. Translate English response to Ghanaian language if needed
         if (selectedCode !== 'eng' && langConfig.translation) {
           try {
-            finalResponse = await khaya.translateText(result.englishAnswer, 'eng', selectedCode);
+            finalResponse = await activeKhaya.translateText(result.englishAnswer, 'eng', selectedCode);
           } catch {}
         }
 
