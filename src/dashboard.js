@@ -49,6 +49,8 @@ window.toggleAskCropieModal = function(eOrForce = null) {
 let globalMediaRecorder = null;
 let globalAudioChunks = [];
 let globalVoiceCancelled = false;
+let globalSubmitRequested = false;
+let engFinalTranscript = '';
 
 // Language code -> display name mapping
 const VLC_LANG_NAMES = {
@@ -63,15 +65,13 @@ function showVoiceListeningCard(langCode) {
   const transcriptText = document.getElementById('vlcTranscriptText');
 
   if (langBadge) langBadge.textContent = VLC_LANG_NAMES[langCode] || langCode;
-  if (statusText) statusText.textContent = 'Listening to your question…';
+  if (statusText) statusText.textContent = '🔴 Listening… Speak your question now';
   if (transcriptText) transcriptText.textContent = '';
   if (transcriptBox) transcriptBox.style.display = 'none';
 
   if (card) {
-    // Re-trigger the slide-up animation every open
     card.style.display = 'none';
-    // eslint-disable-next-line no-unused-expressions
-    card.offsetHeight; // force reflow
+    card.offsetHeight; // force reflow for animation
     card.style.display = 'flex';
   }
 }
@@ -107,19 +107,115 @@ window.setAskCropieMode = function(mode, e = null) {
     if (typeBtn) typeBtn.classList.add('active');
     if (micBtn) micBtn.classList.remove('active');
 
-    window.stopCropieVoiceRecording(false);
-    hideVoiceListeningCard();
+    window.cancelCropieVoiceRecording();
 
     if (textForm) textForm.style.display = 'flex';
     if (textInput) textInput.focus();
   }
 };
 
+// Shared helper to restore text-input mode after voice
+function restoreTypeMode(showPlaceholderMsg = false) {
+  const typeBtn = document.getElementById('askTypeBtn');
+  const micBtn = document.getElementById('askMicBtn');
+  const textForm = document.getElementById('assistantTextForm');
+  const textInput = document.getElementById('assistantTextInput');
+  if (typeBtn) typeBtn.classList.add('active');
+  if (micBtn) micBtn.classList.remove('active');
+  if (textForm) textForm.style.display = 'flex';
+  if (showPlaceholderMsg && textInput) {
+    textInput.focus();
+    textInput.placeholder = 'Mic blocked — please type your question';
+  }
+}
+
+// ─── English: one recognition session at a time, auto-restarting ─────────────
+function startEngRecognitionSession() {
+  if (globalVoiceCancelled || globalSubmitRequested) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = false; // short sessions that auto-restart — avoids edge-case bugs
+
+  globalMediaRecorder = recognition;
+
+  recognition.onresult = (event) => {
+    if (globalVoiceCancelled || globalSubmitRequested) return;
+
+    let interimText = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        engFinalTranscript += event.results[i][0].transcript + ' ';
+      } else {
+        interimText += event.results[i][0].transcript;
+      }
+    }
+
+    // Live preview in the card
+    const transcriptBox = document.getElementById('vlcTranscriptBox');
+    const transcriptText = document.getElementById('vlcTranscriptText');
+    const display = (engFinalTranscript + interimText).trim();
+    if (transcriptBox && transcriptText && display) {
+      transcriptBox.style.display = 'block';
+      transcriptText.textContent = display;
+    }
+
+    const statusEl = document.getElementById('vlcStatusText');
+    if (statusEl) statusEl.textContent = '🔴 Listening… Click Stop & Send when done';
+  };
+
+  recognition.onerror = (event) => {
+    // Ignore recoverable errors — just restart silently
+    if (['no-speech', 'audio-capture', 'network'].includes(event.error)) {
+      setTimeout(() => startEngRecognitionSession(), 300);
+      return;
+    }
+    // Microphone blocked — give up and fall to type mode
+    if (event.error === 'not-allowed') {
+      hideVoiceListeningCard();
+      restoreTypeMode(true);
+    }
+  };
+
+  recognition.onend = () => {
+    if (globalVoiceCancelled) return;
+
+    if (globalSubmitRequested) {
+      // User clicked Stop & Send — submit the accumulated transcript
+      const text = engFinalTranscript.trim();
+      hideVoiceListeningCard();
+      restoreTypeMode();
+      globalSubmitRequested = false;
+      if (text && typeof window.processAskCropieUserQuestion === 'function') {
+        window.processAskCropieUserQuestion(text);
+      }
+      return;
+    }
+
+    // Browser ended the session (silence timeout etc.) — restart immediately
+    setTimeout(() => startEngRecognitionSession(), 150);
+  };
+
+  try {
+    recognition.start();
+  } catch {
+    // If start() throws (e.g. still initialising) — retry shortly
+    setTimeout(() => startEngRecognitionSession(), 300);
+  }
+}
+
 window.startCropieVoiceRecording = async function(langCode = 'eng') {
   globalVoiceCancelled = false;
+  globalSubmitRequested = false;
+  engFinalTranscript = '';
   const statusText = document.getElementById('vlcStatusText');
 
-  // ─── ENGLISH: use the browser's built-in Web Speech API ──────────────────
+  // ─── ENGLISH ──────────────────────────────────────────────────────────────
   if (langCode === 'eng') {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -127,86 +223,9 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
       restoreTypeMode(true);
       return;
     }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = true;   // live preview as user speaks
-    recognition.maxAlternatives = 1;
-    recognition.continuous = true;       // keep listening — don't auto-stop on silence
-
-    let finalTranscript = '';
-
-    // Store ref so Stop & Send / Cancel can call recognition.stop()
-    globalMediaRecorder = recognition;
-
-    recognition.onstart = () => {
-      if (statusText) statusText.textContent = '🔴 Listening… Speak your question now';
-    };
-
-    recognition.onresult = (event) => {
-      if (globalVoiceCancelled) return;
-
-      let interimTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-
-      // Show live transcript in the card preview box
-      const transcriptBox = document.getElementById('vlcTranscriptBox');
-      const transcriptText = document.getElementById('vlcTranscriptText');
-      const displayText = finalTranscript + interimTranscript;
-      if (transcriptBox && transcriptText && displayText.trim()) {
-        transcriptBox.style.display = 'block';
-        transcriptText.textContent = displayText;
-      }
-      if (statusText) statusText.textContent = '🔴 Listening… Click Stop & Send when done';
-    };
-
-    recognition.onerror = (event) => {
-      if (event.error === 'no-speech') {
-        // Silence — just keep the card open and restart
-        try { recognition.start(); } catch {}
-        return;
-      }
-      console.warn('SpeechRecognition error:', event.error);
-      if (!globalVoiceCancelled) {
-        hideVoiceListeningCard();
-        restoreTypeMode();
-      }
-    };
-
-    recognition.onend = () => {
-      if (globalVoiceCancelled) return;
-
-      const text = finalTranscript.trim();
-      if (text) {
-        // User explicitly stopped with a transcript — submit it
-        hideVoiceListeningCard();
-        restoreTypeMode();
-        if (typeof window.processAskCropieUserQuestion === 'function') {
-          window.processAskCropieUserQuestion(text);
-        }
-      }
-      // If no transcript yet and not cancelled — recognition ended unexpectedly,
-      // keep the card open and restart it
-      else if (!globalVoiceCancelled) {
-        try { recognition.start(); } catch {}
-      }
-    };
-
-    try {
-      recognition.start();
-    } catch (err) {
-      hideVoiceListeningCard();
-      restoreTypeMode(true);
-    }
+    startEngRecognitionSession();
     return;
   }
-
 
   // ─── GHANAIAN LANGUAGES: use Khaya ASR v3 ────────────────────────────────
   try {
@@ -256,47 +275,45 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
   }
 };
 
-// Shared helper to restore text-input mode after voice
-function restoreTypeMode(showPlaceholderMsg = false) {
-  const typeBtn = document.getElementById('askTypeBtn');
-  const micBtn = document.getElementById('askMicBtn');
-  const textForm = document.getElementById('assistantTextForm');
-  const textInput = document.getElementById('assistantTextInput');
-  if (typeBtn) typeBtn.classList.add('active');
-  if (micBtn) micBtn.classList.remove('active');
-  if (textForm) textForm.style.display = 'flex';
-  if (showPlaceholderMsg && textInput) {
-    textInput.focus();
-    textInput.placeholder = 'Mic blocked — please type your question';
-  }
-}
-
 window.stopCropieVoiceRecording = function(shouldSubmit = true) {
-  globalVoiceCancelled = !shouldSubmit;
+  if (shouldSubmit) {
+    // Signal to onend that user wants to submit
+    globalSubmitRequested = true;
+    globalVoiceCancelled = false;
+  } else {
+    globalVoiceCancelled = true;
+    globalSubmitRequested = false;
+  }
+
   if (globalMediaRecorder) {
-    // SpeechRecognition uses .abort() / .stop(), MediaRecorder uses .stop()
+    // SpeechRecognition: use .stop() to flush remaining audio
     if (typeof globalMediaRecorder.stop === 'function') {
       try { globalMediaRecorder.stop(); } catch {}
     }
-    if (typeof globalMediaRecorder.abort === 'function') {
-      try { globalMediaRecorder.abort(); } catch {}
-    }
+    // MediaRecorder: same
   }
 };
 
 window.cancelCropieVoiceRecording = function() {
   globalVoiceCancelled = true;
+  globalSubmitRequested = false;
+  engFinalTranscript = '';
+
   if (globalMediaRecorder) {
-    if (typeof globalMediaRecorder.stop === 'function') {
-      try { globalMediaRecorder.stop(); } catch {}
-    }
+    // SpeechRecognition abort discards audio without firing onresult
     if (typeof globalMediaRecorder.abort === 'function') {
       try { globalMediaRecorder.abort(); } catch {}
+    } else if (typeof globalMediaRecorder.stop === 'function') {
+      try { globalMediaRecorder.stop(); } catch {}
     }
   }
+
   hideVoiceListeningCard();
   restoreTypeMode();
 };
+
+
+
 
 window.submitCropieQuestion = function(e = null) {
   if (e && typeof e.preventDefault === 'function') {
