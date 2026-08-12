@@ -62,12 +62,12 @@ export class CropieAssistantService {
     // 2. Classify intent using strict word boundaries and smart conversational patterns
     let category = 'general';
 
-    if (/\b(who are you|who r u|what is your name|who created you|who made you|what can you do|about yourself|your name|identity)\b/i.test(qLower)) {
+    if (/^\s*(hi|hello|hey|akwaaba|greetings|good\s*(morning|afternoon|evening))\b/i.test(qLower) && qLower.split(/\s+/).length <= 4) {
+      category = 'greeting';
+    } else if (/\b(who are you|who r u|what is cropie|who is cropie|what is your name|who created you|who made you|what can you do|about cropie|about yourself|your name|identity|cropie)\b/i.test(qLower)) {
       category = 'identity';
     } else if (/\b(help|how to use|commands|features|what to ask|guide|guidance)\b/i.test(qLower)) {
       category = 'help';
-    } else if (qLower.length <= 4 || /^(how|what|why|when|who|where|ok|okay|can|tell|is|are|do)$/i.test(qLower)) {
-      category = 'ambiguous';
     } else if (/\b(pest|pests|pesticide|pesticides|disease|diseases|worm|armyworm|fall armyworm|insect|insects|bug|bugs|weed|weeds|weeding|blight|fungus|rot|caterpillar|yellowing|leaf|leaves|spot|spots|wilt|damage|attack|infestation)\b/i.test(qLower)) {
       category = 'pests';
     } else if (/\b(rain|rainy|precipitation|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|climate|humidity)\b/i.test(qLower)) {
@@ -78,8 +78,8 @@ export class CropieAssistantService {
       category = 'stage';
     } else if (/\b(cassava|rice|yam|plantain|vegetables|crop|crops|farm|overview)\b/i.test(qLower)) {
       category = 'multicrop';
-    } else if (/^\s*(hi|hello|hey|akwaaba|greetings|good\s*(morning|afternoon|evening))\b/i.test(qLower) && qLower.split(/\s+/).length <= 4) {
-      category = 'greeting';
+    } else if (qLower.length <= 3 || /^(how|what|why|when|who|where|ok|okay|can|tell|is|are|do)$/i.test(qLower)) {
+      category = 'ambiguous';
     }
 
     let responseText = '';
