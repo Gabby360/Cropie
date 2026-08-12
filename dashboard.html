@@ -451,9 +451,9 @@
   </button>
 
   <!-- FLOATING ASK CROPIE MODAL POPOVER -->
-  <div class="ask-cropie-modal-overlay" id="askCropieModalOverlay">
+  <div class="ask-cropie-modal-overlay" id="askCropieModalOverlay" onclick="if(event.target === this) window.toggleAskCropieModal(false);">
     <div class="ask-cropie-modal-content">
-      <button class="ask-cropie-close-btn" id="closeAskCropieModalBtn" aria-label="Close Assistant">&times;</button>
+      <button type="button" class="ask-cropie-close-btn" id="closeAskCropieModalBtn" onclick="window.toggleAskCropieModal &amp;&amp; window.toggleAskCropieModal(false)" aria-label="Close Assistant">&times;</button>
       
       <div class="ask-cropie-header">
         <div class="ask-cropie-title-box">
