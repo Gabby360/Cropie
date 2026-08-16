@@ -74,28 +74,37 @@ export class CropieAssistantService {
       knowledge: getKnowledgeForCrop('Maize')
     };
 
-    // Requirement 13: Temporary Development Logging
-    console.log("CHAT FARM CONTEXT", {
-      farmId: farmInfo.farmId || farmInfo.id || null,
-      farmName: farmInfo.farmName || null,
-      location: locationStr,
-      latitude: farmInfo.latitude || null,
-      longitude: farmInfo.longitude || null,
+    // Requirement 10: Temporary Development Logging
+    console.log("[CROPIE CHAT FARM CONTEXT]", {
+      farm: {
+        id: farmInfo.farmId || farmInfo.id || null,
+        name: farmInfo.farmName || null,
+        location: locationStr,
+        latitude: farmInfo.latitude || null,
+        longitude: farmInfo.longitude || null
+      },
       crops: cropContextMap.map(c => ({
-        cropName: c.name,
-        cropId: c.cropId,
+        id: c.cropId,
+        name: c.name,
         plantingDate: c.plantingDate,
         DAP: c.daysAfterPlanting,
         growthStage: c.growthStage
       })),
       weather: {
         temperature: weather.temp || null,
+        humidity: weather.humidity || null,
         rainProbability: weather.rainProb || null,
         rainfall: weather.rain || null,
-        humidity: weather.humidity || null,
+        condition: weather.condition || null,
         forecast: weather.forecastList || []
       }
     });
+
+    console.log("[CROPIE CHAT CROP DATA]", cropContextMap.map(c => ({
+      id: c.cropId,
+      name: c.name,
+      plantingDate: c.plantingDate
+    })));
 
     return {
       farmName: farmInfo.farmName || null,

@@ -110,8 +110,20 @@ export class CropieAuthService {
         }
       }
       
-      if (data && data.length > 0) {
-        const farm = data[0];
+      // Check if data is null, or if local storage has a farm
+      let farm = (data && data.length > 0) ? data[0] : null;
+      if (!farm) {
+        try {
+          const activeSaved = localStorage.getItem('cropie_active_farm');
+          if (activeSaved) farm = JSON.parse(activeSaved);
+          if (!farm) {
+            const localFarms = JSON.parse(localStorage.getItem('cropie_farms')) || [];
+            farm = localFarms.find(f => f.userId === userId || f.user_id === userId) || (localFarms.length > 0 ? localFarms[0] : null);
+          }
+        } catch {}
+      }
+
+      if (farm) {
         const allCrops = (farm.crops && Array.isArray(farm.crops) && farm.crops.length > 0) ? [...farm.crops] : [];
         let primaryCrop = allCrops[0] || null;
 
@@ -128,47 +140,87 @@ export class CropieAuthService {
           } catch (cErr) {}
         }
 
-        const cropsDetails = allCrops.map(c => ({
-          cropId: c.id || null,
-          cropName: c.crop_name || c.crop || 'Maize',
-          plantingDate: c.planting_date || c.plantingDate || farm.planting_date || farm.plantingDate || null,
-          variety: c.variety || farm.variety || null,
-          growthStage: c.growth_stage || farm.growth_stage || null
-        }));
+        const cropsDetails = allCrops.map(c => {
+          if (typeof c === 'string') {
+            return {
+              cropId: null,
+              cropName: c,
+              plantingDate: farm.planting_date || farm.plantingDate || null,
+              variety: farm.variety || null,
+              growthStage: farm.growth_stage || farm.growthStage || null
+            };
+          }
+          return {
+            cropId: c.id || c.cropId || null,
+            cropName: c.crop_name || c.cropName || c.crop || 'Maize',
+            plantingDate: c.planting_date || c.plantingDate || farm.planting_date || farm.plantingDate || null,
+            variety: c.variety || farm.variety || null,
+            growthStage: c.growth_stage || c.growthStage || farm.growth_stage || null
+          };
+        });
+
+        if (cropsDetails.length === 0 && (farm.crop || farm.crop_name || farm.cropName)) {
+          cropsDetails.push({
+            cropId: null,
+            cropName: farm.crop_name || farm.cropName || farm.crop || 'Maize',
+            plantingDate: farm.planting_date || farm.plantingDate || null,
+            variety: farm.variety || null,
+            growthStage: farm.growth_stage || farm.growthStage || null
+          });
+        }
 
         const cropsList = cropsDetails.map(cd => cd.cropName);
+        const resolvedLat = farm.latitude !== undefined && farm.latitude !== null && !isNaN(parseFloat(farm.latitude)) 
+          ? parseFloat(farm.latitude) 
+          : (farm.lat !== undefined && farm.lat !== null && !isNaN(parseFloat(farm.lat)) ? parseFloat(farm.lat) : null);
 
-        return {
-          id: farm.id,
-          userId: farm.user_id,
-          farmName: farm.farm_name || 'My Farm',
-          locationName: farm.location_name || null,
-          latitude: (farm.latitude !== undefined && farm.latitude !== null && !isNaN(farm.latitude)) ? parseFloat(farm.latitude) : null,
-          longitude: (farm.longitude !== undefined && farm.longitude !== null && !isNaN(farm.longitude)) ? parseFloat(farm.longitude) : null,
-          locationSource: farm.location_source || 'GPS',
-          locationAccuracy: farm.location_accuracy || null,
+        const resolvedLng = farm.longitude !== undefined && farm.longitude !== null && !isNaN(parseFloat(farm.longitude)) 
+          ? parseFloat(farm.longitude) 
+          : (farm.lng !== undefined && farm.lng !== null && !isNaN(parseFloat(farm.lng)) ? parseFloat(farm.lng) : null);
+
+        const resolvedLocationName = farm.location_name || farm.locationName || farm.location || null;
+        const resolvedFarmName = farm.farm_name || farm.farmName || farm.name || 'My Farm';
+        const primaryPlantingDate = cropsDetails[0] ? cropsDetails[0].plantingDate : (farm.planting_date || farm.plantingDate || null);
+
+        const resolvedFarmObj = {
+          id: farm.id || farm.farmId || null,
+          userId: farm.user_id || farm.userId || userId,
+          farmName: resolvedFarmName,
+          locationName: resolvedLocationName,
+          latitude: resolvedLat,
+          longitude: resolvedLng,
+          locationSource: farm.location_source || farm.locationSource || 'GPS',
+          locationAccuracy: farm.location_accuracy || farm.locationAccuracy || null,
           country: farm.country || 'Ghana',
           region: farm.region || '',
           district: farm.district || '',
           community: farm.community || '',
-          farmSize: farm.farm_size || 2,
-          farmSizeUnit: farm.farm_size_unit || 'Acres',
-          soilType: farm.soil_type || null,
-          irrigationType: farm.irrigation_type || null,
+          farmSize: farm.farm_size || farm.farmSize || 2,
+          farmSizeUnit: farm.farm_size_unit || farm.farmSizeUnit || 'Acres',
+          soilType: farm.soil_type || farm.soilType || null,
+          irrigationType: farm.irrigation_type || farm.irrigationType || null,
           variety: farm.variety || null,
-          crop: primaryCrop ? (primaryCrop.crop_name || primaryCrop.crop) : (farm.crop || null),
-          crops: cropsList.length > 0 ? cropsList : (farm.crops ? farm.crops : (farm.crop ? [farm.crop] : [])),
+          crop: cropsList[0] || farm.crop || 'Maize',
+          crops: cropsList,
           cropsDetails: cropsDetails,
-          plantingDate: primaryCrop ? (primaryCrop.planting_date || primaryCrop.plantingDate) : (farm.planting_date || null),
-          growthStage: primaryCrop ? primaryCrop.growth_stage : null
+          plantingDate: primaryPlantingDate,
+          growthStage: cropsDetails[0] ? cropsDetails[0].growthStage : (farm.growth_stage || farm.growthStage || null)
         };
+
+        try {
+          localStorage.setItem('cropie_active_farm', JSON.stringify(resolvedFarmObj));
+        } catch {}
+
+        return resolvedFarmObj;
       }
       return null;
     } catch (err) {
       console.warn('Supabase farm query general catch:', err);
       try {
+        const activeSaved = localStorage.getItem('cropie_active_farm');
+        if (activeSaved) return JSON.parse(activeSaved);
         const localFarms = JSON.parse(localStorage.getItem('cropie_farms')) || [];
-        return localFarms.find(f => f.userId === userId) || null;
+        return localFarms.find(f => f.userId === userId || f.user_id === userId) || (localFarms.length > 0 ? localFarms[0] : null);
       } catch {
         return null;
       }

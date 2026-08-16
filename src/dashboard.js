@@ -633,6 +633,10 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         }
       }
 
+      if (activeFarm) {
+        dataService.applyUserFarmContext(activeFarm);
+      }
+
       // STRICT CONFIRMED LOCATION VALIDATION: Check whether confirmed coordinates exist
       const hasConfirmedLocation = activeFarm && 
         activeFarm.latitude !== undefined && activeFarm.latitude !== null &&
