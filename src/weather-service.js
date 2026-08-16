@@ -106,7 +106,7 @@ export class CropieWeatherService {
       console.warn('Open-Meteo geocoding notice:', err);
     }
 
-    return { name: `${locationQuery}, Ghana`, lat: 5.5593, lon: -0.1974 };
+    return null;
   }
 
   // Map WMO Weather Codes to human labels and FontAwesome icon classes
@@ -218,15 +218,22 @@ export class CropieWeatherService {
 
   // Get Weather for Farm with automatic Caching & Fallback
   async getWeatherForFarm(farm) {
-    if (!farm || farm.latitude === undefined || farm.longitude === undefined) {
-      throw new Error('Farm location coordinates are not available.');
+    if (!farm || farm.latitude === undefined || farm.latitude === null || farm.longitude === undefined || farm.longitude === null) {
+      throw new Error('No confirmed farm location coordinates available.');
     }
 
-    const cacheKey = `${this.CACHE_KEY_PREFIX}${farm.id || 'default'}`;
+    const latNum = parseFloat(farm.latitude);
+    const lngNum = parseFloat(farm.longitude);
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      throw new Error('Invalid farm location coordinates.');
+    }
+
+    // Coordinate-based cache key
+    const cacheKey = `${this.CACHE_KEY_PREFIX}${latNum.toFixed(4)}_${lngNum.toFixed(4)}`;
     
     try {
       // 1. Attempt Live Fetch from Open-Meteo
-      const liveWeather = await this.fetchLiveWeather(farm.latitude, farm.longitude, farm.locationName || farm.farmName);
+      const liveWeather = await this.fetchLiveWeather(latNum, lngNum, farm.locationName || farm.farmName || 'Farm Location');
       
       // Save to localStorage cache
       localStorage.setItem(cacheKey, JSON.stringify(liveWeather));
@@ -235,7 +242,7 @@ export class CropieWeatherService {
     } catch (apiError) {
       console.warn('Open-Meteo live API fetch notice:', apiError);
 
-      // 2. Fallback to cached weather if offline or API error
+      // 2. Fallback to cached weather for these exact coordinates if offline or API error
       const cachedStr = localStorage.getItem(cacheKey);
       if (cachedStr) {
         try {
@@ -249,7 +256,7 @@ export class CropieWeatherService {
         }
       }
 
-      throw new Error("We couldn't retrieve the latest weather. Please check connection.");
+      throw apiError;
     }
   }
 }

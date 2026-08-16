@@ -583,27 +583,44 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         }
       }
 
-      if (!activeFarm) {
-        activeFarm = {
-          id: 'farm_default',
-          farmName: "My Farm",
-          locationName: 'Laterbiokorshie, Accra, Ghana',
-          latitude: 5.5492,
-          longitude: -0.2315,
-          crop: 'maize',
-          plantingDate: '2026-06-10'
-        };
-      }
-
       const user = await auth.getCurrentUser();
       if (user && !customFarm) {
         const userFarm = await auth.getUserFarm(user.id);
         if (userFarm) {
-          activeFarm = { ...activeFarm, ...userFarm };
+          activeFarm = activeFarm ? { ...activeFarm, ...userFarm } : userFarm;
         }
       }
 
-      // Apply farm context
+      // STRICT CONFIRMED LOCATION VALIDATION: Check whether confirmed coordinates exist
+      const hasConfirmedLocation = activeFarm && 
+        activeFarm.latitude !== undefined && activeFarm.latitude !== null &&
+        activeFarm.longitude !== undefined && activeFarm.longitude !== null &&
+        !isNaN(parseFloat(activeFarm.latitude)) && !isNaN(parseFloat(activeFarm.longitude));
+
+      if (!hasConfirmedLocation) {
+        // UNSET LOCATION STATE: Do NOT fetch weather or invent fake coordinates
+        const farmTitleEl = document.getElementById('dashFarmTitle');
+        const farmMetaLocation = document.getElementById('dashMetaLocation');
+        if (farmTitleEl) farmTitleEl.textContent = "Set Up Your Farm Location";
+        if (farmMetaLocation) farmMetaLocation.textContent = "Location: No farm location confirmed yet";
+
+        const picLocBadge = document.getElementById('dashPicLocationBadge');
+        const picFooterStation = document.getElementById('dashPicFooterStation');
+        const picFooterGps = document.getElementById('dashPicFooterGps');
+        if (picLocBadge) picLocBadge.textContent = "Farm Location Not Set";
+        if (picFooterStation) picFooterStation.textContent = "Farm Location Not Set";
+        if (picFooterGps) picFooterGps.textContent = "No coordinates confirmed";
+
+        renderWeatherUnsetCard();
+
+        const data = await dataService.getLiveData();
+        if (errorBanner) errorBanner.style.display = 'none';
+        renderCropStatus(data.cropStatus);
+        renderAlerts(data.liveAlerts);
+        return;
+      }
+
+      // CONFIRMED LOCATION EXISTS: Apply farm context
       dataService.applyUserFarmContext(activeFarm);
       const farmTitleEl = document.getElementById('dashFarmTitle');
       const farmMetaLocation = document.getElementById('dashMetaLocation');
@@ -611,20 +628,18 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${activeFarm.locationName}`;
 
       // Synchronize confirmedLocation & pendingLocation state with active farm
-      if (activeFarm.latitude && activeFarm.longitude) {
-        confirmedLocation.latitude = parseFloat(activeFarm.latitude);
-        confirmedLocation.longitude = parseFloat(activeFarm.longitude);
-        confirmedLocation.locationName = activeFarm.locationName || '';
-        confirmedLocation.locality = (activeFarm.locationName || '').split(',')[0].trim();
-        confirmedLocation.source = activeFarm.locationSource || 'gps';
+      confirmedLocation.latitude = parseFloat(activeFarm.latitude);
+      confirmedLocation.longitude = parseFloat(activeFarm.longitude);
+      confirmedLocation.locationName = activeFarm.locationName || '';
+      confirmedLocation.locality = (activeFarm.locationName || '').split(',')[0].trim();
+      confirmedLocation.source = activeFarm.locationSource || 'gps';
 
-        pendingLocation.latitude = parseFloat(activeFarm.latitude);
-        pendingLocation.longitude = parseFloat(activeFarm.longitude);
-        pendingLocation.source = activeFarm.locationSource || 'gps';
-      }
+      pendingLocation.latitude = parseFloat(activeFarm.latitude);
+      pendingLocation.longitude = parseFloat(activeFarm.longitude);
+      pendingLocation.source = activeFarm.locationSource || 'gps';
 
       // Update Farmer Picture Card Location Badges dynamically
-      const shortCity = (activeFarm.locationName || 'Laterbiokorshie').split(',')[0].trim();
+      const shortCity = (activeFarm.locationName || 'Farm').split(',')[0].trim();
       const picLocBadge = document.getElementById('dashPicLocationBadge');
       const picFooterStation = document.getElementById('dashPicFooterStation');
       const picFooterGps = document.getElementById('dashPicFooterGps');
@@ -638,21 +653,26 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       // Save to active local storage cache
       localStorage.setItem('cropie_active_farm', JSON.stringify(activeFarm));
 
-      // Fetch real live weather from Open-Meteo API for active farm location
+      // 1. Show Loading State FIRST
+      renderWeatherLoadingCard();
+
+      // 2. Fetch real live weather from Open-Meteo API for confirmed farm coordinates
       try {
         const weatherData = await weatherService.getWeatherForFarm(activeFarm);
         dataService.applyOpenMeteoWeather(weatherData);
+
+        const data = await dataService.getLiveData();
+        if (errorBanner) errorBanner.style.display = 'none';
+        renderHeader(data.headerInfo);
+        renderWeather(data.weather);
+        renderCropStatus(data.cropStatus);
+        renderAlerts(data.liveAlerts);
+        renderAiInsight(data.aiInsight);
+
       } catch (wErr) {
         console.warn('Open-Meteo weather fetch notice:', wErr);
+        renderWeatherErrorCard(activeFarm);
       }
-
-      const data = await dataService.getLiveData();
-      if (errorBanner) errorBanner.style.display = 'none';
-      renderHeader(data.headerInfo);
-      renderWeather(data.weather);
-      renderCropStatus(data.cropStatus);
-      renderAlerts(data.liveAlerts);
-      renderAiInsight(data.aiInsight);
 
     } catch (err) {
       console.warn('Dashboard telemetry error:', err);
@@ -680,18 +700,18 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
   // Confirmed Location (Saved State displayed in Header) & Pending Location (Active Map Marker State)
   let confirmedLocation = {
-    latitude: 7.3824,
-    longitude: -1.3621,
-    locationName: 'Ejura, Ashanti Region, Ghana',
-    locality: 'Ejura',
-    region: 'Ashanti Region',
+    latitude: null,
+    longitude: null,
+    locationName: '',
+    locality: '',
+    region: '',
     country: 'Ghana',
     source: 'gps'
   };
 
   let pendingLocation = {
-    latitude: 7.3824,
-    longitude: -1.3621,
+    latitude: null,
+    longitude: null,
     source: 'gps'
   };
 
@@ -1451,6 +1471,70 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
 /* RENDERERS */
 
+function renderWeatherUnsetCard() {
+  const cardContainer = document.querySelector('.weather-main-card');
+  if (!cardContainer) return;
+
+  cardContainer.innerHTML = `
+    <div class="weather-unset-card" style="padding: 1.75rem 1.25rem; text-align: center; background: #ffffff; border-radius: 12px;">
+      <div style="font-size: 2.2rem; margin-bottom: 0.35rem;">🌤️</div>
+      <h3 style="font-size: 1.15rem; font-weight: 800; color: #1e293b; margin-bottom: 0.35rem;">Farm Weather</h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.15rem; max-width: 380px; margin-left: auto; margin-right: auto; line-height: 1.4;">
+        Set your farm location to see local weather, hyper-local rainfall forecasts, and agronomic insights for your field.
+      </p>
+      <button type="button" class="btn btn-primary btn-sm" id="unsetSetLocationBtn" style="padding: 0.55rem 1.25rem; border-radius: 9999px; font-weight: 700;">
+        <i class="fa-solid fa-location-dot" style="margin-right: 0.35rem;"></i> Set Farm Location
+      </button>
+    </div>
+  `;
+
+  const btn = document.getElementById('unsetSetLocationBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const selectMapBtn = document.getElementById('dashSelectMapBtn');
+      const detectGpsBtn = document.getElementById('dashDetectGpsBtn');
+      if (selectMapBtn) selectMapBtn.click();
+      else if (detectGpsBtn) detectGpsBtn.click();
+    });
+  }
+}
+
+function renderWeatherLoadingCard() {
+  const cardContainer = document.querySelector('.weather-main-card');
+  if (!cardContainer) return;
+
+  cardContainer.innerHTML = `
+    <div class="weather-loading-card" style="padding: 2.25rem 1.25rem; text-align: center; background: #ffffff; border-radius: 12px;">
+      <div style="font-size: 2rem; color: #16a34a; margin-bottom: 0.5rem;"><i class="fa-solid fa-cloud-sun fa-spin"></i></div>
+      <h4 style="font-size: 1.05rem; font-weight: 700; color: #1e293b; margin-bottom: 0.2rem;">🌤️ Updating local weather...</h4>
+      <p style="color: #64748b; font-size: 0.85rem; margin: 0;">Fetching live satellite telemetry for your farm</p>
+    </div>
+  `;
+}
+
+function renderWeatherErrorCard(farm) {
+  const cardContainer = document.querySelector('.weather-main-card');
+  if (!cardContainer) return;
+
+  cardContainer.innerHTML = `
+    <div class="weather-error-card" style="padding: 1.75rem 1.25rem; text-align: center; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px;">
+      <div style="font-size: 1.8rem; color: #dc2626; margin-bottom: 0.35rem;"><i class="fa-solid fa-cloud-showers-heavy"></i></div>
+      <h4 style="font-size: 1rem; font-weight: 700; color: #991b1b; margin-bottom: 0.25rem;">Unable to load local weather right now.</h4>
+      <p style="color: #b91c1c; font-size: 0.82rem; margin-bottom: 1rem;">Please check your connection and try again.</p>
+      <button type="button" class="btn btn-outline-hero btn-sm" id="retryWeatherFetchBtn" style="background: #ffffff; color: #991b1b; border-color: #fecaca;">
+        <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+      </button>
+    </div>
+  `;
+
+  const btn = document.getElementById('retryWeatherFetchBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      window.location.reload();
+    });
+  }
+}
+
 function renderHeader(info) {
   const lastUpdatedEl = document.getElementById('dashLastUpdatedText');
   const statusLabelEl = document.getElementById('dashStatusLabel');
@@ -1459,25 +1543,65 @@ function renderHeader(info) {
 }
 
 function renderWeather(w) {
-  const tempEl = document.getElementById('dashTemp');
-  const condEl = document.getElementById('dashCondition');
-  const iconEl = document.getElementById('dashWeatherIcon');
-  const humidityEl = document.getElementById('dashHumidity');
-  const windEl = document.getElementById('dashWind');
-  const rainProbEl = document.getElementById('dashRainProb');
+  const cardContainer = document.querySelector('.weather-main-card');
+  if (!cardContainer || !w) return;
+
+  cardContainer.innerHTML = `
+    <div class="weather-card-top">
+      <div class="weather-left-info">
+        <span class="weather-card-label"><i class="fa-solid fa-cloud-sun-rain" style="color: #16a34a;"></i> Current Weather</span>
+
+        <div class="temp-display-row" style="margin-top: 0.5rem;">
+          <div class="temp-big-value" id="dashTemp">${w.temp || '--'}</div>
+          <div class="temp-condition-box">
+            <i class="fa-solid ${w.conditionIcon || w.iconClass || 'fa-cloud-sun'} weather-hero-icon" id="dashWeatherIcon" style="color: #3b82f6;"></i>
+            <span class="condition-text" id="dashCondition">${w.condition || 'Partly Cloudy'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rain-forecast-badge" id="dashRainNotice">
+        ${w.rainNotice || 'Checking live weather telemetry...'}
+      </div>
+    </div>
+
+    <div class="weather-metrics-subgrid">
+      <div class="weather-subitem">
+        <div class="subitem-icon"><i class="fa-solid fa-droplet" style="color: #0284c7;"></i></div>
+        <div class="subitem-data">
+          <span class="subitem-label">Humidity</span>
+          <strong class="subitem-val" id="dashHumidity">${w.humidity || '--'}</strong>
+        </div>
+      </div>
+
+      <div class="weather-subitem">
+        <div class="subitem-icon"><i class="fa-solid fa-wind" style="color: #6b7280;"></i></div>
+        <div class="subitem-data">
+          <span class="subitem-label">Wind Speed</span>
+          <strong class="subitem-val" id="dashWind">${w.wind || '--'}</strong>
+        </div>
+      </div>
+
+      <div class="weather-subitem">
+        <div class="subitem-icon"><i class="fa-solid fa-cloud-showers-heavy" style="color: #2563eb;"></i></div>
+        <div class="subitem-data">
+          <span class="subitem-label">Rain Probability</span>
+          <strong class="subitem-val" id="dashRainProb">${w.rainProb || '--'}</strong>
+        </div>
+      </div>
+
+      <div class="weather-subitem">
+        <div class="subitem-icon"><i class="fa-solid fa-sun" style="color: #eab308;"></i></div>
+        <div class="subitem-data">
+          <span class="subitem-label">UV Index</span>
+          <strong class="subitem-val">6 (Moderate)</strong>
+        </div>
+      </div>
+    </div>
+  `;
+
   const rainNoticeEl = document.getElementById('dashRainNotice');
-
-  if (tempEl) tempEl.textContent = w.temp;
-  if (condEl) condEl.textContent = w.condition;
-  if (iconEl) {
-    iconEl.className = `fa-solid ${w.conditionIcon || w.iconClass || 'fa-cloud-sun'}`;
-  }
-  if (humidityEl) humidityEl.textContent = w.humidity;
-  if (windEl) windEl.textContent = w.wind;
-  if (rainProbEl) rainProbEl.textContent = w.rainProb;
-
   if (rainNoticeEl && w.rainNotice) {
-    rainNoticeEl.textContent = w.rainNotice;
     if (w.rainNoticeType === 'alert' || w.rainNoticeType === 'warning') {
       rainNoticeEl.style.background = '#fef2f2';
       rainNoticeEl.style.color = '#991b1b';

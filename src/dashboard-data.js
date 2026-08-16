@@ -87,28 +87,15 @@ export const AGRICULTURAL_RULE_LIBRARY = [
 
 export const initialDashboardData = {
   headerInfo: {
-    farmName: "My Local Farm",
-    location: "Laterbiokorshie, Accra, Ghana",
-    gps: "5.5492° N, 0.2315° W",
+    farmName: "My Farm",
+    location: "Set your farm location to see local weather",
+    gps: "",
     statusLabel: "Open-Meteo Live API",
-    lastUpdatedText: "Updated 2 mins ago",
-    timestamp: Date.now() - 120000
+    lastUpdatedText: "Pending farm location",
+    timestamp: Date.now()
   },
 
-  weather: {
-    source: "Weather API (Demo)",
-    temp: "28°C",
-    condition: "Partly Cloudy",
-    iconClass: "fa-cloud-sun",
-    iconColor: "#3b82f6",
-    humidity: "74%",
-    windSpeed: "12 km/h",
-    rainProb: "68%",
-    rainNotice: "Rain expected within the next 4 hours.",
-    rainNoticeHighlight: true,
-    uvIndex: "6 (Moderate)",
-    pressure: "1014 hPa"
-  },
+  weather: null,
 
   cropStatus: {
     source: "Calculated from planting date",
@@ -214,6 +201,10 @@ export class CropieDataService {
   applyOpenMeteoWeather(weatherData) {
     if (!weatherData) return;
     const cur = weatherData.current;
+
+    if (!this.data.weather) {
+      this.data.weather = {};
+    }
 
     this.data.weather.temp = `${cur.temperature}°C`;
     this.data.weather.condition = cur.weatherLabel;
