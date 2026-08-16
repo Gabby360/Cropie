@@ -665,68 +665,91 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
   const dashMapSearchInput = document.getElementById('dashMapSearchInput');
   const dashLocationCardWrapper = document.getElementById('dashLocationStatusCardWrapper');
 
-  // Central Current Selected Location State (Single Source of Truth)
-  let currentLocation = {
+  // Confirmed Location (Saved State displayed in Header) & Pending Location (Active Map Marker State)
+  let confirmedLocation = {
     latitude: 7.3824,
     longitude: -1.3621,
-    accuracy: null,
     locationName: 'Ejura, Ashanti Region, Ghana',
     locality: 'Ejura',
     region: 'Ashanti Region',
     country: 'Ghana',
-    source: 'Saved Farm',
-    timestamp: Date.now()
+    source: 'gps'
   };
 
-  async function syncLocationUI(lat, lng, source = 'Manual', accuracy = null, rawGps = null) {
+  let pendingLocation = {
+    latitude: 7.3824,
+    longitude: -1.3621,
+    source: 'gps'
+  };
+
+  // Called when map pin is moved/dragged/clicked/searched — updates pending marker position without changing confirmed header
+  function updatePendingMarkerLocation(lat, lng, source = 'manual_pin') {
     const numericLat = parseFloat(lat);
     const numericLng = parseFloat(lng);
 
-    currentLocation.latitude = numericLat;
-    currentLocation.longitude = numericLng;
-    currentLocation.accuracy = accuracy;
-    currentLocation.source = source;
-    currentLocation.timestamp = Date.now();
+    pendingLocation.latitude = numericLat;
+    pendingLocation.longitude = numericLng;
+    pendingLocation.source = source;
 
-    // Reverse geocode new coordinates
-    const geocodeRes = await locationService.reverseGeocode(numericLat, numericLng);
-    const locationName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-    const locality = typeof geocodeRes === 'object' && geocodeRes.town ? geocodeRes.town : locationName.split(',')[0].trim();
-
-    currentLocation.locationName = locationName;
-    currentLocation.locality = locality;
-    currentLocation.region = typeof geocodeRes === 'object' ? geocodeRes.region : '';
-    currentLocation.country = typeof geocodeRes === 'object' ? geocodeRes.country : 'Ghana';
-
-    // Evaluate accuracy tier
-    const accEval = locationService.evaluateAccuracy(accuracy);
-
-    // Update Header Title & Subtext dynamically (clean farmer-friendly display)
-    const farmTitleEl = document.getElementById('dashFarmTitle');
-    const farmMetaLocation = document.getElementById('dashMetaLocation');
-
-    if (farmTitleEl) farmTitleEl.textContent = `Farm at ${locality}`;
-    if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${locationName}`;
-
-    // Update Farmer Picture Card Location Badges dynamically
-    const picLocBadge = document.getElementById('dashPicLocationBadge');
-    const picFooterStation = document.getElementById('dashPicFooterStation');
-    const picFooterGps = document.getElementById('dashPicFooterGps');
-
-    if (picLocBadge) picLocBadge.textContent = `${locality} Field • 2 Acres`;
-    if (picFooterStation) picFooterStation.textContent = `${locality} Field Station • Ghana`;
-    if (picFooterGps) {
-      picFooterGps.textContent = `${locationName}`;
-    }
-
-    // Reposition Map & Marker
+    // Reposition map marker pin to pending coordinates
     locationService.updateMapPosition(numericLat, numericLng, 16);
-    if (accuracy) {
-      locationService.drawAccuracyCircle(numericLat, numericLng, accuracy);
+
+    // Render card with Use This Location button (header remains on confirmedLocation)
+    renderDashConfirmationCard(numericLat, numericLng);
+  }
+
+  // Called when farmer taps "Use This Location" — reverse-geocodes pending coordinates, updates confirmedLocation, updates header & saves to Supabase
+  async function confirmPendingLocation() {
+    const useBtn = document.getElementById('dashConfirmFarmLocBtn');
+    if (useBtn) {
+      useBtn.disabled = true;
+      useBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming location...';
     }
 
-    // Render Confirmation Card & Diagnostic Panel
-    renderDashConfirmationCard(numericLat, numericLng, locationName, accEval, rawGps);
+    try {
+      const lat = pendingLocation.latitude;
+      const lng = pendingLocation.longitude;
+      const src = pendingLocation.source || 'manual_pin';
+
+      // Reverse geocode pending coordinates on confirmation
+      const geocodeRes = await locationService.reverseGeocode(lat, lng);
+      const locationName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+      const locality = typeof geocodeRes === 'object' && geocodeRes.town ? geocodeRes.town : locationName.split(',')[0].trim();
+
+      confirmedLocation.latitude = lat;
+      confirmedLocation.longitude = lng;
+      confirmedLocation.locationName = locationName;
+      confirmedLocation.locality = locality;
+      confirmedLocation.region = typeof geocodeRes === 'object' ? geocodeRes.region : '';
+      confirmedLocation.country = typeof geocodeRes === 'object' ? geocodeRes.country : 'Ghana';
+      confirmedLocation.source = src;
+
+      // Update Header Title & Subtext dynamically to newly confirmed location
+      const farmTitleEl = document.getElementById('dashFarmTitle');
+      const farmMetaLocation = document.getElementById('dashMetaLocation');
+
+      if (farmTitleEl) farmTitleEl.textContent = `Farm at ${locality}`;
+      if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${locationName}`;
+
+      // Update Farmer Picture Card Location Badges dynamically
+      const picLocBadge = document.getElementById('dashPicLocationBadge');
+      const picFooterStation = document.getElementById('dashPicFooterStation');
+      const picFooterGps = document.getElementById('dashPicFooterGps');
+
+      if (picLocBadge) picLocBadge.textContent = `${locality} Field • 2 Acres`;
+      if (picFooterStation) picFooterStation.textContent = `${locality} Field Station • Ghana`;
+      if (picFooterGps) picFooterGps.textContent = `${locationName}`;
+
+      // Save confirmed location to Supabase & LocalStorage
+      await updateActiveFarmLocation(lat, lng, locationName, src);
+
+    } catch (err) {
+      console.warn("Location confirmation notice:", err);
+      if (useBtn) {
+        useBtn.disabled = false;
+        useBtn.innerHTML = '<i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location';
+      }
+    }
   }
 
   async function initDashGoogleMap(initialLat, initialLng) {
@@ -741,19 +764,19 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         dashGoogleMapCanvas,
         initialLat,
         initialLng,
-        async (lat, lng, actionType) => {
-          const src = actionType === 'drag' ? 'Map Marker Drag' : 'Map Click';
-          await syncLocationUI(lat, lng, src, null, null);
+        (lat, lng, actionType) => {
+          const src = actionType === 'drag' ? 'manual_pin' : 'manual_pin';
+          updatePendingMarkerLocation(lat, lng, src);
         }
       );
 
       if (mapRes) {
         isDashMapInitialized = true;
-        locationService.attachPlacesAutocomplete(dashMapSearchInput, async (selectedPlace) => {
-          await syncLocationUI(selectedPlace.latitude, selectedPlace.longitude, 'Search', null, null);
+        locationService.attachPlacesAutocomplete(dashMapSearchInput, (selectedPlace) => {
+          updatePendingMarkerLocation(selectedPlace.latitude, selectedPlace.longitude, 'search');
         });
 
-        await syncLocationUI(initialLat, initialLng, 'Map Init', currentLocation.accuracy, null);
+        updatePendingMarkerLocation(initialLat, initialLng, 'map_init');
       }
     } catch (mErr) {
       if (dashLocationCardWrapper) {
@@ -771,7 +794,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     }
   }
 
-  async function updateActiveFarmLocation(lat, lon, locationName, source = 'GPS') {
+  async function updateActiveFarmLocation(lat, lon, locationName, source = 'gps') {
     const locality = locationName.split(',')[0].trim();
     let updatedFarm = {
       id: `farm_${Date.now()}`,
@@ -824,7 +847,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       try {
         const pos = await locationService.getCurrentPosition();
         await initDashGoogleMap(pos.latitude, pos.longitude);
-        await syncLocationUI(pos.latitude, pos.longitude, 'gps', pos.accuracy, pos);
+        updatePendingMarkerLocation(pos.latitude, pos.longitude, 'gps');
 
         gpsBtn.disabled = false;
         if (btnSpan) btnSpan.textContent = 'Location found';
@@ -890,36 +913,27 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
   // OPTION 2: Adjust Farm Location
   if (dashSelectMapBtn) {
     dashSelectMapBtn.addEventListener('click', async () => {
-      let initLat = currentLocation.latitude || 7.3824;
-      let initLng = currentLocation.longitude || -1.3621;
+      let initLat = confirmedLocation.latitude || 7.3824;
+      let initLng = confirmedLocation.longitude || -1.3621;
 
       await initDashGoogleMap(initLat, initLng);
-      await syncLocationUI(initLat, initLng, 'manual_pin', currentLocation.accuracy, null);
+      updatePendingMarkerLocation(initLat, initLng, 'manual_pin');
     });
   }
 
-  function renderDashConfirmationCard(lat, lng, locationName, accEval = null, rawGps = null) {
+  function renderDashConfirmationCard(lat, lng) {
     if (!dashLocationCardWrapper) return;
 
     dashLocationCardWrapper.innerHTML = `
       <div class="location-status-card">
-        <div class="location-card-header">
-          <span>📍 Farm Location</span>
-        </div>
-        <div class="location-name-title">${escapeHtml(locationName)}</div>
-
-        <div class="map-instruction-tag" style="margin-top: 0.85rem; margin-bottom: 0.85rem;">
+        <div class="map-instruction-tag" style="margin-bottom: 0.85rem;">
           <i class="fa-solid fa-hand-pointer" style="color: #16a34a;"></i>
           <span>📍 Move the pin to your exact farm location</span>
         </div>
 
-        <div class="location-confirmation-prompt" style="font-weight: 700; color: #1e293b; margin-bottom: 0.65rem; font-size: 0.92rem;">
-          Is this your farm location?
-        </div>
-
         <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
           <button type="button" class="btn btn-primary btn-sm" id="dashConfirmFarmLocBtn">
-            <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Confirm Location
+            <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location
           </button>
           <button type="button" class="btn btn-outline-hero btn-sm" id="dashMovePinBtn">
             <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Adjust Farm Location
@@ -932,7 +946,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     const cBtn = document.getElementById('dashConfirmFarmLocBtn');
     if (cBtn) {
       cBtn.addEventListener('click', () => {
-        updateActiveFarmLocation(lat, lng, locationName, currentLocation.source || 'manual_pin');
+        confirmPendingLocation();
       });
     }
 

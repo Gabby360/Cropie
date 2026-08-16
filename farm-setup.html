@@ -334,41 +334,25 @@
             googleMapCanvas,
             initialLat,
             initialLng,
-            async (lat, lng, actionType) => {
+            (lat, lng, actionType) => {
               pendingLat = lat;
               pendingLng = lng;
-              locationSource = actionType === 'drag' ? 'Map Marker Drag' : 'Map Click';
-              
-              const geocodeRes = await locationService.reverseGeocode(lat, lng);
-              pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-              locationService.logLocationDebug({
-                permissionStatus: 'granted',
-                latitude: lat,
-                longitude: lng,
-                accuracy: pendingAccuracy,
-                timestamp: Date.now(),
-                locationName: pendingLocName
-              });
-
-              renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName, pendingAccuracy);
+              locationSource = 'manual_pin';
+              renderMapConfirmationCard(pendingLat, pendingLng);
             }
           );
 
           if (mapRes) {
             isMapInitialized = true;
-            locationService.attachPlacesAutocomplete(mapSearchInput, async (selectedPlace) => {
+            locationService.attachPlacesAutocomplete(mapSearchInput, (selectedPlace) => {
               pendingLat = selectedPlace.latitude;
               pendingLng = selectedPlace.longitude;
-              locationSource = 'Places Search';
+              locationSource = 'search';
 
-              const geocodeRes = await locationService.reverseGeocode(pendingLat, pendingLng);
-              pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-              renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName, null);
+              renderMapConfirmationCard(pendingLat, pendingLng);
             });
 
-            renderMapConfirmationCard(initialLat, initialLng, pendingLocName, pendingAccuracy);
+            renderMapConfirmationCard(initialLat, initialLng);
           }
         } catch (mErr) {
           renderGoogleMapsErrorCard(mErr.message || "Unable to load Google Maps. Please check your connection and try again.");
@@ -410,19 +394,6 @@
           pendingAccuracy = pos.accuracy;
           locationSource = 'gps';
 
-          // Reverse geocode
-          const geocodeRes = await locationService.reverseGeocode(pendingLat, pendingLng);
-          pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-          locationService.logLocationDebug({
-            permissionStatus: 'granted',
-            latitude: pendingLat,
-            longitude: pendingLng,
-            accuracy: pos.accuracy,
-            timestamp: pos.timestamp,
-            locationName: pendingLocName
-          });
-
           // Open Map, center on GPS coordinates
           await initGoogleFarmMap(pendingLat, pendingLng);
           locationService.updateMapPosition(pendingLat, pendingLng, 16);
@@ -430,7 +401,7 @@
           useGpsBtn.disabled = false;
           useGpsBtn.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #16a34a;"></i><span>Location found</span>';
 
-          renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName);
+          renderMapConfirmationCard(pendingLat, pendingLng);
 
         } catch (err) {
           useGpsBtn.disabled = false;
@@ -444,39 +415,28 @@
         }
       });
 
-      // OPTION 2: Select on Map
+      // OPTION 2: Adjust Farm Location
       selectOnMapBtn.addEventListener('click', async () => {
         hideError('locationError');
-        await initGoogleFarmMap(currentLat, currentLng);
-        
-        const geocodeRes = await locationService.reverseGeocode(currentLat, currentLng);
-        pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
         pendingLat = currentLat;
         pendingLng = currentLng;
+        locationSource = 'manual_pin';
 
-        renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName, null);
+        await initGoogleFarmMap(currentLat, currentLng);
+        renderMapConfirmationCard(pendingLat, pendingLng);
       });
 
-      function renderMapConfirmationCard(lat, lng, locationName) {
+      function renderMapConfirmationCard(lat, lng) {
         locationStatusCardWrapper.innerHTML = `
           <div class="location-status-card">
-            <div class="location-card-header">
-              <span>📍 Farm Location</span>
-            </div>
-            <div class="location-name-title">${escapeHtml(locationName)}</div>
-            
-            <div class="map-instruction-tag" style="margin-top: 0.85rem; margin-bottom: 0.85rem;">
+            <div class="map-instruction-tag" style="margin-bottom: 0.85rem;">
               <i class="fa-solid fa-hand-pointer" style="color: #16a34a;"></i>
               <span>📍 Move the pin to your exact farm location</span>
             </div>
 
-            <div class="location-confirmation-prompt" style="font-weight: 700; color: #1e293b; margin-bottom: 0.65rem; font-size: 0.92rem;">
-              Is this your farm location?
-            </div>
-
             <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
               <button type="button" class="btn btn-primary btn-sm" id="confirmFarmLocBtn">
-                <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Confirm Location
+                <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location
               </button>
               <button type="button" class="btn btn-outline-hero btn-sm" id="movePinBtn">
                 <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Adjust Farm Location
@@ -488,17 +448,28 @@
 
         const confirmBtn = document.getElementById('confirmFarmLocBtn');
         if (confirmBtn) {
-          confirmBtn.addEventListener('click', () => {
-            currentLat = lat;
-            currentLng = lng;
-            locationInput.value = locationName;
-            isLocationConfirmed = true;
+          confirmBtn.addEventListener('click', async () => {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming location...';
 
-            gpsCoordsText.innerHTML = `<strong>Farm Location Confirmed:</strong> ${escapeHtml(locationName)}`;
-            gpsSuccessStatus.style.display = 'flex';
-            locationStatusCardWrapper.style.display = 'none';
-            googleMapWrapper.style.display = 'none';
-            hideError('locationError');
+            try {
+              const geocodeRes = await locationService.reverseGeocode(pendingLat, pendingLng);
+              const confirmedAddr = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+
+              currentLat = pendingLat;
+              currentLng = pendingLng;
+              locationInput.value = confirmedAddr;
+              isLocationConfirmed = true;
+
+              gpsCoordsText.innerHTML = `<strong>Farm Location Confirmed:</strong> ${escapeHtml(confirmedAddr)}`;
+              gpsSuccessStatus.style.display = 'flex';
+              locationStatusCardWrapper.style.display = 'none';
+              googleMapWrapper.style.display = 'none';
+              hideError('locationError');
+            } catch (err) {
+              confirmBtn.disabled = false;
+              confirmBtn.innerHTML = '<i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location';
+            }
           });
         }
 
