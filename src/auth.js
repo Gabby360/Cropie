@@ -68,29 +68,73 @@ export class CropieAuthService {
     }
   }
 
-  // Get User Farm from public.farms table
+  // Get User Farm from public.farms table with resilient relationship handling and detailed telemetry logging
   async getUserFarm(userId) {
     try {
-      const { data, error } = await this.supabase
+      let data = null;
+      let error = null;
+
+      // Pass 1: Try querying farms with embedded crops relationship
+      const res = await this.supabase
         .from('farms')
         .select('*, crops(*)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (error) throw error;
+      data = res.data;
+      error = res.error;
+
+      // If relationship embed returns 400 or schema error (e.g. PGRST200), fall back to direct farms query
+      if (error) {
+        console.group("%c[Cropie Supabase Farm Query Error]", "color: #ef4444; font-weight: bold; font-size: 13px;");
+        console.log("Code:", error.code || 'UNKNOWN');
+        console.log("Message:", error.message || 'No message provided');
+        console.log("Details:", error.details || 'None');
+        console.log("Hint:", error.hint || 'None');
+        console.log("Status:", error.status || 400);
+        console.log("Full Error Object:", error);
+        console.groupEnd();
+
+        // Fallback Pass 2: Direct farms table query without join embed
+        const fallbackRes = await this.supabase
+          .from('farms')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!fallbackRes.error) {
+          data = fallbackRes.data;
+          error = null;
+        }
+      }
       
       if (data && data.length > 0) {
         const farm = data[0];
-        const primaryCrop = (farm.crops && farm.crops.length > 0) ? farm.crops[0] : null;
+        let primaryCrop = (farm.crops && Array.isArray(farm.crops) && farm.crops.length > 0) ? farm.crops[0] : null;
+
+        // If no primary crop from join embed, attempt separate crops query
+        if (!primaryCrop && farm.id) {
+          try {
+            const cropRes = await this.supabase
+              .from('crops')
+              .select('*')
+              .eq('farm_id', farm.id)
+              .limit(1);
+            if (cropRes.data && cropRes.data.length > 0) {
+              primaryCrop = cropRes.data[0];
+            }
+          } catch (cErr) {}
+        }
 
         return {
           id: farm.id,
           userId: farm.user_id,
           farmName: farm.farm_name || 'My Farm',
           locationName: farm.location_name || 'Ejura, Ashanti Region, Ghana',
-          latitude: farm.latitude || 7.3824,
-          longitude: farm.longitude || -1.3621,
+          latitude: parseFloat(farm.latitude) || 7.3824,
+          longitude: parseFloat(farm.longitude) || -1.3621,
           locationSource: farm.location_source || 'GPS',
           locationAccuracy: farm.location_accuracy || null,
           country: farm.country || 'Ghana',
@@ -101,15 +145,14 @@ export class CropieAuthService {
           farmSizeUnit: farm.farm_size_unit || 'Acres',
           soilType: farm.soil_type || 'Loam',
           irrigationType: farm.irrigation_type || 'Rainfed',
-          crop: primaryCrop ? primaryCrop.crop_name : 'maize',
-          plantingDate: primaryCrop ? primaryCrop.planting_date : '2026-06-10',
+          crop: primaryCrop ? (primaryCrop.crop_name || primaryCrop.crop) : 'maize',
+          plantingDate: primaryCrop ? (primaryCrop.planting_date || primaryCrop.plantingDate) : '2026-06-10',
           growthStage: primaryCrop ? primaryCrop.growth_stage : 'Flowering / Tasseling — Estimated'
         };
       }
       return null;
     } catch (err) {
-      console.warn('Supabase farm query notice:', err);
-      // Fallback local storage farm lookup
+      console.warn('Supabase farm query general catch:', err);
       try {
         const localFarms = JSON.parse(localStorage.getItem('cropie_farms')) || [];
         return localFarms.find(f => f.userId === userId) || null;

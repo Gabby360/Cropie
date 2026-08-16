@@ -205,15 +205,18 @@ export class CropieLocationService {
   drawAccuracyCircle(lat, lng, accuracyMeters) {
     if (!accuracyMeters || accuracyMeters <= 0) return;
 
+    const strokeColor = accuracyMeters > 1000 ? '#d97706' : (accuracyMeters > 200 ? '#ca8a04' : '#16a34a');
+    const fillColor = accuracyMeters > 1000 ? '#fef08a' : (accuracyMeters > 200 ? '#fef9c3' : '#22c55e');
+
     if (this.mapType === 'leaflet' && this.mapInstance && window.L) {
       if (this.accuracyCircleInstance) {
         this.mapInstance.removeLayer(this.accuracyCircleInstance);
       }
       this.accuracyCircleInstance = window.L.circle([lat, lng], {
         radius: accuracyMeters,
-        color: '#16a34a',
-        fillColor: '#22c55e',
-        fillOpacity: 0.18,
+        color: strokeColor,
+        fillColor: fillColor,
+        fillOpacity: 0.22,
         weight: 2
       }).addTo(this.mapInstance);
     } else if (this.mapType === 'google' && this.mapInstance && window.google && window.google.maps) {
@@ -221,11 +224,11 @@ export class CropieLocationService {
         this.accuracyCircleInstance.setMap(null);
       }
       this.accuracyCircleInstance = new window.google.maps.Circle({
-        strokeColor: '#16a34a',
-        strokeOpacity: 0.8,
+        strokeColor: strokeColor,
+        strokeOpacity: 0.85,
         strokeWeight: 2,
-        fillColor: '#22c55e',
-        fillOpacity: 0.18,
+        fillColor: fillColor,
+        fillOpacity: 0.22,
         map: this.mapInstance,
         center: { lat, lng },
         radius: accuracyMeters
@@ -234,35 +237,60 @@ export class CropieLocationService {
   }
 
   /**
-   * Evaluate location accuracy and return human-readable level, warning, and text
+   * Evaluate location accuracy according to strict Cropie accuracy rules (Part 1 & Part 5)
    */
   evaluateAccuracy(accuracyMeters) {
     const acc = Math.round(accuracyMeters);
-    const isAccurate = acc <= 1000;
-    
-    let accuracyText = '';
-    let warningMsg = '';
-
-    if (acc < 1000) {
-      accuracyText = `±${acc} metres`;
-    } else {
-      accuracyText = `±${(acc / 1000).toFixed(1)} km`;
-    }
 
     let level = 'high';
-    if (acc > 1000) {
-      level = 'poor';
-      warningMsg = `Your location accuracy is currently very low (±${acc} metres). Location is not reliable enough for precise farm mapping. Please move outdoors or adjust the marker pin manually.`;
-    } else if (acc > 100) {
+    let statusBadge = 'GPS location detected';
+    let warningMsg = '';
+    let deviceAdvice = '';
+    let isAccurate = true;
+    let allowAutoSave = true;
+    let isUnreliable = false;
+
+    if (acc <= 50) {
+      level = 'high';
+      statusBadge = 'GPS location detected';
+      isAccurate = true;
+      allowAutoSave = true;
+    } else if (acc > 50 && acc <= 200) {
       level = 'moderate';
-      warningMsg = `Your location accuracy is currently low (±${acc} metres). Please move outdoors or use a phone with location services enabled.`;
+      statusBadge = `Location detected with moderate accuracy (±${acc}m)`;
+      warningMsg = 'Location detected with moderate accuracy. Please confirm or adjust the marker to your exact farm position.';
+      isAccurate = true;
+      allowAutoSave = true;
+    } else if (acc > 200 && acc <= 1000) {
+      level = 'low';
+      statusBadge = `Location accuracy is low (±${acc}m)`;
+      warningMsg = 'Your location accuracy is low. Please adjust the marker to your farm.';
+      deviceAdvice = 'For the most accurate automatic location, use Cropie on a smartphone with Location/GPS enabled. You can also manually place the farm marker on the map.';
+      isAccurate = false;
+      allowAutoSave = false;
+    } else {
+      // acc > 1000m (e.g. 5000m)
+      level = 'unreliable';
+      statusBadge = `Unreliable location accuracy (±${(acc / 1000).toFixed(1)} km)`;
+      warningMsg = '⚠️ Your current location is too inaccurate for precise farm mapping.';
+      deviceAdvice = 'For the most accurate automatic location, use Cropie on a smartphone with Location/GPS enabled. You can also manually place the farm marker on the map.';
+      isAccurate = false;
+      allowAutoSave = false;
+      isUnreliable = true;
     }
 
+    const accuracyText = acc < 1000 ? `±${acc} metres` : `±${(acc / 1000).toFixed(1)} km`;
+
     return {
-      isAccurate,
-      accuracyText,
-      warningMsg,
+      acc,
       level,
+      statusBadge,
+      warningMsg,
+      deviceAdvice,
+      isAccurate,
+      allowAutoSave,
+      isUnreliable,
+      accuracyText,
       meters: acc
     };
   }

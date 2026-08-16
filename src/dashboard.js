@@ -901,21 +901,23 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     let accHTML = '';
     let warningBannerHTML = '';
     let diagPanelHTML = '';
+    let actionsHTML = '';
 
     if (accEval) {
       accHTML = `
         <div class="location-accuracy-pill ${accEval.level}">
-          <i class="fa-solid fa-circle-check"></i> GPS Accuracy: ${accEval.accuracyText}
+          <i class="fa-solid fa-circle-check"></i> ${escapeHtml(accEval.statusBadge)}
         </div>
       `;
       if (accEval.warningMsg) {
         warningBannerHTML = `
-          <div class="location-status-card warning-card" style="margin-top: 0.75rem; margin-bottom: 0.75rem;">
-            <div class="location-card-header">
+          <div class="location-status-card warning-card" style="margin-top: 0.75rem; margin-bottom: 0.75rem; border-left: 4px solid #eab308; background: #fefce8; padding: 0.85rem 1rem; border-radius: 8px;">
+            <div class="location-card-header" style="font-weight: 800; color: #a16207; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
               <i class="fa-solid fa-triangle-exclamation"></i>
-              <span>Accuracy Notice</span>
+              <span>Location Accuracy Notice</span>
             </div>
-            <p class="location-card-msg">${escapeHtml(accEval.warningMsg)}</p>
+            <p class="location-card-msg" style="color: #854d0e; font-size: 0.9rem; margin-bottom: 0.4rem;">${escapeHtml(accEval.warningMsg)}</p>
+            ${accEval.deviceAdvice ? `<p class="location-card-advice" style="font-size: 0.82rem; color: #713f12; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed #fef08a;"><i class="fa-solid fa-mobile-screen-button"></i> ${escapeHtml(accEval.deviceAdvice)}</p>` : ''}
           </div>
         `;
       }
@@ -967,6 +969,30 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       `;
     }
 
+    if (accEval && accEval.isUnreliable) {
+      actionsHTML = `
+        <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline-hero btn-sm" id="dashTryGpsAgainBtn">
+            <i class="fa-solid fa-rotate-right" style="color: #16a34a;"></i> Try GPS Again
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="dashSelectOnMapManuallyBtn">
+            <i class="fa-solid fa-map-location-dot"></i> Select Farm Location on Map
+          </button>
+        </div>
+      `;
+    } else {
+      actionsHTML = `
+        <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary btn-sm" id="dashConfirmFarmLocBtn">
+            <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Confirm Farm Location
+          </button>
+          <button type="button" class="btn btn-outline-hero btn-sm" id="dashMovePinBtn">
+            <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Adjust Pin Position
+          </button>
+        </div>
+      `;
+    }
+
     dashLocationCardWrapper.innerHTML = `
       <div class="location-status-card">
         <div class="location-card-header">
@@ -991,17 +1017,10 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
         <div class="map-instruction-tag">
           <i class="fa-solid fa-hand-pointer" style="color: #16a34a;"></i>
-          <span>📍 Move the pin to your farm's exact location</span>
+          <span>📍 Move the pin on the map to your exact farm position</span>
         </div>
 
-        <div class="location-card-actions">
-          <button type="button" class="btn btn-primary btn-sm" id="dashConfirmFarmLocBtn">
-            <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Confirm Farm Location
-          </button>
-          <button type="button" class="btn btn-outline-hero btn-sm" id="dashMovePinBtn">
-            <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Adjust Pin Position
-          </button>
-        </div>
+        ${actionsHTML}
       </div>
     `;
     dashLocationCardWrapper.style.display = 'block';
@@ -1009,7 +1028,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     const cBtn = document.getElementById('dashConfirmFarmLocBtn');
     if (cBtn) {
       cBtn.addEventListener('click', () => {
-        updateActiveFarmLocation(lat, lng, locationName, 'Google Maps');
+        updateActiveFarmLocation(lat, lng, locationName, 'Map Marker');
       });
     }
 
@@ -1018,6 +1037,20 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       mBtn.addEventListener('click', () => {
         dashGoogleMapWrapper.style.display = 'block';
         dashGoogleMapWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+
+    const tryGpsBtn = document.getElementById('dashTryGpsAgainBtn');
+    if (tryGpsBtn && gpsBtn) {
+      tryGpsBtn.addEventListener('click', () => {
+        gpsBtn.click();
+      });
+    }
+
+    const manualBtn = document.getElementById('dashSelectOnMapManuallyBtn');
+    if (manualBtn && dashSelectMapBtn) {
+      manualBtn.addEventListener('click', () => {
+        dashSelectMapBtn.click();
       });
     }
   }
