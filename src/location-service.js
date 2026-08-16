@@ -1,14 +1,16 @@
-// CROPIE — Google Maps & Device Geolocation Service Architecture Module
-// Handles Google Maps JavaScript API loading, interactive map initialization, Places Autocomplete,
-// draggable farm location marker, Google Geocoder reverse-geocoding, browser GPS telemetry, and accuracy checking.
+// CROPIE — Google Maps & Leaflet Interactive Farm Geolocation Service Module
+// Provides Google Maps JS API integration (with Places Autocomplete, draggable markers, and Geocoder),
+// plus a seamless OpenStreetMap (Leaflet) interactive fallback when Google Maps API key is absent or restricted.
 
 export class CropieLocationService {
   constructor() {
     this.DEFAULT_TIMEOUT = 15000; // 15 seconds
     this.googleMapsPromise = null;
+    this.leafletPromise = null;
     this.mapInstance = null;
     this.markerInstance = null;
     this.geocoderInstance = null;
+    this.mapType = null; // 'google' or 'leaflet'
   }
 
   /**
@@ -30,9 +32,14 @@ export class CropieLocationService {
   }
 
   /**
-   * Dynamically load the official Google Maps JavaScript API script (places, geometry libraries)
+   * Dynamically load official Google Maps JavaScript API (places, geometry)
    */
   async loadGoogleMapsScript() {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error("No Google Maps API Key configured.");
+    }
+
     if (typeof window !== 'undefined' && window.google && window.google.maps) {
       return window.google.maps;
     }
@@ -41,11 +48,16 @@ export class CropieLocationService {
       return this.googleMapsPromise;
     }
 
-    const apiKey = this.getApiKey();
-
     this.googleMapsPromise = new Promise((resolve, reject) => {
-      // Create global callback for script load
       const callbackName = `__initCropieGoogleMaps_${Date.now()}`;
+      
+      // Register global auth failure listener
+      window.gm_authFailure = () => {
+        delete window[callbackName];
+        this.googleMapsPromise = null;
+        reject(new Error("Google Maps API key authentication failed. Billing or API key restriction issue."));
+      };
+
       window[callbackName] = () => {
         delete window[callbackName];
         if (window.google && window.google.maps) {
@@ -59,21 +71,65 @@ export class CropieLocationService {
       script.type = 'text/javascript';
       script.async = true;
       script.defer = true;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places,geometry&callback=${callbackName}`;
 
-      // Handle key absence gracefully
-      const keyParam = apiKey ? `key=${encodeURIComponent(apiKey)}&` : '';
-      script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=places,geometry&callback=${callbackName}`;
-
-      script.onerror = (err) => {
+      script.onerror = () => {
         delete window[callbackName];
         this.googleMapsPromise = null;
-        reject(new Error("Failed to load Google Maps JavaScript API. Please check network connection or API key."));
+        reject(new Error("Failed to load Google Maps JavaScript API."));
       };
 
       document.head.appendChild(script);
     });
 
     return this.googleMapsPromise;
+  }
+
+  /**
+   * Dynamically load Leaflet.js & Leaflet.css as a seamless interactive map fallback
+   */
+  async loadLeafletScript() {
+    if (typeof window !== 'undefined' && window.L) {
+      return window.L;
+    }
+
+    if (this.leafletPromise) {
+      return this.leafletPromise;
+    }
+
+    this.leafletPromise = new Promise((resolve, reject) => {
+      // 1. Inject Leaflet CSS
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link');
+        link.id = 'leaflet-css';
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
+
+      // 2. Inject Leaflet JS
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.async = true;
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      
+      script.onload = () => {
+        if (window.L) {
+          resolve(window.L);
+        } else {
+          reject(new Error("Leaflet script loaded without window.L"));
+        }
+      };
+
+      script.onerror = () => {
+        this.leafletPromise = null;
+        reject(new Error("Failed to load Leaflet library."));
+      };
+
+      document.head.appendChild(script);
+    });
+
+    return this.leafletPromise;
   }
 
   /**
@@ -129,7 +185,7 @@ export class CropieLocationService {
   }
 
   /**
-   * Evaluate location accuracy and return human-readable level and text
+   * Evaluate location accuracy
    */
   evaluateAccuracy(accuracyMeters) {
     const acc = Math.round(accuracyMeters);
@@ -158,243 +214,323 @@ export class CropieLocationService {
   }
 
   /**
-   * Create an interactive Google Map instance with a Draggable Farm Marker
+   * Create an interactive Farm Map with Draggable Marker
+   * Attempts Google Maps JS API first if key is configured, otherwise falls back smoothly to Leaflet (OpenStreetMap)
    */
   async createFarmMap(containerEl, initialLat = 7.3824, initialLng = -1.3621, onMarkerChange = null) {
     if (!containerEl) return null;
 
+    // Reset previous container content
+    if (containerEl._leaflet_id) {
+      containerEl._leaflet_id = null;
+    }
+    containerEl.innerHTML = '';
+
+    // 1. Try Google Maps if API key is provided
+    const apiKey = this.getApiKey();
+    if (apiKey) {
+      try {
+        const maps = await this.loadGoogleMapsScript();
+        
+        const mapOptions = {
+          center: { lat: initialLat, lng: initialLng },
+          zoom: 14,
+          mapTypeId: maps.MapTypeId.ROADMAP,
+          gestureHandling: 'greedy',
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          zoomControl: true,
+          styles: [
+            { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+          ]
+        };
+
+        this.mapInstance = new maps.Map(containerEl, mapOptions);
+        this.mapType = 'google';
+
+        this.markerInstance = new maps.Marker({
+          position: { lat: initialLat, lng: initialLng },
+          map: this.mapInstance,
+          draggable: true,
+          animation: maps.Animation.DROP,
+          title: 'Your Farm Location (Drag pin to adjust)'
+        });
+
+        maps.event.addListener(this.markerInstance, 'dragend', () => {
+          const pos = this.markerInstance.getPosition();
+          if (typeof onMarkerChange === 'function') {
+            onMarkerChange(pos.lat(), pos.lng(), 'drag');
+          }
+        });
+
+        maps.event.addListener(this.mapInstance, 'click', (e) => {
+          const lat = e.latLng.lat();
+          const lng = e.latLng.lng();
+          this.markerInstance.setPosition(e.latLng);
+          if (typeof onMarkerChange === 'function') {
+            onMarkerChange(lat, lng, 'click');
+          }
+        });
+
+        this.addMyLocationControl(this.mapInstance, onMarkerChange, 'google');
+
+        return {
+          type: 'google',
+          map: this.mapInstance,
+          marker: this.markerInstance
+        };
+      } catch (err) {
+        console.warn("Google Maps notice (falling back to OpenStreetMap Leaflet):", err.message);
+      }
+    }
+
+    // 2. Leaflet OpenStreetMap Fallback Engine
     try {
-      const maps = await this.loadGoogleMapsScript();
+      const L = await this.loadLeafletScript();
+      this.mapType = 'leaflet';
 
-      const mapOptions = {
-        center: { lat: initialLat, lng: initialLng },
+      const map = L.map(containerEl, {
+        center: [initialLat, initialLng],
         zoom: 14,
-        mapTypeId: maps.MapTypeId.ROADMAP,
-        gestureHandling: 'greedy',
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-        zoomControl: true,
-        styles: [
-          { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
-        ]
-      };
-
-      this.mapInstance = new maps.Map(containerEl, mapOptions);
-
-      // Create Draggable Marker
-      this.markerInstance = new maps.Marker({
-        position: { lat: initialLat, lng: initialLng },
-        map: this.mapInstance,
-        draggable: true,
-        animation: maps.Animation.DROP,
-        title: 'Your Farm Location (Drag pin to adjust)'
+        zoomControl: true
       });
 
-      // Handle Marker Drag Event
-      maps.event.addListener(this.markerInstance, 'dragend', () => {
-        const pos = this.markerInstance.getPosition();
-        const lat = pos.lat();
-        const lng = pos.lng();
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors | Cropie Farm Maps'
+      }).addTo(map);
+
+      const marker = L.marker([initialLat, initialLng], {
+        draggable: true,
+        title: 'Your Farm Location (Drag pin to adjust)'
+      }).addTo(map);
+
+      marker.on('dragend', () => {
+        const pos = marker.getLatLng();
         if (typeof onMarkerChange === 'function') {
-          onMarkerChange(lat, lng, 'drag');
+          onMarkerChange(pos.lat, pos.lng, 'drag');
         }
       });
 
-      // Handle Map Click Event (place marker at click position)
-      maps.event.addListener(this.mapInstance, 'click', (e) => {
-        const lat = e.latLng.lat();
-        const lng = e.latLng.lng();
-        this.markerInstance.setPosition(e.latLng);
+      map.on('click', (e) => {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        marker.setLatLng([lat, lng]);
         if (typeof onMarkerChange === 'function') {
           onMarkerChange(lat, lng, 'click');
         }
       });
 
-      // Add Custom Current Location Center Control Button inside the map
-      this.addMyLocationControl(this.mapInstance, onMarkerChange);
+      this.mapInstance = map;
+      this.markerInstance = marker;
+
+      // Force container map resize
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
 
       return {
-        map: this.mapInstance,
-        marker: this.markerInstance
+        type: 'leaflet',
+        map,
+        marker
       };
 
-    } catch (err) {
-      console.warn("Google Maps initialization notice:", err);
+    } catch (lErr) {
+      console.error("Interactive map engine error:", lErr);
       return null;
     }
   }
 
   /**
-   * Center map & update marker position
+   * Center map & update marker position across Google Maps or Leaflet
    */
   updateMapPosition(lat, lng, zoom = 15) {
-    if (this.mapInstance && this.markerInstance) {
-      const pos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    const numericLat = parseFloat(lat);
+    const numericLng = parseFloat(lng);
+
+    if (this.mapType === 'google' && this.mapInstance && this.markerInstance) {
+      const pos = { lat: numericLat, lng: numericLng };
       this.mapInstance.setCenter(pos);
       this.mapInstance.setZoom(zoom);
       this.markerInstance.setPosition(pos);
+    } else if (this.mapType === 'leaflet' && this.mapInstance && this.markerInstance) {
+      this.mapInstance.setView([numericLat, numericLng], zoom);
+      this.markerInstance.setLatLng([numericLat, numericLng]);
     }
   }
 
   /**
-   * Add a custom floating "Center on My Location" control button on the Google Map
+   * Add custom floating "Center on My Location" control button on the Map
    */
-  addMyLocationControl(map, onMarkerChange) {
-    if (!map || !window.google || !window.google.maps) return;
+  addMyLocationControl(map, onMarkerChange, type = 'google') {
+    if (type === 'google' && map && window.google && window.google.maps) {
+      const controlDiv = document.createElement('div');
+      controlDiv.style.margin = '10px';
 
-    const controlDiv = document.createElement('div');
-    controlDiv.style.margin = '10px';
+      const controlBtn = document.createElement('button');
+      controlBtn.type = 'button';
+      controlBtn.className = 'google-maps-my-location-btn';
+      controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
 
-    const controlBtn = document.createElement('button');
-    controlBtn.type = 'button';
-    controlBtn.className = 'google-maps-my-location-btn';
-    controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
-    controlBtn.title = 'Center map on current GPS location';
+      controlBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        controlBtn.disabled = true;
+        controlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
 
-    controlBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      controlBtn.disabled = true;
-      controlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
-
-      try {
-        const pos = await this.getCurrentPosition();
-        this.updateMapPosition(pos.latitude, pos.longitude, 16);
-        if (typeof onMarkerChange === 'function') {
-          onMarkerChange(pos.latitude, pos.longitude, 'my_location_button', pos.accuracy);
+        try {
+          const pos = await this.getCurrentPosition();
+          this.updateMapPosition(pos.latitude, pos.longitude, 16);
+          if (typeof onMarkerChange === 'function') {
+            onMarkerChange(pos.latitude, pos.longitude, 'my_location_button', pos.accuracy);
+          }
+        } catch (err) {
+          alert(err.message || "Unable to acquire current location.");
+        } finally {
+          controlBtn.disabled = false;
+          controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
         }
-      } catch (err) {
-        alert(err.message || "Unable to acquire current location.");
-      } finally {
-        controlBtn.disabled = false;
-        controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
-      }
-    });
+      });
 
-    controlDiv.appendChild(controlBtn);
-    map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(controlDiv);
+      controlDiv.appendChild(controlBtn);
+      map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(controlDiv);
+    }
   }
 
   /**
-   * Attach Google Places Autocomplete to an input element
+   * Attach Places Autocomplete or location search listener to an input element
    */
   async attachPlacesAutocomplete(inputEl, onPlaceSelect) {
     if (!inputEl) return null;
 
-    try {
-      const maps = await this.loadGoogleMapsScript();
-      if (!maps.places) return null;
+    if (this.mapType === 'google') {
+      try {
+        const maps = await this.loadGoogleMapsScript();
+        if (maps.places) {
+          const autocomplete = new maps.places.Autocomplete(inputEl, {
+            types: ['geocode', 'establishment']
+          });
 
-      const autocomplete = new maps.places.Autocomplete(inputEl, {
-        types: ['geocode', 'establishment']
-      });
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place && place.geometry && place.geometry.location) {
+              const lat = place.geometry.location.lat();
+              const lng = place.geometry.location.lng();
+              const formattedName = place.formatted_address || place.name || inputEl.value;
 
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (place && place.geometry && place.geometry.location) {
-          const lat = place.geometry.location.lat();
-          const lng = place.geometry.location.lng();
-          const formattedName = place.formatted_address || place.name || inputEl.value;
+              this.updateMapPosition(lat, lng, 15);
 
-          if (this.mapInstance && this.markerInstance) {
-            this.updateMapPosition(lat, lng, 15);
-          }
+              if (typeof onPlaceSelect === 'function') {
+                onPlaceSelect({
+                  name: formattedName,
+                  latitude: lat,
+                  longitude: lng,
+                  place
+                });
+              }
+            }
+          });
 
+          return autocomplete;
+        }
+      } catch (err) {
+        console.warn("Places Autocomplete notice:", err);
+      }
+    }
+
+    // Leaflet / Open-Meteo Search Fallback listener for search bar
+    let debounceTimer = null;
+    inputEl.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const query = inputEl.value.trim();
+        if (!query) return;
+
+        const results = await this.searchLocations(query);
+        if (results && results.length > 0) {
+          const sel = results[0];
+          this.updateMapPosition(sel.lat, sel.lon, 15);
           if (typeof onPlaceSelect === 'function') {
             onPlaceSelect({
-              name: formattedName,
-              latitude: lat,
-              longitude: lng,
-              place
+              name: sel.name,
+              latitude: sel.lat,
+              longitude: sel.lon
             });
           }
         }
-      });
+      }
+    });
 
-      return autocomplete;
-
-    } catch (err) {
-      console.warn("Places Autocomplete notice:", err);
-      return null;
-    }
+    return null;
   }
 
   /**
-   * Reverse-geocode latitude and longitude using Google Maps Geocoder API with robust fallbacks
+   * Reverse-geocode latitude and longitude with multi-tier fallbacks
    */
   async reverseGeocode(latitude, longitude) {
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
 
     // 1. Try Google Maps Geocoder if Google script is loaded
-    try {
-      const maps = await this.loadGoogleMapsScript();
-      if (maps && maps.Geocoder) {
-        if (!this.geocoderInstance) {
-          this.geocoderInstance = new maps.Geocoder();
-        }
+    if (this.mapType === 'google') {
+      try {
+        const maps = await this.loadGoogleMapsScript();
+        if (maps && maps.Geocoder) {
+          if (!this.geocoderInstance) {
+            this.geocoderInstance = new maps.Geocoder();
+          }
 
-        const res = await new Promise((resolve) => {
-          this.geocoderInstance.geocode({ location: { lat, lng } }, (results, status) => {
-            if (status === 'OK' && results && results.length > 0) {
-              resolve(results);
-            } else {
-              resolve(null);
-            }
-          });
-        });
-
-        if (res && res.length > 0) {
-          const best = res[0];
-          const components = best.address_components || [];
-          
-          let locality = '';
-          let adminArea1 = '';
-          let adminArea2 = '';
-          let country = 'Ghana';
-
-          components.forEach(c => {
-            const types = c.types || [];
-            if (types.includes('locality') || types.includes('sublocality') || types.includes('neighborhood') || types.includes('town_square') || types.includes('administrative_area_level_3')) {
-              if (!locality) locality = c.long_name;
-            }
-            if (types.includes('administrative_area_level_2')) {
-              adminArea2 = c.long_name;
-            }
-            if (types.includes('administrative_area_level_1')) {
-              adminArea1 = c.long_name;
-            }
-            if (types.includes('country')) {
-              country = c.long_name;
-            }
+          const res = await new Promise((resolve) => {
+            this.geocoderInstance.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results && results.length > 0) {
+                resolve(results);
+              } else {
+                resolve(null);
+              }
+            });
           });
 
-          const town = locality || adminArea2 || best.formatted_address.split(',')[0] || '';
-          const region = (adminArea1 && adminArea1 !== town) ? `${adminArea1.replace(/Region/i, '').trim()} Region, ` : '';
+          if (res && res.length > 0) {
+            const best = res[0];
+            const components = best.address_components || [];
+            
+            let locality = '';
+            let adminArea1 = '';
+            let adminArea2 = '';
+            let country = 'Ghana';
 
-          if (town) {
+            components.forEach(c => {
+              const types = c.types || [];
+              if (types.includes('locality') || types.includes('sublocality') || types.includes('neighborhood') || types.includes('administrative_area_level_3')) {
+                if (!locality) locality = c.long_name;
+              }
+              if (types.includes('administrative_area_level_2')) {
+                adminArea2 = c.long_name;
+              }
+              if (types.includes('administrative_area_level_1')) {
+                adminArea1 = c.long_name;
+              }
+              if (types.includes('country')) {
+                country = c.long_name;
+              }
+            });
+
+            const town = locality || adminArea2 || best.formatted_address.split(',')[0] || '';
+            const region = (adminArea1 && adminArea1 !== town) ? `${adminArea1.replace(/Region/i, '').trim()} Region, ` : '';
+
             return {
-              locationName: `${town}, ${region}${country}`,
-              town,
+              locationName: town ? `${town}, ${region}${country}` : best.formatted_address,
+              town: town || best.formatted_address.split(',')[0],
               region: adminArea1,
               district: adminArea2,
               country,
               formattedAddress: best.formatted_address
             };
           }
-
-          return {
-            locationName: best.formatted_address,
-            town: best.formatted_address.split(',')[0],
-            region: adminArea1,
-            district: adminArea2,
-            country,
-            formattedAddress: best.formatted_address
-          };
         }
+      } catch (gErr) {
+        console.warn("Google Geocoder notice:", gErr);
       }
-    } catch (gErr) {
-      console.warn("Google Geocoder notice:", gErr);
     }
 
     // 2. Fallback: BigDataCloud Reverse Geocode API
@@ -533,10 +669,11 @@ export class CropieLocationService {
   }
 
   /**
-   * Log comprehensive location telemetry for debugging as required
+   * Log comprehensive location telemetry
    */
   logLocationDebug(details) {
-    console.log("%c📍 Cropie Google Maps Location Telemetry", "color: #16a34a; font-weight: bold; font-size: 13px;");
+    console.log("%c📍 Cropie Location Telemetry", "color: #16a34a; font-weight: bold; font-size: 13px;");
+    console.log("Map Engine:", this.mapType || 'none');
     console.log("Permission Status:", details.permissionStatus || 'granted');
     console.log("Latitude:", details.latitude);
     console.log("Longitude:", details.longitude);
