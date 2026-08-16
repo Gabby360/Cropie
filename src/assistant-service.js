@@ -113,14 +113,26 @@ export class CropieAssistantService {
     });
 
     const activeCropName = targetedCropObj.name;
+
+    const dataTruth = {
+      farmName: context.farmName || null,
+      location: context.location || null,
+      hasLocation: Boolean(context.location),
+      crops: context.crops || [],
+      primaryCrop: targetedCropObj.name,
+      weatherAvailable: Boolean(context.location && context.currentWeather && context.currentWeather.temp),
+      plantingDateAvailable: Boolean(targetedCropObj.hasPlantingDate),
+      growthStageAvailable: Boolean(targetedCropObj.hasPlantingDate)
+    };
+
     // 3. Classify intent using distinct category patterns and conversation memory
     let category = 'unknown';
 
-    const isFollowupTrigger = /\b(more|tell me more|explain more|expand|detail|details|how|how so|how to do it|how do i apply|how to apply|how to treat|why|why is that|why wait|why so|when|when can i apply|what next|then what|really|really\?|are you sure|is that true|what about tomorrow\??|what about tomorrow|and tomorrow\??|tomorrow\??|next week|recommend|recommendation|what do you recommend|what should i do|at what time|what time)\b/i.test(qLower);
+    const isFollowupTrigger = /\b(more|tell me more|explain more|expand|detail|details|how|oh how|how so|how to do it|how do i apply|how to apply|how to treat|why|why is that|why wait|why so|when|when can i apply|what next|then what|really|really\?|are you sure|seriously|for real|is that true|what about tomorrow\??|what about tomorrow|and tomorrow\??|tomorrow\??|next week|recommend|recommendation|what do you recommend|what should i do|at what time|what time|hmm|oh|oh okay|okay|ok|alright|i see|and\?|then\?|what do you mean\??)\b/i.test(qLower);
 
     const isFarmOverviewPattern = /\b(what is happening|what's happening|what is going on|what's going on|how is my farm|how is my maize|how is my cassava|how is my crop|current state|state of my farm|check my farm|farm update|farm report|farm summary|tell me about my farm|give me an update|give me my farm update|use the data on the site|use my farm data|use the information on my dashboard|based on my farm|look at my farm|site data|what is happening today|what is happening now|what's happening today|what is happening with my crops)\b/i.test(qLower);
 
-    const isTodayActionPattern = /\b(what should i do|what work should i do|what do i do|what to do|what should i watch|anything i should know|what should i do now|recommend|recommendation|recommend something|any advice|give me today's recommendation|give me today's farm advice|explain what i should do|today's advice|advice for today)\b/i.test(qLower);
+    const isTodayActionPattern = /\b(advise me on my farm|advice me on my farm|give me advice|give me farm advice|what advice do you have|what should i do|what should i do today|what should i do on my farm|what should i do on the farm|what do you advise|what do you recommend|recommend something for my farm|recommend|help me with my farm|what should i work on today|what do i need to do today|what should i watch|anything i should know|what should i do now|today's advice|advice for today)\b/i.test(qLower);
 
     const isIdentityPattern = /\b(what is cropie|who is cropie|about cropie|about yourself|who created you|who made you|what can you do)\b/i.test(qLower);
 
@@ -193,11 +205,11 @@ export class CropieAssistantService {
         break;
 
       case 'farm_overview':
-        responseText = this.buildDetailedFarmOverview(context);
+        responseText = this.buildDetailedFarmOverview(context, dataTruth);
         break;
 
       case 'today_action':
-        responseText = this.buildTodayActionReport(context, activeCropName);
+        responseText = this.buildTodayActionReport(context, targetedCropObj, dataTruth);
         break;
 
       case 'specific_crop':
@@ -219,18 +231,18 @@ export class CropieAssistantService {
         break;
 
       case 'weather':
-        if (!context.location) {
-          responseText = `Your farm location has not been set yet, so I can't give you local weather. Please set your farm location in settings.`;
+        if (!dataTruth.hasLocation) {
+          responseText = `I don't have your farm location yet, so I can't check your local weather. Please set your farm location in settings.`;
         } else if (rainProbVal >= 50) {
           responseText = `Weather forecast ${locText}: Temperature is ${tempVal} with a ${context.currentWeather.rainProb} chance of rain.\n\n🌧️ WAIT BEFORE APPLYING FERTILIZER\nWhy? Rain is expected soon. Some fertilizer may be washed away.`;
         } else {
-          responseText = `Weather forecast ${locText}: Temperature is ${tempVal} (${context.currentWeather.condition || 'Clear'}) with a low rain chance (${context.currentWeather.rainProb || '20%'}). Weather conditions look favorable for field work on your ${activeCropName}.`;
+          responseText = `Weather forecast ${locText}: Temperature is ${tempVal} (${context.currentWeather.condition || 'Clear'}) with a low rain chance (${context.currentWeather.rainProb || '20%'}). No major weather risk detected from the current forecast.`;
         }
         break;
 
       case 'fertilizer':
-        if (!context.location) {
-          responseText = `Your farm location has not been set yet, so I can't check rain forecasts for fertilizer. Please set your farm location in settings.`;
+        if (!dataTruth.hasLocation) {
+          responseText = `I don't have your farm location yet, so I can't check rain forecasts for fertilizer. Please set your farm location in settings.`;
         } else if (rainProbVal >= 50) {
           responseText = `🌧️ WAIT BEFORE APPLYING FERTILIZER\n\nWhy? Rain is expected soon (${context.currentWeather.rainProb} rain chance). Applying fertilizer now may wash some of it away before your ${activeCropName} can use it.`;
         } else {
@@ -311,135 +323,144 @@ export class CropieAssistantService {
   }
 
   handleFollowupQuery(qLower, context, activeCropName) {
-    let lastTopicTurn = null;
-    for (let i = this.conversationHistory.length - 1; i >= 0; i--) {
-      const turn = this.conversationHistory[i];
-      if (['fertilizer', 'pests', 'weather', 'stage', 'farm_overview', 'today_action', 'specific_crop', 'multicrop'].includes(turn.category)) {
-        lastTopicTurn = turn;
-        break;
-      }
+    const lastTurn = this.conversationHistory[this.conversationHistory.length - 1];
+    const lastA = lastTurn ? (lastTurn.response || '').toLowerCase() : '';
+
+    // Acknowledgements (hmm, oh, okay, ok, alright, i see)
+    if (/^\s*(hmm|oh|oh okay|okay|ok|alright|i see)\b/i.test(qLower)) {
+      return `Alright 👍. I'm ready whenever you want to check your crops, weather, or farm advice.`;
     }
 
-    const topic = lastTopicTurn ? lastTopicTurn.category : 'farm_overview';
-    const tempVal = context.currentWeather.temp || '28°C';
-
-    // A. Fertilizer Follow-ups
-    if (topic === 'fertilizer') {
-      if (/\b(why|why is that|why wait|why so)\b/i.test(qLower)) {
-        return `Rain is expected soon on your farm. Rain shortly after applying top-dressing fertilizer causes nitrogen runoff and leaching, washing away nutrients before crop roots absorb them.`;
+    // Really / Are you sure
+    if (/\b(really|really\?|are you sure|seriously|for real|is that true)\b/i.test(qLower)) {
+      if (lastA.includes('not provided') || lastA.includes('missing') || lastA.includes('not set') || lastA.includes('don\'t have')) {
+        return `Yes. That's based on the information currently available on your Cropie account. I don't want to guess about information that hasn't been provided.`;
       }
-      if (/\b(how|how so|how to do it|how do i apply|how to apply)\b/i.test(qLower)) {
-        return `Apply fertilizer 5 to 10 cm away from the base of the plant stem (side-dressing) into moist soil, then lightly cover with soil. Avoid applying directly on wet leaves.`;
-      }
-      if (/\b(when|when can i apply|tomorrow|next week)\b/i.test(qLower)) {
-        return `Rain is expected tomorrow morning. You can check again after the rain risk has passed before scheduling fertilizer top-dressing.`;
-      }
-      return `For ${activeCropName}: Apply basal NPK fertilizer at planting, and top-dress with Urea/SOA at 4-6 weeks when soil is moist. Avoid applying during heavy rain forecasts.`;
+      return `Yes! This recommendation is calculated from your active farm settings and live Open-Meteo weather telemetry.`;
     }
 
-    // B. Pest Follow-ups
-    if (topic === 'pests') {
-      if (/\b(why|why is that)\b/i.test(qLower)) {
-        return `Neem seed extract and bio-pesticides protect beneficial insects and reduce chemical resistance, while early morning spraying targets caterpillars before heat forces them deeper into stems.`;
+    // How / Oh how
+    if (/\b(oh how|how|how to do it)\b/i.test(qLower)) {
+      if (lastA.includes('planting date') || lastA.includes('location') || lastA.includes('settings')) {
+        return `Open your farm settings, choose your crop, and enter your planting date or location. This will allow Cropie to calculate your crop's growth stage and fetch local weather advice.`;
       }
-      return `Recommended Pest Actions for ${activeCropName}:\n1. Inspect leaf whorls early in the morning for caterpillars.\n2. Apply Neem seed extract (50g/L) or approved bio-pesticides.\n3. Spray directly into leaf whorls where caterpillars hide.\n4. Keep field borders free of weeds.`;
+      if (lastA.includes('fertilizer')) {
+        return `Apply top-dressing fertilizer 5 to 10 cm away from the base of the plant stem (side-dressing) into moist soil, then lightly cover with soil.`;
+      }
+      return `Inspect crop leaf whorls early in the morning for Fall Armyworm caterpillars, keep field edges clear of weeds, and check weather before applying chemicals.`;
     }
 
-    // C. Weather Follow-ups
-    if (topic === 'weather') {
-      if (/\b(when|tomorrow|next week)\b/i.test(qLower)) {
-        return `Rain is expected tomorrow morning (${tempVal}, ${context.currentWeather.rainProb || '70%'} rain chance). No extreme weather events detected for tomorrow.`;
+    // Why
+    if (/\b(why|why is that|why wait|why so)\b/i.test(qLower)) {
+      if (lastA.includes('fertilizer') || lastA.includes('rain')) {
+        return `Because rain expected soon can wash away top-dressed fertilizer (leaching risk). It is safer to wait until the rain risk has passed.`;
       }
-      return `Live weather telemetry is provided by Open-Meteo API using high-resolution meteorological forecast models for your farm coordinates.`;
+      return `Because agricultural recommendations are based on live weather telemetry and Ministry of Agriculture guidelines to prevent crop loss and nutrient wastage.`;
     }
 
-    // D. Growth Stage Follow-ups
-    if (topic === 'stage') {
-      if (/\b(really|really\?|are you sure|is that true)\b/i.test(qLower)) {
-        return `Yes! Growth stage is an estimate calculated from your planting date and standard crop phenology cycles. Cropie does not physically view the field.`;
-      }
-      return `During this estimated growth stage, your ${activeCropName} needs adequate soil moisture and effective weed control. Peak water requirement occurs during flowering and cob formation.`;
-    }
-
-    // E. Farm Overview & Today Action Follow-ups
-    if (/\b(when|when can i apply|at what time)\b/i.test(qLower)) {
+    // When
+    if (/\b(when|when can i apply|at what time|tomorrow)\b/i.test(qLower)) {
       return `Rain is expected tomorrow morning. You can check your farm forecast again after the rain risk has passed.`;
     }
 
-    if (/\b(why|why is that|why so)\b/i.test(qLower)) {
-      return `Because rain expected soon can wash away top-dressed fertilizer (leaching risk). It is safer to wait until the rain risk has passed.`;
+    // More / Tell me more
+    if (/\b(more|tell me more|expand|detail|details|and\?|then\?)\b/i.test(qLower)) {
+      return `I can currently see that ${activeCropName} is listed on your farm. If you add your planting date and farm location in settings, Cropie will provide tailored growth stage estimates, rain alerts, and localized fertilizer timing.`;
     }
 
-    if (/\b(how|how to do it)\b/i.test(qLower)) {
-      return `To perform today's farm tasks: Inspect crop whorls early in the morning, apply top-dressing fertilizer 5-10cm from stems in moist soil, and clear weeds along field borders.`;
-    }
-
-    if (/\b(more|tell me more|expand|detail|details)\b/i.test(qLower)) {
-      return `Expanding your Farm Today Briefing:\n\n• Soil & Moisture: Ensure soil has adequate moisture before applying fertilizer top-dressing.\n• Pest Management: Scout leaf whorls early morning for Fall Armyworm.\n• Drainage: Clear field drainage furrows if rain is forecast to prevent waterlogging around roots.`;
-    }
-
-    if (/\b(recommend|what should i do|what do you recommend)\b/i.test(qLower)) {
-      return `Top priority farming tasks for today:\n1. Check weather forecast before applying fertilizer.\n2. Inspect crop leaves for signs of Fall Armyworm or pests.\n3. Ensure field drainage channels are clear if rain is expected.`;
-    }
-
-    return `Yes, this is calculated from your active farm settings and live weather forecast for your field.`;
+    return `Alright 👍. I'm here whenever you need help with your crops or farm advice.`;
   }
 
-  buildDetailedFarmOverview(context) {
-    let out = `WHAT I SEE\n`;
+  buildDetailedFarmOverview(context, dataTruth) {
+    let out = `WHAT I KNOW\n\n`;
 
-    // Crops Section
+    out += `🌽 Crop: ${context.crops.join(', ')}\n\n`;
+
+    out += `🌱 Growth:\n`;
     context.cropContextMap.forEach(cObj => {
-      if (cObj.name.toLowerCase().includes('cocoa')) {
-        out += `🌳 ${cObj.name}: Long-term tree crop (Monitored via weather & humidity)\n`;
-      } else if (cObj.hasPlantingDate) {
-        out += `🌽 ${cObj.name}: Estimated ${cObj.growthStage} stage (Day ${cObj.daysAfterPlanting} after planting)\n`;
+      if (cObj.hasPlantingDate) {
+        out += `• ${cObj.name}: Estimated ${cObj.growthStage} stage (Day ${cObj.daysAfterPlanting} after planting)\n`;
       } else {
-        out += `🌽 ${cObj.name}: Planting date not provided (I can't estimate growth stage yet)\n`;
+        out += `• ${cObj.name}: Not estimated yet — planting date is missing.\n`;
       }
     });
 
-    // Weather Section
-    if (context.location) {
-      const tempVal = context.currentWeather.temp || '28°C';
-      const condVal = context.currentWeather.condition || 'Clear';
-      const rainProbVal = context.currentWeather.rainProb || '20%';
-      out += `🌡️ Weather: ${tempVal}, ${condVal}\n🌧️ Rain chance: ${rainProbVal}\n`;
+    out += `\n📍 Location:\n`;
+    if (dataTruth.hasLocation) {
+      out += `${context.location}\n`;
     } else {
-      out += `🌡️ Weather: Farm location not set yet\n`;
+      out += `Not set yet.\n`;
     }
 
-    const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
+    out += `\n🌦️ Weather:\n`;
+    if (dataTruth.weatherAvailable) {
+      out += `${context.currentWeather.temp}, ${context.currentWeather.condition || 'Clear'} (${context.currentWeather.rainProb} rain chance)\n`;
+    } else {
+      out += `Not available because farm location is not set.\n`;
+    }
+
     out += `\nWHAT THIS MEANS\n`;
-    if (rainProbNum >= 50) {
-      out += `Rain is expected soon (${context.currentWeather.rainProb}), which may wash away top-dressed fertilizer and affect field work.\n`;
+    if (!dataTruth.hasLocation || !context.primaryCropObj.hasPlantingDate) {
+      const missing = [];
+      if (!context.primaryCropObj.hasPlantingDate) missing.push('planting date');
+      if (!dataTruth.hasLocation) missing.push('farm location');
+      out += `I can monitor your ${context.primaryCropObj.name}, but I need your ${missing.join(' and ')} to give you more specific advice.\n\nOnce added, I can estimate your crop's growth stage and check local weather.`;
     } else {
-      out += `Weather conditions are favorable today for routine field maintenance and crop monitoring.\n`;
-    }
-
-    out += `\nTODAY'S ADVICE\n`;
-    if (rainProbNum >= 50) {
-      out += `Wait before applying fertilizer because rain is expected soon.`;
-    } else {
-      out += `Ensure adequate soil moisture before top-dressing fertilizer. Inspect leaf whorls early morning for Fall Armyworm.`;
+      const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
+      if (rainProbNum >= 50) {
+        out += `Rain is expected soon (${context.currentWeather.rainProb}), which may wash away top-dressed fertilizer.\n\nTODAY'S ADVICE\nWait before applying fertilizer until the rain risk passes.`;
+      } else {
+        out += `No major weather risk detected from the current forecast.\n\nTODAY'S ADVICE\nEnsure adequate soil moisture before top-dressing fertilizer.`;
+      }
     }
 
     return out;
   }
 
-  buildTodayActionReport(context, activeCropName) {
-    let out = `🌱 What to do today on your farm (${activeCropName}):\n\n`;
+  buildTodayActionReport(context, targetedCropObj, dataTruth) {
+    let out = `Here is my advice for your farm today:\n\n`;
 
-    const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
-    if (rainProbNum >= 50) {
-      out += `1. 🌧️ WAIT BEFORE APPLYING FERTILIZER\nRain is expected soon (${context.currentWeather.rainProb} chance). Top-dressing fertilizer now risks nutrient runoff and leaching.\n\n`;
+    out += `🌽 ${targetedCropObj.name}\nI can see you are growing ${targetedCropObj.name.toLowerCase()}.\n\n`;
+
+    out += `🌱 Growth stage\n`;
+    if (dataTruth.growthStageAvailable) {
+      out += `Estimated ${targetedCropObj.growthStage} stage (Day ${targetedCropObj.daysAfterPlanting} after planting, planted ${targetedCropObj.plantingDate}).\n\n`;
     } else {
-      out += `1. 🧪 FERTILIZER APPLICATION\nWeather conditions are favorable today (${context.currentWeather.temp || '28°C'}, low rain chance). If your ${activeCropName} is at 4-6 weeks after planting, apply top-dressing fertilizer into moist soil 5-10cm from stem base.\n\n`;
+      out += `I can't estimate this yet because your planting date has not been provided.\n\n`;
     }
 
-    out += `2. 🐛 PEST & HEALTH INSPECTION\nInspect leaf whorls early in the morning for Fall Armyworm caterpillars. Apply Neem seed extract (50g/L) if detected.\n\n`;
-    out += `3. 🌾 WEED & FIELD CARE\nKeep field borders clear of weeds to eliminate alternative host plants for pests.`;
+    out += `🌦️ Weather\n`;
+    if (dataTruth.weatherAvailable) {
+      const tempVal = context.currentWeather.temp || '28°C';
+      const rainProbVal = context.currentWeather.rainProb || '20%';
+      out += `${tempVal}, ${context.currentWeather.condition || 'Clear'} (${rainProbVal} rain chance).\n\n`;
+    } else {
+      out += `I don't have your farm location yet, so I can't give you local weather advice.\n\n`;
+    }
 
+    out += `👉 What you can do:\n`;
+    const actions = [];
+
+    if (dataTruth.weatherAvailable) {
+      const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
+      if (rainProbNum >= 50) {
+        actions.push(`• 🌧️ Wait before applying fertilizer because rain is expected soon (${context.currentWeather.rainProb}).`);
+      } else {
+        actions.push(`• 🟢 No major weather risk detected from the current forecast.`);
+      }
+    }
+
+    actions.push(`• Check your ${targetedCropObj.name.toLowerCase()} leaves for signs of pests.`);
+    actions.push(`• Keep field borders free from heavy weeds.`);
+
+    if (!dataTruth.hasLocation || !dataTruth.plantingDateAvailable) {
+      const missing = [];
+      if (!dataTruth.hasLocation) missing.push('farm location');
+      if (!dataTruth.plantingDateAvailable) missing.push('planting date');
+      actions.push(`• Add your ${missing.join(' and ')} in settings so I can give you more specific advice.`);
+    }
+
+    out += actions.join('\n');
     return out;
   }
 
