@@ -240,6 +240,40 @@ export class CropieAssistantService {
     });
   }
 
+  getVoiceGreeting(langCode) {
+    const lang = (langCode || 'eng').toLowerCase();
+    if (lang === 'twi') {
+      return `Mema wo akwaaba! Me ne Cropie. Kyerɛ me deɛ ɛrekɔ so wɔ wo afuo so anaa bisa me nsɛmmisa.`;
+    }
+    if (lang === 'ewe') {
+      return `Woezɔ! Nye wnye Cropie. Gblɔ nu si le dzadzam le wò agble dzi alo bia biabia m.`;
+    }
+    if (lang === 'gaa' || lang === 'ga') {
+      return `Blema baa! Mi ji Cropie. Gbeee mi nɔ ni yaa no yɛ o-ŋmɔɔ nɔ alo biam sane.`;
+    }
+    if (lang === 'hau' || lang === 'hausa') {
+      return `Sannu, ni ne Cropie. Fada min abin da ke faruwa a gonarku ko ka tambaye ni.`;
+    }
+    return `Hi, I'm Cropie. Tell me what is happening on your farm or ask me a question.`;
+  }
+
+  getNoSpeechMessage(langCode) {
+    const lang = (langCode || 'eng').toLowerCase();
+    if (lang === 'twi') {
+      return `Mante hwee. Mepɛ sɛ wosɔ anomu bio.`;
+    }
+    if (lang === 'ewe') {
+      return `Mese naneke o. Miagba ase.`;
+    }
+    if (lang === 'gaa' || lang === 'ga') {
+      return `Minuu nɔvɔ. Ha biam nɔ bio.`;
+    }
+    if (lang === 'hau' || lang === 'hausa') {
+      return `Ban ji komai ba. Da fatan za a sake gwadawa.`;
+    }
+    return `I couldn't hear anything. Please try again.`;
+  }
+
   getOutofDomainRefusal(langCode) {
     const lang = (langCode || 'eng').toLowerCase();
     if (lang === 'twi') {

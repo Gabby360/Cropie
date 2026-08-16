@@ -584,32 +584,44 @@
     </div>
 
     <!-- Large animated mic ring -->
-    <div class="vlc-mic-ring-wrap">
+    <div class="vlc-mic-ring-wrap" id="vlcMicWrap">
       <div class="vlc-pulse-ring vlc-pulse-ring-3"></div>
       <div class="vlc-pulse-ring vlc-pulse-ring-2"></div>
       <div class="vlc-pulse-ring vlc-pulse-ring-1"></div>
       <div class="vlc-mic-center">
-        <i class="fa-solid fa-microphone"></i>
+        <i class="fa-solid fa-microphone" id="vlcMicIcon"></i>
       </div>
     </div>
 
     <!-- Status label -->
     <p class="vlc-status-text" id="vlcStatusText">Listening to your question…</p>
 
-    <!-- Live transcription preview -->
+    <!-- Editable transcription caption box -->
     <div class="vlc-transcript-box" id="vlcTranscriptBox">
-      <p id="vlcTranscriptText"></p>
+      <textarea id="vlcEditableCaption" class="vlc-caption-textarea" placeholder="Your speech will appear here. You can edit before sending..." rows="3"></textarea>
     </div>
 
-    <!-- Action buttons -->
-    <div class="vlc-actions">
-      <button type="button" class="vlc-btn vlc-btn-stop" id="vlcStopBtn" onclick="window.stopCropieVoiceRecording &amp;&amp; window.stopCropieVoiceRecording(true)">
-        <i class="fa-solid fa-stop"></i>
-        Stop &amp; Send
+    <!-- Action buttons for recording & confirmation -->
+    <div class="vlc-actions" id="vlcActionControls">
+      <button type="button" class="vlc-btn vlc-btn-stop" id="vlcStopBtn">
+        <i class="fa-solid fa-square"></i>
+        <span>Done Speaking</span>
       </button>
-      <button type="button" class="vlc-btn vlc-btn-cancel" id="vlcCancelBtn" onclick="window.cancelCropieVoiceRecording &amp;&amp; window.cancelCropieVoiceRecording()">
+      <button type="button" class="vlc-btn vlc-btn-speak-again" id="vlcSpeakAgainBtn" style="display: none;">
+        <i class="fa-solid fa-rotate-right"></i>
+        <span>Speak Again</span>
+      </button>
+      <button type="button" class="vlc-btn vlc-btn-clear" id="vlcClearBtn" style="display: none;">
+        <i class="fa-solid fa-trash"></i>
+        <span>Clear</span>
+      </button>
+      <button type="button" class="vlc-btn vlc-btn-send" id="vlcSendBtn" style="display: none;">
+        <i class="fa-solid fa-paper-plane"></i>
+        <span>Send Question</span>
+      </button>
+      <button type="button" class="vlc-btn vlc-btn-cancel" id="vlcCancelBtn">
         <i class="fa-solid fa-xmark"></i>
-        Cancel
+        <span>Cancel</span>
       </button>
     </div>
   </div>

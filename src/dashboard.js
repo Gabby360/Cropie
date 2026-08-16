@@ -1213,13 +1213,70 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       });
     }
 
-    // 3. Real Voice Input Handler (Web Speech API + Khaya ASR)
+    // 3. Real Voice Input Handler (Greeting, Live Editable Caption, Edit Before Send)
+    const vlcCard = document.getElementById('voiceListeningCard');
+    const vlcLangName = document.getElementById('vlcLangName');
+    const vlcStatusText = document.getElementById('vlcStatusText');
+    const vlcEditableCaption = document.getElementById('vlcEditableCaption');
+    const vlcStopBtn = document.getElementById('vlcStopBtn');
+    const vlcSpeakAgainBtn = document.getElementById('vlcSpeakAgainBtn');
+    const vlcClearBtn = document.getElementById('vlcClearBtn');
+    const vlcSendBtn = document.getElementById('vlcSendBtn');
+    const vlcCancelBtn = document.getElementById('vlcCancelBtn');
+
+    let currentRecognition = null;
+
+    const resetVoiceCardUI = () => {
+      if (vlcStopBtn) vlcStopBtn.style.display = 'inline-flex';
+      if (vlcSpeakAgainBtn) vlcSpeakAgainBtn.style.display = 'none';
+      if (vlcClearBtn) vlcClearBtn.style.display = 'none';
+      if (vlcSendBtn) vlcSendBtn.style.display = 'none';
+      if (vlcEditableCaption) vlcEditableCaption.value = '';
+    };
+
+    const setVoiceStateReview = (text, langCode) => {
+      if (vlcStatusText) vlcStatusText.textContent = 'Check what I heard';
+      if (vlcEditableCaption) vlcEditableCaption.value = text;
+      if (vlcStopBtn) vlcStopBtn.style.display = 'none';
+      if (vlcSpeakAgainBtn) vlcSpeakAgainBtn.style.display = 'inline-flex';
+      if (vlcClearBtn) vlcClearBtn.style.display = 'inline-flex';
+      if (vlcSendBtn) vlcSendBtn.style.display = 'inline-flex';
+    };
+
+    if (vlcClearBtn && vlcEditableCaption) {
+      vlcClearBtn.addEventListener('click', () => {
+        vlcEditableCaption.value = '';
+        vlcEditableCaption.focus();
+      });
+    }
+
+    if (vlcCancelBtn) {
+      vlcCancelBtn.addEventListener('click', () => {
+        if (currentRecognition) { try { currentRecognition.stop(); } catch {} }
+        if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') { try { currentMediaRecorder.stop(); } catch {} }
+        if (vlcCard) vlcCard.style.display = 'none';
+        setAssistantMode('type');
+      });
+    }
+
+    if (vlcSendBtn && vlcEditableCaption) {
+      vlcSendBtn.addEventListener('click', () => {
+        const textToSend = vlcEditableCaption.value.trim();
+        const selectedCode = langSelect ? langSelect.value : 'eng';
+        if (!textToSend) {
+          if (vlcStatusText) vlcStatusText.textContent = activeAssistant.getNoSpeechMessage(selectedCode);
+          return;
+        }
+        if (vlcCard) vlcCard.style.display = 'none';
+        setAssistantMode('type');
+        handleUserQuestion(textToSend);
+      });
+    }
+
     if (micBtn) {
       micBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
-        setAssistantMode('speak');
 
         const selectedCode = langSelect ? langSelect.value : 'eng';
         const langConfig = languages.find(l => l.code === selectedCode) || { speechRecognition: true, name: 'English' };
@@ -1227,52 +1284,84 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         if (!langConfig.speechRecognition && selectedCode !== 'eng') {
           if (capabilityAlert) {
             capabilityAlert.style.display = 'block';
-            capabilityAlert.textContent = `Voice recognition is not currently available for ${langConfig.name}. Please type your question.`;
+            capabilityAlert.textContent = `Voice recognition is not currently available for ${langConfig.name}. Text chat is active.`;
           }
           setAssistantMode('type');
           return;
         }
 
-        if (recStatusLbl) recStatusLbl.textContent = `Listening in ${langConfig.name}... Speak your question now.`;
+        if (vlcCard) vlcCard.style.display = 'block';
+        if (vlcLangName) vlcLangName.textContent = langConfig.name;
+        if (vlcStatusText) vlcStatusText.textContent = `🔴 Listening...`;
+        resetVoiceCardUI();
 
-        // English Web Speech API Support
+        // 1. Play Voice Greeting in selected language
+        const greeting = activeAssistant.getVoiceGreeting(selectedCode);
+        try {
+          const audioSrc = await khaya.textToSpeech(greeting, selectedCode);
+          if (audioSrc) {
+            const gAudio = new Audio(audioSrc);
+            gAudio.play().catch(() => {});
+          }
+        } catch {}
+
+        // 2. English Web Speech API Support (Interim Live Captions)
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (selectedCode === 'eng' && SpeechRecognition) {
           try {
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
+            currentRecognition = new SpeechRecognition();
+            currentRecognition.lang = 'en-US';
+            currentRecognition.interimResults = true;
+            currentRecognition.maxAlternatives = 1;
 
-            recognition.onresult = (event) => {
-              const speechResult = event.results[0][0].transcript;
-              setAssistantMode('type');
-              if (speechResult && speechResult.trim()) {
-                handleUserQuestion(speechResult.trim());
+            let finalTranscript = '';
+
+            currentRecognition.onresult = (event) => {
+              let interimTranscript = '';
+              for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                  finalTranscript += event.results[i][0].transcript;
+                } else {
+                  interimTranscript += event.results[i][0].transcript;
+                }
               }
+              const currentText = finalTranscript || interimTranscript;
+              if (vlcEditableCaption) vlcEditableCaption.value = currentText;
             };
 
-            recognition.onerror = (event) => {
+            currentRecognition.onerror = (event) => {
               console.warn('SpeechRecognition notice:', event.error);
-              setAssistantMode('type');
-              const fallbackText = prompt('Could not understand voice clearly. Type your question below:', 'Will rain affect my farm today?');
-              if (fallbackText && fallbackText.trim()) {
-                handleUserQuestion(fallbackText.trim());
-              }
+              if (vlcStatusText) vlcStatusText.textContent = activeAssistant.getNoSpeechMessage(selectedCode);
+              setVoiceStateReview('', selectedCode);
             };
 
-            recognition.onend = () => {
-              setAssistantMode('type');
+            currentRecognition.onend = () => {
+              const textCaptured = vlcEditableCaption ? vlcEditableCaption.value.trim() : '';
+              setVoiceStateReview(textCaptured || 'Should I apply fertilizer to my maize today?', selectedCode);
             };
 
-            recognition.start();
+            if (vlcStopBtn) {
+              vlcStopBtn.onclick = () => {
+                try { currentRecognition.stop(); } catch {}
+              };
+            }
+
+            if (vlcSpeakAgainBtn) {
+              vlcSpeakAgainBtn.onclick = () => {
+                resetVoiceCardUI();
+                if (vlcStatusText) vlcStatusText.textContent = `🔴 Listening...`;
+                try { currentRecognition.start(); } catch {}
+              };
+            }
+
+            currentRecognition.start();
             return;
           } catch (srErr) {
             console.warn('Web Speech API error, falling back to audio recording:', srErr);
           }
         }
 
-        // MediaRecorder Fallback for Ghanaian languages & secondary fallback
+        // 3. MediaRecorder Fallback for Ghanaian Languages
         try {
           if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             throw new Error('MediaDevices API not supported in browser environment');
@@ -1290,42 +1379,42 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
             stream.getTracks().forEach(track => track.stop());
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
-            setAssistantMode('type');
-            appendChatMessage('user', '🎙️ [Voice Question Recorded]');
+            if (vlcStatusText) vlcStatusText.textContent = `⏳ Understanding what you said...`;
 
             try {
               let transcribedText = await khaya.speechToText(audioBlob, selectedCode);
               if (!transcribedText || transcribedText.trim() === '') {
-                transcribedText = 'What should I do for my farm today?';
+                transcribedText = activeAssistant.getNoSpeechMessage(selectedCode);
               }
-              handleUserQuestion(transcribedText);
+              setVoiceStateReview(transcribedText, selectedCode);
             } catch (vErr) {
               console.warn('ASR notice:', vErr);
-              handleUserQuestion('What should I do for my farm today?');
+              setVoiceStateReview(activeAssistant.getNoSpeechMessage(selectedCode), selectedCode);
             }
           };
+
+          if (vlcStopBtn) {
+            vlcStopBtn.onclick = () => {
+              if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
+                try { currentMediaRecorder.stop(); } catch {}
+              }
+            };
+          }
+
+          if (vlcSpeakAgainBtn) {
+            vlcSpeakAgainBtn.onclick = () => {
+              resetVoiceCardUI();
+              if (vlcStatusText) vlcStatusText.textContent = `🔴 Listening...`;
+              try { currentMediaRecorder.start(); } catch {}
+            };
+          }
 
           currentMediaRecorder.start();
 
         } catch (mErr) {
           console.warn('Microphone access notice:', mErr);
-          setAssistantMode('type');
-          
-          const promptQuestion = prompt('Microphone access denied. Type your question below:', 'What should I do for my farm today?');
-          if (promptQuestion && promptQuestion.trim()) {
-            handleUserQuestion(promptQuestion.trim());
-          }
-        }
-      });
-    }
-
-    if (stopRecBtn) {
-      stopRecBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setAssistantMode('type');
-        if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
-          try { currentMediaRecorder.stop(); } catch {}
+          if (vlcStatusText) vlcStatusText.textContent = `Microphone access denied. Please type your question.`;
+          setVoiceStateReview('What should I do for my farm today?', selectedCode);
         }
       });
     }
