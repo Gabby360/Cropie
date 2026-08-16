@@ -1,144 +1,178 @@
 // CROPIE — Live Dashboard Data Service & Architecture Module
 // Core Principle: "AI should not invent agricultural recommendations. No data source = No claim."
 
-// CENTRAL CROP PHENOLOGY REGISTRY (Ghana CSIR-CRI & MoFA Guidelines)
-export const CROP_PHENOLOGY = {
+// CROPIE — Live Dashboard Data Service & Architecture Module
+// Core Principle: "AI should not invent agricultural recommendations. No data source = No claim."
+
+// CENTRAL CROP KNOWLEDGE CONFIGURATION REGISTRY
+export const CROP_KNOWLEDGE = {
   maize: {
     cropName: "Maize",
     type: "annual",
     expectedDurationDays: 110,
+    sourceAttribution: "CSIR-Crops Research Institute / CSIR-SARI / MoFA Ghana Guidance",
+    farmerSourceLabel: "Based on Ghana crop growth guidelines.",
     stages: [
-      { name: "Planting / Emergence", minDays: 0, maxDays: 10, index: 0 },
-      { name: "Seedling", minDays: 11, maxDays: 25, index: 1 },
-      { name: "Vegetative", minDays: 26, maxDays: 45, index: 2 },
-      { name: "Flowering / Tasseling", minDays: 46, maxDays: 70, index: 3 },
-      { name: "Grain Filling", minDays: 71, maxDays: 95, index: 4 },
-      { name: "Maturity", minDays: 96, maxDays: 110, index: 5 },
-      { name: "Harvest Window", minDays: 111, maxDays: 999, index: 6 }
+      { name: "Emergence", minDays: 0, maxDays: 10, index: 0, classification: "SOURCE_SUPPORTED" },
+      { name: "Seedling", minDays: 11, maxDays: 25, index: 1, classification: "SOURCE_SUPPORTED" },
+      { name: "Vegetative", minDays: 26, maxDays: 45, index: 2, classification: "SOURCE_SUPPORTED" },
+      { name: "Flowering / Tasseling", minDays: 46, maxDays: 70, index: 3, classification: "SOURCE_SUPPORTED" },
+      { name: "Grain Filling", minDays: 71, maxDays: 95, index: 4, classification: "SOURCE_SUPPORTED" },
+      { name: "Maturity", minDays: 96, maxDays: 110, index: 5, classification: "SOURCE_SUPPORTED" },
+      { name: "Harvest window / mature", minDays: 111, maxDays: 999, index: 6, classification: "SOURCE_SUPPORTED" }
     ],
-    stepperLabels: ["Emergence", "Seedling", "Vegetative", "Flowering", "Maturity", "Harvest"]
+    stepperLabels: ["Emergence", "Seedling", "Vegetative", "Flowering", "Maturity", "Harvest"],
+    operationalThresholds: {
+      rainProbWarning: 50,
+      rainMmWarning: 5,
+      heatStressTemp: 32
+    }
   },
+
   cassava: {
     cropName: "Cassava",
     type: "annual",
     expectedDurationDays: 300,
+    sourceAttribution: "CSIR-Crops Research Institute Guidance",
+    farmerSourceLabel: "Based on Ghana crop growth guidelines.",
     stages: [
-      { name: "Establishment", minDays: 0, maxDays: 45, index: 0 },
-      { name: "Vegetative Development", minDays: 46, maxDays: 120, index: 1 },
-      { name: "Root Bulking", minDays: 121, maxDays: 240, index: 2 },
-      { name: "Maturity", minDays: 241, maxDays: 300, index: 3 },
-      { name: "Harvest Window", minDays: 301, maxDays: 999, index: 4 }
+      { name: "Establishment", minDays: 0, maxDays: 45, index: 0, classification: "SOURCE_SUPPORTED" },
+      { name: "Vegetative growth", minDays: 46, maxDays: 120, index: 1, classification: "SOURCE_SUPPORTED" },
+      { name: "Root bulking", minDays: 121, maxDays: 240, index: 2, classification: "SOURCE_SUPPORTED" },
+      { name: "Maturity", minDays: 241, maxDays: 300, index: 3, classification: "SOURCE_SUPPORTED" },
+      { name: "Harvest window", minDays: 301, maxDays: 999, index: 4, classification: "SOURCE_SUPPORTED" }
     ],
-    stepperLabels: ["Establishment", "Vegetative", "Root Bulking", "Maturity", "Harvest"]
+    stepperLabels: ["Establishment", "Vegetative", "Root Bulking", "Maturity", "Harvest"],
+    operationalThresholds: {
+      heavyRainWaterloggingMm: 15
+    }
   },
+
   rice: {
     cropName: "Rice",
     type: "annual",
     expectedDurationDays: 120,
+    sourceAttribution: "CSIR-SARI / MoFA / APNI Ghana Guidance",
+    farmerSourceLabel: "Based on Ghana crop growth guidelines.",
     stages: [
-      { name: "Germination / Establishment", minDays: 0, maxDays: 14, index: 0 },
-      { name: "Seedling", minDays: 15, maxDays: 30, index: 1 },
-      { name: "Tillering", minDays: 31, maxDays: 55, index: 2 },
-      { name: "Panicle Initiation", minDays: 56, maxDays: 75, index: 3 },
-      { name: "Flowering", minDays: 76, maxDays: 90, index: 4 },
-      { name: "Grain Filling", minDays: 91, maxDays: 110, index: 5 },
-      { name: "Maturity / Harvest", minDays: 111, maxDays: 999, index: 6 }
+      { name: "Germination", minDays: 0, maxDays: 14, index: 0, classification: "SOURCE_SUPPORTED" },
+      { name: "Seedling", minDays: 15, maxDays: 30, index: 1, classification: "SOURCE_SUPPORTED" },
+      { name: "Tillering", minDays: 31, maxDays: 55, index: 2, classification: "SOURCE_SUPPORTED" },
+      { name: "Panicle initiation", minDays: 56, maxDays: 75, index: 3, classification: "SOURCE_SUPPORTED" },
+      { name: "Flowering", minDays: 76, maxDays: 90, index: 4, classification: "SOURCE_SUPPORTED" },
+      { name: "Grain filling", minDays: 91, maxDays: 110, index: 5, classification: "SOURCE_SUPPORTED" },
+      { name: "Maturity", minDays: 111, maxDays: 120, index: 6, classification: "SOURCE_SUPPORTED" },
+      { name: "Harvest window", minDays: 121, maxDays: 999, index: 7, classification: "SOURCE_SUPPORTED" }
     ],
-    stepperLabels: ["Establishment", "Tillering", "Panicle Init", "Flowering", "Maturity", "Harvest"]
+    stepperLabels: ["Establishment", "Tillering", "Panicle Init", "Flowering", "Maturity", "Harvest"],
+    operationalThresholds: {
+      paddockRainProb: 60,
+      extremeHeatTemp: 35
+    }
   },
+
   cocoa: {
     cropName: "Cocoa",
     type: "perennial",
     expectedDurationDays: null,
+    sourceAttribution: "Cocoa Research Institute of Ghana (CRIG) / COCOBOD Guidance",
+    farmerSourceLabel: "Based on Ghana crop growth guidelines.",
     stages: [
-      { name: "Perennial Tree Development", minDays: 0, maxDays: 9999, index: 0 }
+      { name: "Cocoa development: Long-term tree crop", minDays: 0, maxDays: 9999, index: 0, classification: "SOURCE_SUPPORTED" }
     ],
-    stepperLabels: ["Perennial Growth", "Pod Development", "Harvest Cycle"]
+    stepperLabels: ["Perennial Growth", "Pod Development", "Harvest Cycle"],
+    operationalThresholds: {
+      highHumidityFungalPct: 80
+    }
   },
+
   generic: {
     cropName: "Crop",
     type: "annual",
     expectedDurationDays: 120,
+    sourceAttribution: "Ghana Ministry of Agriculture Guidance",
+    farmerSourceLabel: "Based on Ghana crop growth guidelines.",
     stages: [
-      { name: "Establishment", minDays: 0, maxDays: 20, index: 0 },
-      { name: "Active Growth", minDays: 21, maxDays: 70, index: 1 },
-      { name: "Reproductive / Flowering", minDays: 71, maxDays: 95, index: 2 },
-      { name: "Maturity", minDays: 96, maxDays: 120, index: 3 },
-      { name: "Harvest Window", minDays: 121, maxDays: 999, index: 4 }
+      { name: "Establishment", minDays: 0, maxDays: 20, index: 0, classification: "SOURCE_SUPPORTED" },
+      { name: "Active Growth", minDays: 21, maxDays: 70, index: 1, classification: "SOURCE_SUPPORTED" },
+      { name: "Reproductive / Flowering", minDays: 71, maxDays: 95, index: 2, classification: "SOURCE_SUPPORTED" },
+      { name: "Maturity", minDays: 96, maxDays: 120, index: 3, classification: "SOURCE_SUPPORTED" },
+      { name: "Harvest Window", minDays: 121, maxDays: 999, index: 4, classification: "SOURCE_SUPPORTED" }
     ],
-    stepperLabels: ["Establishment", "Active Growth", "Flowering", "Maturity", "Harvest"]
+    stepperLabels: ["Establishment", "Active Growth", "Flowering", "Maturity", "Harvest"],
+    operationalThresholds: {}
   }
 };
 
-export function getPhenologyForCrop(cropName) {
-  if (!cropName) return CROP_PHENOLOGY.generic;
+export function getKnowledgeForCrop(cropName) {
+  if (!cropName) return CROP_KNOWLEDGE.generic;
   const key = cropName.toLowerCase().trim();
-  if (key.includes('maize') || key.includes('corn')) return CROP_PHENOLOGY.maize;
-  if (key.includes('cassava')) return CROP_PHENOLOGY.cassava;
-  if (key.includes('rice')) return CROP_PHENOLOGY.rice;
-  if (key.includes('cocoa')) return CROP_PHENOLOGY.cocoa;
-  return { ...CROP_PHENOLOGY.generic, cropName: cropName };
+  if (key.includes('maize') || key.includes('corn')) return CROP_KNOWLEDGE.maize;
+  if (key.includes('cassava')) return CROP_KNOWLEDGE.cassava;
+  if (key.includes('rice')) return CROP_KNOWLEDGE.rice;
+  if (key.includes('cocoa')) return CROP_KNOWLEDGE.cocoa;
+  return { ...CROP_KNOWLEDGE.generic, cropName: cropName };
 }
 
 export function calculateCropStage(cropName, plantingDate) {
-  const phenology = getPhenologyForCrop(cropName);
+  const knowledge = getKnowledgeForCrop(cropName);
 
   if (!plantingDate) {
     return {
-      cropName: phenology.cropName,
+      cropName: knowledge.cropName,
       hasPlantingDate: false,
       daysAfterPlanting: null,
       daysAfterPlantingText: "Planting date not provided",
-      estimatedGrowthStage: phenology.type === 'perennial' ? "Perennial Tree Development" : "Stage unestimated",
+      estimatedGrowthStage: knowledge.type === 'perennial' ? "Cocoa development: Long-term tree crop" : "Stage unestimated",
       stageCalculationNote: "Add your planting date to estimate your crop's growth stage.",
       calendarProgress: null,
-      calendarProgressText: phenology.type === 'perennial' ? "Perennial Crop (Non-calendar)" : "Not available",
-      stages: phenology.stepperLabels,
+      calendarProgressText: knowledge.type === 'perennial' ? "Perennial Crop (Non-calendar)" : "Not available",
+      stages: knowledge.stepperLabels,
       currentStageIndex: 0,
-      isPerennial: phenology.type === 'perennial'
+      isPerennial: knowledge.type === 'perennial'
     };
   }
 
   const planted = new Date(plantingDate);
   if (isNaN(planted.getTime())) {
     return {
-      cropName: phenology.cropName,
+      cropName: knowledge.cropName,
       hasPlantingDate: false,
       daysAfterPlanting: null,
       daysAfterPlantingText: "Planting date not provided",
-      estimatedGrowthStage: phenology.type === 'perennial' ? "Perennial Tree Development" : "Stage unestimated",
+      estimatedGrowthStage: knowledge.type === 'perennial' ? "Cocoa development: Long-term tree crop" : "Stage unestimated",
       stageCalculationNote: "Add your planting date to estimate your crop's growth stage.",
       calendarProgress: null,
-      calendarProgressText: phenology.type === 'perennial' ? "Perennial Crop (Non-calendar)" : "Not available",
-      stages: phenology.stepperLabels,
+      calendarProgressText: knowledge.type === 'perennial' ? "Perennial Crop (Non-calendar)" : "Not available",
+      stages: knowledge.stepperLabels,
       currentStageIndex: 0,
-      isPerennial: phenology.type === 'perennial'
+      isPerennial: knowledge.type === 'perennial'
     };
   }
 
   const diffMs = Date.now() - planted.getTime();
   const days = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 
-  if (phenology.type === 'perennial') {
+  if (knowledge.type === 'perennial') {
     return {
-      cropName: phenology.cropName,
+      cropName: knowledge.cropName,
       hasPlantingDate: true,
       plantingDate: plantingDate,
       daysAfterPlanting: days,
       daysAfterPlantingText: `${days} days registered`,
-      estimatedGrowthStage: "Perennial Tree Development",
+      estimatedGrowthStage: "Cocoa development: Long-term tree crop",
       stageCalculationNote: "Long-term perennial crop — recommendations based on weather risks & management",
       calendarProgress: null,
       calendarProgressText: "Perennial Crop (Non-calendar)",
-      stages: phenology.stepperLabels,
+      stages: knowledge.stepperLabels,
       currentStageIndex: 1,
       isPerennial: true
     };
   }
 
   // Find matching stage
-  let matchedStage = phenology.stages[phenology.stages.length - 1];
-  for (const st of phenology.stages) {
+  let matchedStage = knowledge.stages[knowledge.stages.length - 1];
+  for (const st of knowledge.stages) {
     if (days >= st.minDays && days <= st.maxDays) {
       matchedStage = st;
       break;
@@ -147,24 +181,23 @@ export function calculateCropStage(cropName, plantingDate) {
 
   // Calculate calendar progress percentage
   let progressPct = null;
-  if (phenology.expectedDurationDays) {
-    progressPct = Math.min(100, Math.round((days / phenology.expectedDurationDays) * 100));
+  if (knowledge.expectedDurationDays) {
+    progressPct = Math.min(100, Math.round((days / knowledge.expectedDurationDays) * 100));
   }
 
-  // Map stepper node index safely
-  const currentStageIndex = Math.min(phenology.stepperLabels.length - 1, matchedStage.index);
+  const currentStageIndex = Math.min(knowledge.stepperLabels.length - 1, matchedStage.index);
 
   return {
-    cropName: phenology.cropName,
+    cropName: knowledge.cropName,
     hasPlantingDate: true,
     plantingDate: plantingDate,
     daysAfterPlanting: days,
     daysAfterPlantingText: `${days} days after planting`,
     estimatedGrowthStage: matchedStage.name,
-    stageCalculationNote: `Calendar-based estimate (${days} days after planting)`,
+    stageCalculationNote: `Based on your planting date and the crop's normal growth cycle (${days} days after planting)`,
     calendarProgress: progressPct,
     calendarProgressText: progressPct !== null ? `Estimated Season Progress: ${progressPct}%` : "Not available",
-    stages: phenology.stepperLabels,
+    stages: knowledge.stepperLabels,
     currentStageIndex: currentStageIndex,
     isPerennial: false
   };

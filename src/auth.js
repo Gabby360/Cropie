@@ -143,11 +143,12 @@ export class CropieAuthService {
           community: farm.community || '',
           farmSize: farm.farm_size || 2,
           farmSizeUnit: farm.farm_size_unit || 'Acres',
-          soilType: farm.soil_type || 'Loam',
-          irrigationType: farm.irrigation_type || 'Rainfed',
-          crop: primaryCrop ? (primaryCrop.crop_name || primaryCrop.crop) : 'maize',
-          plantingDate: primaryCrop ? (primaryCrop.planting_date || primaryCrop.plantingDate) : '2026-06-10',
-          growthStage: primaryCrop ? primaryCrop.growth_stage : 'Flowering / Tasseling — Estimated'
+          soilType: farm.soil_type || null,
+          irrigationType: farm.irrigation_type || null,
+          variety: farm.variety || null,
+          crop: primaryCrop ? (primaryCrop.crop_name || primaryCrop.crop) : (farm.crop || null),
+          plantingDate: primaryCrop ? (primaryCrop.planting_date || primaryCrop.plantingDate) : (farm.planting_date || null),
+          growthStage: primaryCrop ? primaryCrop.growth_stage : null
         };
       }
       return null;
