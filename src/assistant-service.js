@@ -113,17 +113,17 @@ export class CropieAssistantService {
 
       case 'weather':
         if (rainProbVal >= 50) {
-          responseText = `Live weather for ${context.location}: Temperature is ${context.currentWeather.temp} (${context.currentWeather.condition}) with a high rain probability of ${context.currentWeather.rainProb}. We advise postponing fertilizer top-dressing to prevent nutrient leaching into runoff.`;
+          responseText = `Weather for ${context.location}: Temperature is ${context.currentWeather.temp} (${context.currentWeather.condition}) with a ${context.currentWeather.rainProb} chance of rain. Wait before applying fertilizer so the rain does not wash it away.`;
         } else {
-          responseText = `Live weather for ${context.location}: Temperature is ${context.currentWeather.temp} (${context.currentWeather.condition}) with a low rain chance (${context.currentWeather.rainProb}). Field conditions are clear for farm operations on your ${activeCrop}.`;
+          responseText = `Weather for ${context.location}: Temperature is ${context.currentWeather.temp} (${context.currentWeather.condition}) with a low rain chance (${context.currentWeather.rainProb}). Good weather for farm work on your ${activeCrop}.`;
         }
         break;
 
       case 'fertilizer':
         if (rainProbVal >= 50) {
-          responseText = `Your ${activeCrop} is at Day ${context.daysAfterPlanting} (${context.growthStage}). Based on live weather telemetry for ${context.location}, rain probability is ${context.currentWeather.rainProb}. Postpone granular nitrogen/NPK top-dressing until heavy rain subsides so nutrients are not washed away.`;
+          responseText = `Your ${activeCrop} is at Day ${context.daysAfterPlanting} (${context.growthStage}). Weather forecast for ${context.location} shows a ${context.currentWeather.rainProb} chance of rain. Wait before putting fertilizer on your farm so the rain does not wash it away.`;
         } else {
-          responseText = `Your ${activeCrop} is at Day ${context.daysAfterPlanting} (${context.growthStage}). Weather conditions (${context.currentWeather.temp}, ${context.currentWeather.condition}) are favorable for field fertilizer top-dressing. Ensure soil is moist before application.`;
+          responseText = `Your ${activeCrop} is at Day ${context.daysAfterPlanting} (${context.growthStage}). Weather (${context.currentWeather.temp}, ${context.currentWeather.condition}) is good for applying fertilizer today. Make sure the soil is moist before you start.`;
         }
         break;
 

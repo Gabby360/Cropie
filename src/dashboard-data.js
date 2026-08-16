@@ -183,17 +183,17 @@ export const AGRICULTURAL_RULE_LIBRARY = [
       estimatedGrowthStage: "Flowering",
       rainProbMin: 60
     },
-    recommendation: "Consider postponing granular fertilizer top-dressing.",
-    why: "Rainfall expected shortly after application increases nitrogen runoff and leaching risk.",
-    reason: "Precipitation shortly after fertilizer application or supplemental irrigation during flowering can increase the risk of nutrient runoff and leaching.",
-    risk: "Rainfall shortly after granular fertilizer application may increase the risk of nutrient loss through runoff or leaching.",
-    confidence: "Crop + weather insight (Open-Meteo telemetry & CSIR-CRI guidance)",
+    recommendation: "Wait before applying fertilizer.",
+    why: "Rain is coming soon. Applying fertilizer now may wash some of it away before your crops can use it.",
+    reason: "Rain is coming soon. Applying fertilizer now may wash some of it away before your crops can use it.",
+    risk: "Heavy rain after fertilizer application can wash the fertilizer away.",
+    confidence: "Weather & farm advice (MoFA Ghana guidance)",
     basedOn: [
       "Estimated crop growth stage",
-      "Live Open-Meteo weather telemetry",
-      "CSIR-CRI & MoFA Ghana Crop Phenology Rules"
+      "Live weather forecast",
+      "Ghana Ministry of Agriculture (MoFA) guidance"
     ],
-    notConsidered: "Soil moisture sensor data unavailable.",
+    notConsidered: "Soil moisture sensor reading not connected.",
     source: "Ghana Ministry of Food and Agriculture (MoFA) & CSIR-Crops Research Institute",
     sourceTitle: "Maize Production & Water Management Guidelines for Ghana",
     sourceDate: "2024",
@@ -237,17 +237,17 @@ export const initialDashboardData = {
 
   aiInsight: {
     title: "Cropie Intelligence Engine",
-    quote: "Maintain standard field monitoring.",
-    why: "Current weather conditions support normal development.",
-    reason: "Live Open-Meteo telemetry shows stable temperature and rain probability.",
+    quote: "Keep checking your field regularly.",
+    why: "Weather is calm and good for normal crop growth.",
+    reason: "Weather forecast shows good temperature and rain chances for your farm.",
     risk: "🟢 No major weather risk detected",
-    confidence: "Crop + weather insight",
+    confidence: "Weather & farm advice",
     basedOn: [
       "Crops monitored: Maize",
-      "Live weather telemetry (Open-Meteo API)",
-      "CSIR-CRI & MoFA Ghana Crop Phenology Rules"
+      "Live weather forecast",
+      "Ghana Ministry of Agriculture (MoFA) guidance"
     ],
-    notConsidered: "Soil moisture data is currently unavailable.",
+    notConsidered: "Soil moisture sensor reading not connected.",
     source: "Ghana Ministry of Food and Agriculture (MoFA) & CSIR-Crops Research Institute",
     sourceTitle: "Maize Production & Water Management Guidelines for Ghana",
     sourceDate: "2024",
@@ -423,33 +423,33 @@ export class CropieDataService {
       let riskSummaryText = "🟢 No major weather risk detected";
       let primaryAction = "";
       let whyReason = "";
-      let confidenceContext = "Crop + weather insight (Open-Meteo telemetry & CSIR-CRI guidance)";
+      let confidenceContext = "Weather & farm advice (MoFA Ghana guidance)";
 
       if (cropKey.includes('maize') || cropKey.includes('corn')) {
         if (curWeather && curWeather.precipitation > 0) {
           weatherConditionLabel = "Active Rainfall";
           riskLevel = "high";
           riskSummaryText = "🌧️ Active Rainfall";
-          primaryAction = "Pause active field operations and granular chemical application.";
-          whyReason = "Active rainfall causes immediate runoff and washes away unabsorbed granular inputs.";
+          primaryAction = "Hold on with farm work and chemical spraying for now.";
+          whyReason = "It is currently raining. Wait for the rain to stop before putting fertilizer or chemicals on your farm.";
         } else if (rainProb >= 50 || rainMm > 5) {
           weatherConditionLabel = "Rainfall Risk";
           riskLevel = "medium";
           riskSummaryText = "🟡 Rainfall Risk";
-          primaryAction = "Consider postponing granular fertilizer top-dressing.";
-          whyReason = "Rainfall expected shortly after application increases nitrogen runoff and leaching risk.";
+          primaryAction = "Wait before applying fertilizer.";
+          whyReason = "Rain is coming soon. Applying fertilizer now may wash some of it away before your crops can use it.";
         } else if (temp > 32) {
           weatherConditionLabel = "Heat Stress Risk";
           riskLevel = "medium";
           riskSummaryText = "🟠 Heat Stress Risk";
-          primaryAction = "Monitor soil moisture preservation during high temperatures.";
-          whyReason = "Temperatures exceeding 32°C increase transpiration rates and may cause water stress during key developmental stages.";
+          primaryAction = "Keep an eye on field moisture and shade young plants if needed.";
+          whyReason = "The sun is very hot today (over 32°C). High heat can dry out soil quickly and make your crop thirsty.";
         } else {
           weatherConditionLabel = "Generally favorable";
           riskLevel = "low";
           riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = `Continue standard field management for ${phenology.estimatedGrowthStage}.`;
-          whyReason = `Weather conditions (${temp}°C, ${rainProb}% rain chance) are favorable for normal development.`;
+          primaryAction = `Good weather for farm work today.`;
+          whyReason = `Weather conditions (${temp}°C, ${rainProb}% rain chance) are good for normal crop growth.`;
         }
 
       } else if (cropKey.includes('cassava')) {
@@ -457,14 +457,14 @@ export class CropieDataService {
           weatherConditionLabel = "Waterlogging Risk";
           riskLevel = "high";
           riskSummaryText = "🌧️ Heavy Rain / Waterlogging Risk";
-          primaryAction = "Inspect field drainage channels and clear low-lying runoff paths.";
-          whyReason = "Heavy rainfall can cause waterlogging, increasing the risk of root tuber rot in cassava fields.";
+          primaryAction = "Clear water pathways so rain can flow away from your cassava roots.";
+          whyReason = "Heavy rain can flood low areas and cause cassava roots to rot.";
         } else {
           weatherConditionLabel = "Generally favorable";
           riskLevel = "low";
           riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = "Maintain field weed control and monitor tuber zone drainage.";
-          whyReason = "Current weather conditions support normal root and foliage development.";
+          primaryAction = "Keep your cassava field clean of weeds.";
+          whyReason = "Good weather for root growth.";
         }
 
       } else if (cropKey.includes('rice')) {
@@ -472,20 +472,20 @@ export class CropieDataService {
           weatherConditionLabel = "Water Replenishment Opportunity";
           riskLevel = "low";
           riskSummaryText = "🌧️ Rainfall Expected (Paddock Water Benefit)";
-          primaryAction = "Regulate paddy bunds to capture beneficial rainwater.";
-          whyReason = "Expected rainfall provides natural irrigation for rice paddies; adjust bund openings accordingly.";
+          primaryAction = "Fix your field banks to catch and hold the rainwater.";
+          whyReason = "Rain is coming to fill your rice field. Adjust your field edges to hold the water.";
         } else if (temp > 35) {
           weatherConditionLabel = "Heat Stress Risk";
           riskLevel = "medium";
           riskSummaryText = "🟠 Extreme Heat Risk";
-          primaryAction = "Maintain adequate water depth in paddies to buffer temperature spikes.";
-          whyReason = "High temperatures accelerate water evaporation and can cause panicle sterility during flowering.";
+          primaryAction = "Keep enough water in your rice field to protect crops from the hot sun.";
+          whyReason = "Very high heat can dry up water in your rice field quickly and affect grain growth.";
         } else {
           weatherConditionLabel = "Generally favorable";
           riskLevel = "low";
           riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = "Monitor water depth and tillering progress.";
-          whyReason = "Weather conditions support stable paddy development.";
+          primaryAction = "Check your rice water level and growth.";
+          whyReason = "Weather conditions support stable rice growth.";
         }
 
       } else if (cropKey.includes('cocoa')) {
@@ -493,14 +493,14 @@ export class CropieDataService {
           weatherConditionLabel = "High Humidity / Fungal Risk";
           riskLevel = "medium";
           riskSummaryText = "💧 Fungal Disease Risk (Black Pod)";
-          primaryAction = "Inspect pods for early fungal spots and prune dense canopy shoots to improve airflow.";
-          whyReason = "Sustained relative humidity above 80% creates microclimate conditions favorable for Phytophthora (black pod) fungal spore germination.";
+          primaryAction = "Check your cocoa pods for dark spots and trim extra branches so air can pass through.";
+          whyReason = "The air is very damp (over 80% humidity). High dampness helps black pod disease spread on cocoa.";
         } else {
           weatherConditionLabel = "Generally favorable";
           riskLevel = "low";
           riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = "Continue shade tree management and pod inspection.";
-          whyReason = "Humidity and temperature levels are within safe operating ranges for cocoa pods.";
+          primaryAction = "Continue inspecting pods and tree shade.";
+          whyReason = "Humidity and temperature levels are in a safe range for cocoa pods.";
         }
 
       } else {
@@ -508,13 +508,13 @@ export class CropieDataService {
           weatherConditionLabel = "Rainfall Risk";
           riskLevel = "medium";
           riskSummaryText = "🟡 Rainfall Risk";
-          primaryAction = `Review scheduled field activities for ${cName}.`;
-          whyReason = "Expected rainfall may affect spraying or soil cultivation.";
+          primaryAction = `Check your work plan for ${cName}.`;
+          whyReason = "Expected rain may interfere with chemical spraying or soil work.";
         } else {
           weatherConditionLabel = "Generally favorable";
           riskLevel = "low";
           riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = `Maintain regular crop management for ${cName}.`;
+          primaryAction = `Good weather for caring for your ${cName}.`;
           whyReason = `Current weather (${temp}°C, ${rainProb}% rain chance) is favorable.`;
         }
       }
@@ -545,9 +545,9 @@ export class CropieDataService {
       phenology: calculateCropStage("Maize", this.data.cropStatus.plantingDate),
       weatherCondition: "Generally favorable",
       statusText: "🟢 No major weather risk detected",
-      primaryAction: "Maintain standard field monitoring.",
-      whyReason: "Weather telemetry shows stable conditions.",
-      confidenceContext: "Weather-based insight"
+      primaryAction: "Keep checking your field regularly.",
+      whyReason: "Weather forecast shows calm conditions.",
+      confidenceContext: "Weather & farm advice"
     };
 
     // Update crop status data
@@ -565,14 +565,14 @@ export class CropieDataService {
     // Update AI Insight card with explainable "Why?" reasoning
     this.data.aiInsight.quote = primaryAnalysis.primaryAction;
     this.data.aiInsight.why = primaryAnalysis.whyReason;
-    this.data.aiInsight.reason = `Live Open-Meteo telemetry shows ${temp}°C temperature and ${rainProb}% rain probability for ${this.data.headerInfo.location}.`;
+    this.data.aiInsight.reason = `Weather: ${temp}°C • ${rainProb}% chance of rain in ${this.data.headerInfo.location}.`;
     this.data.aiInsight.risk = primaryAnalysis.statusText;
     this.data.aiInsight.confidence = primaryAnalysis.confidenceContext;
     this.data.aiInsight.basedOn = [
       `Crops monitored: ${userCrops.join(', ')}`,
-      `Live weather telemetry (Open-Meteo API — ${temp}°C, ${rainProb}% Rain)`,
+      `Weather: ${temp}°C • ${rainProb}% chance of rain`,
       `Farm location: ${this.data.headerInfo.location}`,
-      `CSIR-CRI & MoFA Ghana Crop Phenology Rules`
+      `Ghana Ministry of Agriculture (MoFA) Guidance`
     ];
 
     this.data.cropAnalyses = cropAnalyses;
