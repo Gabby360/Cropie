@@ -425,6 +425,20 @@ export class CropieLocationService {
   }
 
   /**
+   * Get exact current coordinates of the marker instance
+   */
+  getMarkerPosition() {
+    if (this.mapType === 'google' && this.markerInstance) {
+      const pos = this.markerInstance.getPosition();
+      return { lat: pos.lat(), lng: pos.lng() };
+    } else if (this.mapType === 'leaflet' && this.markerInstance) {
+      const pos = this.markerInstance.getLatLng();
+      return { lat: pos.lat, lng: pos.lng };
+    }
+    return null;
+  }
+
+  /**
    * Center map & update marker position
    */
   updateMapPosition(lat, lng, zoom = 15) {

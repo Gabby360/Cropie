@@ -450,23 +450,43 @@
         if (confirmBtn) {
           confirmBtn.addEventListener('click', async () => {
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming location...';
+            confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving location...';
 
             try {
+              console.log("[Farm Location] Confirm button clicked (Setup)");
+              const liveMarkerPos = locationService.getMarkerPosition();
+              if (liveMarkerPos && liveMarkerPos.lat && liveMarkerPos.lng) {
+                pendingLat = liveMarkerPos.lat;
+                pendingLng = liveMarkerPos.lng;
+              }
+
+              console.log("[Farm Location] Marker position:", { lat: pendingLat, lng: pendingLng });
+              console.log("[Farm Location] Reverse geocoding:", { lat: pendingLat, lng: pendingLng });
+
               const geocodeRes = await locationService.reverseGeocode(pendingLat, pendingLng);
               const confirmedAddr = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+
+              console.log("[Farm Location] New address:", confirmedAddr);
 
               currentLat = pendingLat;
               currentLng = pendingLng;
               locationInput.value = confirmedAddr;
               isLocationConfirmed = true;
 
-              gpsCoordsText.innerHTML = `<strong>Farm Location Confirmed:</strong> ${escapeHtml(confirmedAddr)}`;
+              confirmBtn.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ✅ Location Confirmed';
+              gpsCoordsText.innerHTML = `<strong>Farm Location Confirmed:</strong> ${escapeHtml(confirmedAddr)} <span style="margin-left: 0.5rem; color: #16a34a; font-weight: 700;">✅ Location Confirmed</span>`;
               gpsSuccessStatus.style.display = 'flex';
-              locationStatusCardWrapper.style.display = 'none';
-              googleMapWrapper.style.display = 'none';
+
+              console.log("[Farm Location] Location confirmed:", confirmedAddr);
+
+              setTimeout(() => {
+                locationStatusCardWrapper.style.display = 'none';
+                googleMapWrapper.style.display = 'none';
+              }, 1500);
+
               hideError('locationError');
             } catch (err) {
+              console.warn("[Farm Location] Setup confirmation notice:", err);
               confirmBtn.disabled = false;
               confirmBtn.innerHTML = '<i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location';
             }

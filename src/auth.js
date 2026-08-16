@@ -392,28 +392,43 @@ export class CropieAuthService {
         irrigation_type: 'Rainfed'
       };
 
-      const { data: farmData, error: farmError } = await this.supabase
+      // 1. Check if user already has an existing farm record in public.farms
+      const { data: existingFarms } = await this.supabase
         .from('farms')
-        .insert([farmPayload])
-        .select()
-        .single();
+        .select('id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      let savedFarmId = farmData?.id;
+      let savedFarmId = null;
+      let farmData = null;
 
-      if (farmError) {
-        console.warn('Supabase farm insert notice:', farmError);
-        const { data: existingFarms } = await this.supabase
+      if (existingFarms && existingFarms.length > 0) {
+        savedFarmId = existingFarms[0].id;
+        const { data: updatedData, error: updateErr } = await this.supabase
           .from('farms')
-          .select('id')
-          .eq('user_id', userId)
-          .limit(1);
+          .update(farmPayload)
+          .eq('id', savedFarmId)
+          .select()
+          .single();
 
-        if (existingFarms && existingFarms.length > 0) {
-          savedFarmId = existingFarms[0].id;
-          await this.supabase
-            .from('farms')
-            .update(farmPayload)
-            .eq('id', savedFarmId);
+        if (!updateErr && updatedData) {
+          farmData = updatedData;
+        } else {
+          console.warn('Supabase farm update notice:', updateErr);
+        }
+      } else {
+        const { data: insertedData, error: insertErr } = await this.supabase
+          .from('farms')
+          .insert([farmPayload])
+          .select()
+          .single();
+
+        if (!insertErr && insertedData) {
+          farmData = insertedData;
+          savedFarmId = insertedData.id;
+        } else {
+          console.warn('Supabase farm insert notice:', insertErr);
         }
       }
 

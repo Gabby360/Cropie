@@ -610,6 +610,19 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       if (farmTitleEl) farmTitleEl.textContent = activeFarm.farmName || "My Farm";
       if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${activeFarm.locationName}`;
 
+      // Synchronize confirmedLocation & pendingLocation state with active farm
+      if (activeFarm.latitude && activeFarm.longitude) {
+        confirmedLocation.latitude = parseFloat(activeFarm.latitude);
+        confirmedLocation.longitude = parseFloat(activeFarm.longitude);
+        confirmedLocation.locationName = activeFarm.locationName || '';
+        confirmedLocation.locality = (activeFarm.locationName || '').split(',')[0].trim();
+        confirmedLocation.source = activeFarm.locationSource || 'gps';
+
+        pendingLocation.latitude = parseFloat(activeFarm.latitude);
+        pendingLocation.longitude = parseFloat(activeFarm.longitude);
+        pendingLocation.source = activeFarm.locationSource || 'gps';
+      }
+
       // Update Farmer Picture Card Location Badges dynamically
       const shortCity = (activeFarm.locationName || 'Laterbiokorshie').split(',')[0].trim();
       const picLocBadge = document.getElementById('dashPicLocationBadge');
@@ -619,7 +632,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       if (picLocBadge) picLocBadge.textContent = `${shortCity} Field • 2 Acres`;
       if (picFooterStation) picFooterStation.textContent = `${shortCity} Field Station • Ghana`;
       if (picFooterGps) {
-        picFooterGps.textContent = `${activeFarm.locationName} (${activeFarm.latitude?.toFixed(4)}° N, ${Math.abs(activeFarm.longitude)?.toFixed(4)}° W)`;
+        picFooterGps.textContent = `${activeFarm.locationName}`;
       }
 
       // Save to active local storage cache
@@ -691,6 +704,8 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     pendingLocation.longitude = numericLng;
     pendingLocation.source = source;
 
+    console.log("[Farm Location] Marker position:", { lat: numericLat, lng: numericLng });
+
     // Reposition map marker pin to pending coordinates
     locationService.updateMapPosition(numericLat, numericLng, 16);
 
@@ -703,18 +718,33 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     const useBtn = document.getElementById('dashConfirmFarmLocBtn');
     if (useBtn) {
       useBtn.disabled = true;
-      useBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming location...';
+      useBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving location...';
     }
 
     try {
+      console.log("[Farm Location] Confirm button clicked");
+
+      // Query live marker position directly to eliminate any stale closure coordinates
+      const liveMarkerPos = locationService.getMarkerPosition();
+      if (liveMarkerPos && liveMarkerPos.lat && liveMarkerPos.lng) {
+        pendingLocation.latitude = liveMarkerPos.lat;
+        pendingLocation.longitude = liveMarkerPos.lng;
+      }
+
       const lat = pendingLocation.latitude;
       const lng = pendingLocation.longitude;
       const src = pendingLocation.source || 'manual_pin';
+
+      console.log("[Farm Location] Marker position:", { lat, lng });
+      console.log("[Farm Location] Reverse geocoding:", { lat, lng });
 
       // Reverse geocode pending coordinates on confirmation
       const geocodeRes = await locationService.reverseGeocode(lat, lng);
       const locationName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
       const locality = typeof geocodeRes === 'object' && geocodeRes.town ? geocodeRes.town : locationName.split(',')[0].trim();
+
+      console.log("[Farm Location] New address:", locationName);
+      console.log("[Farm Location] Saving to Supabase:", { lat, lng, locationName });
 
       confirmedLocation.latitude = lat;
       confirmedLocation.longitude = lng;
@@ -743,8 +773,36 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       // Save confirmed location to Supabase & LocalStorage
       await updateActiveFarmLocation(lat, lng, locationName, src);
 
+      console.log("[Farm Location] Location confirmed:", locationName);
+
+      if (useBtn) {
+        useBtn.disabled = true;
+        useBtn.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ✅ Location Confirmed';
+      }
+
+      // Display visual confirmation status feedback card
+      if (dashLocationCardWrapper) {
+        dashLocationCardWrapper.innerHTML = `
+          <div class="location-status-card success-card" style="border-left: 4px solid #16a34a; background: #f0fdf4; padding: 0.85rem 1rem; border-radius: 8px; margin-top: 0.5rem;">
+            <div style="font-weight: 800; color: #15803d; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>✅ Location Confirmed</span>
+            </div>
+            <p style="color: #166534; font-size: 0.9rem; margin-top: 0.35rem; margin-bottom: 0;">
+              Farm location saved to <strong>${escapeHtml(locationName)}</strong>
+            </p>
+          </div>
+        `;
+        dashLocationCardWrapper.style.display = 'block';
+
+        setTimeout(() => {
+          if (dashLocationCardWrapper) dashLocationCardWrapper.style.display = 'none';
+          if (dashGoogleMapWrapper) dashGoogleMapWrapper.style.display = 'none';
+        }, 3000);
+      }
+
     } catch (err) {
-      console.warn("Location confirmation notice:", err);
+      console.warn("[Farm Location] Location confirmation notice:", err);
       if (useBtn) {
         useBtn.disabled = false;
         useBtn.innerHTML = '<i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location';
