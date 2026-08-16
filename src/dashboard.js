@@ -1322,7 +1322,19 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
       // 1. Update active state & memory
       localStorage.setItem(SAVED_LANG_KEY, langCode);
-      if (activeAssistant) activeAssistant.conversationHistory = [];
+      if (activeAssistant) {
+        activeAssistant.conversationHistory = [];
+        activeAssistant.sessionContext = {
+          lastUserMessage: '',
+          lastIntent: '',
+          lastTopic: 'farm_overview',
+          lastCrop: 'Maize',
+          lastResponse: '',
+          lastRecommendation: '',
+          lastQuestion: '',
+          selectedLanguage: langCode
+        };
+      }
 
       // 2. Stop any active recording or playback
       if (window.cancelCropieVoiceRecording) window.cancelCropieVoiceRecording();

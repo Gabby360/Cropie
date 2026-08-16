@@ -457,182 +457,28 @@ export class CropieDataService {
   }
 
   evaluateIntelligenceEngine(weatherData) {
-    const curWeather = weatherData ? weatherData.current : null;
-    const todayForecast = (weatherData && weatherData.forecast && weatherData.forecast[0]) || {};
-    const rainProb = todayForecast.precipitationProbability !== undefined ? todayForecast.precipitationProbability : (curWeather ? (curWeather.precipitation > 0 ? 90 : 20) : 20);
-    const rainMm = curWeather ? curWeather.precipitation : 0;
-    const temp = curWeather ? curWeather.temperature : 28;
-    const humidity = curWeather ? curWeather.humidity : 75;
-
-    const userCrops = (this.data.cropStatus.cropsList && this.data.cropStatus.cropsList.length > 0)
-      ? this.data.cropStatus.cropsList
-      : [this.data.cropStatus.cropName || 'Maize'];
-
-    const cropAnalyses = [];
-    let overallHighestRisk = { level: 0, text: "🟢 No major weather risk detected", type: "clear" };
-
-    userCrops.forEach(cName => {
-      const phenology = calculateCropStage(cName, this.data.cropStatus.plantingDate);
-      const cropKey = cName.toLowerCase().trim();
-
-      let weatherConditionLabel = "Generally favorable";
-      let riskLevel = "low";
-      let riskSummaryText = "🟢 No major weather risk detected";
-      let primaryAction = "";
-      let whyReason = "";
-      let confidenceContext = "Weather & farm advice (MoFA Ghana guidance)";
-
-      if (cropKey.includes('maize') || cropKey.includes('corn')) {
-        if (curWeather && curWeather.precipitation > 0) {
-          weatherConditionLabel = "Active Rainfall";
-          riskLevel = "high";
-          riskSummaryText = "🌧️ Heavy rain needs attention";
-          primaryAction = "Hold on with farm work and chemical spraying for now.";
-          whyReason = "It is currently raining. Wait for the rain to stop before putting fertilizer or chemicals on your farm.";
-        } else if (rainProb >= 50 || rainMm > 5) {
-          weatherConditionLabel = "Rainfall Risk";
-          riskLevel = "medium";
-          riskSummaryText = "🟡 Weather needs attention";
-          primaryAction = "Wait before applying fertilizer.";
-          whyReason = "Rain is expected soon. Applying fertilizer now may wash some of it away before your crops can use it.";
-        } else if (temp > 32) {
-          weatherConditionLabel = "Heat Stress Risk";
-          riskLevel = "medium";
-          riskSummaryText = "🟠 Hot weather needs attention";
-          primaryAction = "Keep an eye on field moisture and shade young plants if needed.";
-          whyReason = "The sun is very hot today (over 32°C). High heat can dry out soil quickly and make your crop thirsty.";
-        } else {
-          weatherConditionLabel = "Generally favorable";
-          riskLevel = "low";
-          riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = `Good weather for farm work today.`;
-          whyReason = `Weather conditions (${temp}°C, ${rainProb}% rain chance) are good for normal crop growth.`;
-        }
-
-      } else if (cropKey.includes('cassava')) {
-        if (rainMm > 15 || (todayForecast.precipitation > 15)) {
-          weatherConditionLabel = "Waterlogging Risk";
-          riskLevel = "high";
-          riskSummaryText = "🌧️ Heavy rain needs attention";
-          primaryAction = "Clear water pathways so rain can flow away from your cassava roots.";
-          whyReason = "Heavy rain can flood low areas and cause cassava roots to rot.";
-        } else {
-          weatherConditionLabel = "Generally favorable";
-          riskLevel = "low";
-          riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = "Keep your cassava field clean of weeds.";
-          whyReason = "Good weather for root growth.";
-        }
-
-      } else if (cropKey.includes('rice')) {
-        if (rainProb >= 60) {
-          weatherConditionLabel = "Water Replenishment Opportunity";
-          riskLevel = "low";
-          riskSummaryText = "🌧️ Rain expected soon";
-          primaryAction = "Fix your field banks to catch and hold the rainwater.";
-          whyReason = "Rain is coming to fill your rice field. Adjust your field edges to hold the water.";
-        } else if (temp > 35) {
-          weatherConditionLabel = "Heat Stress Risk";
-          riskLevel = "medium";
-          riskSummaryText = "🟠 Hot weather needs attention";
-          primaryAction = "Keep enough water in your rice field to protect crops from the hot sun.";
-          whyReason = "Very high heat can dry up water in your rice field quickly and affect grain growth.";
-        } else {
-          weatherConditionLabel = "Generally favorable";
-          riskLevel = "low";
-          riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = "Check your rice water level and growth.";
-          whyReason = "Weather conditions support stable rice growth.";
-        }
-
-      } else if (cropKey.includes('cocoa')) {
-        if (humidity > 80) {
-          weatherConditionLabel = "High Humidity / Fungal Risk";
-          riskLevel = "medium";
-          riskSummaryText = "💧 High humidity needs attention";
-          primaryAction = "Check your cocoa pods for dark spots and trim extra branches so air can pass through.";
-          whyReason = "The air is very damp (over 80% humidity). High dampness helps black pod disease spread on cocoa.";
-        } else {
-          weatherConditionLabel = "Generally favorable";
-          riskLevel = "low";
-          riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = "Continue inspecting pods and tree shade.";
-          whyReason = "Humidity and temperature levels are in a safe range for cocoa pods.";
-        }
-
-      } else {
-        if (rainProb >= 60) {
-          weatherConditionLabel = "Rainfall Risk";
-          riskLevel = "medium";
-          riskSummaryText = "🟡 Weather needs attention";
-          primaryAction = `Check your work plan for ${cName}.`;
-          whyReason = "Expected rain may interfere with chemical spraying or soil work.";
-        } else {
-          weatherConditionLabel = "Generally favorable";
-          riskLevel = "low";
-          riskSummaryText = "🟢 No major weather risk detected";
-          primaryAction = `Good weather for caring for your ${cName}.`;
-          whyReason = `Current weather (${temp}°C, ${rainProb}% rain chance) is favorable.`;
-        }
-      }
-
-      cropAnalyses.push({
-        cropName: cName,
-        phenology: phenology,
-        weatherCondition: weatherConditionLabel,
-        riskLevel: riskLevel,
-        statusText: riskSummaryText,
-        primaryAction: primaryAction,
-        whyReason: whyReason,
-        confidenceContext: confidenceContext
-      });
-
-      const riskOrder = { "high": 3, "medium": 2, "low": 1 };
-      if (riskOrder[riskLevel] > overallHighestRisk.level) {
-        overallHighestRisk = {
-          level: riskOrder[riskLevel],
-          text: riskSummaryText,
-          type: riskLevel === 'high' ? 'alert' : riskLevel === 'medium' ? 'warning' : 'clear'
-        };
-      }
-    });
-
-    const primaryAnalysis = cropAnalyses[0] || {
-      cropName: "Maize",
-      phenology: calculateCropStage("Maize", this.data.cropStatus.plantingDate),
-      weatherCondition: "Generally favorable",
-      statusText: "🟢 No major weather risk detected",
+    const res = evaluateIntelligenceEngine(weatherData, this.data);
+    const primaryAnalysis = (res && res.cropAnalyses && res.cropAnalyses[0]) || {
       primaryAction: "Keep checking your field regularly.",
-      whyReason: "Weather forecast shows calm conditions.",
-      confidenceContext: "Weather & farm advice"
+      whyReason: "Weather is calm and good for normal crop growth.",
+      statusText: "🟢 No major weather risk detected"
     };
 
-    // Update crop status data
-    this.data.cropStatus.cropName = primaryAnalysis.cropName;
-    this.data.cropStatus.estimatedGrowthStage = primaryAnalysis.phenology.estimatedGrowthStage;
-    this.data.cropStatus.stageCalculationNote = primaryAnalysis.phenology.stageCalculationNote;
-    this.data.cropStatus.daysAfterPlanting = primaryAnalysis.phenology.daysAfterPlantingText;
-    this.data.cropStatus.calendarProgress = primaryAnalysis.phenology.calendarProgress;
-    this.data.cropStatus.calendarProgressText = primaryAnalysis.phenology.calendarProgressText;
-    this.data.cropStatus.stages = primaryAnalysis.phenology.stages;
-    this.data.cropStatus.currentStageIndex = primaryAnalysis.phenology.currentStageIndex;
-    this.data.cropStatus.weatherCondition = primaryAnalysis.weatherCondition;
-    this.data.cropStatus.overallStatusText = overallHighestRisk.text;
+    const temp = weatherData && weatherData.current ? weatherData.current.temperature : 28;
+    const rainProb = (weatherData && weatherData.forecast && weatherData.forecast[0]) ? weatherData.forecast[0].precipitationProbability : 20;
 
-    // Update AI Insight card with explainable "Why?" reasoning
     this.data.aiInsight.quote = primaryAnalysis.primaryAction;
     this.data.aiInsight.why = primaryAnalysis.whyReason;
     this.data.aiInsight.reason = `Weather: ${temp}°C • ${rainProb}% chance of rain in ${this.data.headerInfo.location}.`;
     this.data.aiInsight.risk = primaryAnalysis.statusText;
-    this.data.aiInsight.confidence = primaryAnalysis.confidenceContext;
     this.data.aiInsight.basedOn = [
-      `Crops monitored: ${userCrops.join(', ')}`,
+      `Crops monitored: ${this.data.cropStatus.cropName || 'Maize'}`,
       `Weather: ${temp}°C • ${rainProb}% chance of rain`,
       `Farm location: ${this.data.headerInfo.location}`,
       `Ghana Ministry of Agriculture (MoFA) Guidance`
     ];
 
-    this.data.cropAnalyses = cropAnalyses;
+    this.data.cropAnalyses = res.cropAnalyses;
   }
 
   applyUserFarmContext(userFarm) {
@@ -705,5 +551,81 @@ export class CropieDataService {
   toggleErrorState(simulateError) {
     this.isErrorSimulated = simulateError;
   }
+}
+
+export function evaluateIntelligenceEngine(weatherData, dataState = null) {
+  const state = dataState || initialDashboardData;
+  const curWeather = weatherData ? weatherData.current : null;
+  const todayForecast = (weatherData && weatherData.forecast && weatherData.forecast[0]) || {};
+  const rainProb = todayForecast.precipitationProbability !== undefined ? todayForecast.precipitationProbability : (curWeather ? (curWeather.precipitation > 0 ? 90 : 20) : 20);
+  const rainMm = curWeather ? curWeather.precipitation : 0;
+  const temp = curWeather ? curWeather.temperature : 28;
+  const humidity = curWeather ? curWeather.humidity : 75;
+
+  const userCrops = (state.cropStatus && state.cropStatus.cropsList && state.cropStatus.cropsList.length > 0)
+    ? state.cropStatus.cropsList
+    : [(state.cropStatus && state.cropStatus.cropName) || 'Maize'];
+
+  const cropAnalyses = [];
+  let overallHighestRisk = { level: 0, text: "🟢 No major weather risk detected", type: "clear" };
+
+  userCrops.forEach(cName => {
+    const phenology = calculateCropStage(cName, state.cropStatus ? state.cropStatus.plantingDate : null);
+    const cropKey = cName.toLowerCase().trim();
+
+    let weatherConditionLabel = "Generally favorable";
+    let riskLevel = "low";
+    let riskSummaryText = "🟢 No major weather risk detected";
+    let primaryAction = "";
+    let whyReason = "";
+
+    if (cropKey.includes('maize') || cropKey.includes('corn')) {
+      if (curWeather && curWeather.precipitation > 0) {
+        weatherConditionLabel = "Active Rainfall";
+        riskLevel = "high";
+        riskSummaryText = "🌧️ Heavy rain needs attention";
+        primaryAction = "Hold on with farm work and chemical spraying for now.";
+        whyReason = "It is currently raining. Wait for the rain to stop before putting fertilizer or chemicals on your farm.";
+      } else if (rainProb >= 50 || rainMm > 5) {
+        weatherConditionLabel = "Rainfall Risk";
+        riskLevel = "medium";
+        riskSummaryText = "🟡 Weather needs attention";
+        primaryAction = "Wait before applying fertilizer.";
+        whyReason = "Rain is expected soon. Applying fertilizer now may wash some of it away before your crops can use it.";
+      } else {
+        weatherConditionLabel = "Generally favorable";
+        riskLevel = "low";
+        riskSummaryText = "🟢 No major weather risk detected";
+        primaryAction = "Good weather for farm work today.";
+        whyReason = `Weather conditions (${temp}°C, ${rainProb}% rain chance) are good for normal crop growth.`;
+      }
+    } else {
+      primaryAction = `Good weather for caring for your ${cName}.`;
+      whyReason = `Weather conditions (${temp}°C, ${rainProb}% rain chance) are favorable.`;
+    }
+
+    cropAnalyses.push({
+      cropName: cName,
+      phenology: phenology,
+      weatherCondition: weatherConditionLabel,
+      riskLevel: riskLevel,
+      statusText: riskSummaryText,
+      primaryAction: primaryAction,
+      whyReason: whyReason
+    });
+  });
+
+  const primaryAnalysis = cropAnalyses[0] || {
+    primaryAction: "Keep checking your field regularly.",
+    whyReason: "Weather is calm and good for normal crop growth.",
+    statusText: "🟢 No major weather risk detected"
+  };
+
+  return {
+    recommendationQuote: primaryAnalysis.primaryAction,
+    whyReason: primaryAnalysis.whyReason,
+    primaryAction: primaryAnalysis.primaryAction,
+    cropAnalyses: cropAnalyses
+  };
 }
 

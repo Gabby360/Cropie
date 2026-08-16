@@ -1,11 +1,21 @@
 // CROPIE — Conversational Assistant & Intelligence Engine Coordinator
-import { CROP_KNOWLEDGE, getKnowledgeForCrop, calculateCropStage } from './dashboard-data.js';
+import { CROP_KNOWLEDGE, getKnowledgeForCrop, calculateCropStage, evaluateIntelligenceEngine } from './dashboard-data.js';
 
 export class CropieAssistantService {
   constructor(dataService, khayaService) {
     this.dataService = dataService;
     this.khayaService = khayaService;
     this.conversationHistory = [];
+    this.sessionContext = {
+      lastUserMessage: '',
+      lastIntent: '',
+      lastTopic: 'farm_overview',
+      lastCrop: 'Maize',
+      lastResponse: '',
+      lastRecommendation: '',
+      lastQuestion: '',
+      selectedLanguage: 'eng'
+    };
   }
 
   // Build full farm, weather, and crop phenology context (NO FAKE DEFAULTS!)
@@ -36,7 +46,7 @@ export class CropieAssistantService {
       (cropStatus.cropsDetails && cropStatus.cropsDetails[0] && cropStatus.cropsDetails[0].plantingDate) ||
       farmInfo.plantingDate ||
       localSavedDate ||
-      '2026-06-10';
+      null;
 
     let locationStr = farmInfo.location || farmInfo.locationName || weather.locationName || null;
     if (!locationStr) {
@@ -75,7 +85,7 @@ export class CropieAssistantService {
     // Independent multi-crop context list using calculateCropStage
     const cropContextMap = cropsDetails.map(cd => {
       const cName = cd.cropName || 'Crop';
-      const pDate = cd.plantingDate || resolvedPlantingDate || '2026-06-10';
+      const pDate = cd.plantingDate || resolvedPlantingDate || null;
       const stageInfo = calculateCropStage(cName, pDate);
       return {
         cropId: cd.cropId || null,
@@ -101,47 +111,20 @@ export class CropieAssistantService {
       knowledge: getKnowledgeForCrop('Maize')
     };
 
-    // Requirement 10: Temporary Development Logging
-    console.log("[CROPIE CHAT FARM CONTEXT]", {
-      farm: {
-        id: farmInfo.farmId || farmInfo.id || null,
-        name: farmInfo.farmName || null,
-        location: locationStr,
-        latitude: farmInfo.latitude || null,
-        longitude: farmInfo.longitude || null
-      },
-      crops: cropContextMap.map(c => ({
-        id: c.cropId,
-        name: c.name,
-        plantingDate: c.plantingDate,
-        DAP: c.daysAfterPlanting,
-        growthStage: c.growthStage
-      })),
-      weather: {
-        temperature: weather.temp || null,
-        humidity: weather.humidity || null,
-        rainProbability: weather.rainProb || null,
-        rainfall: weather.rain || null,
-        condition: weather.condition || null,
-        forecast: weather.forecastList || []
-      }
-    });
-
-    console.log("[CROPIE CHAT CROP DATA]", cropContextMap.map(c => ({
-      id: c.cropId,
-      name: c.name,
-      plantingDate: c.plantingDate
-    })));
-
     const safeWeather = {
-      temp: (weather && (weather.temp || weather.temperature)) || '25°C',
-      condition: (weather && weather.condition) || 'Clear',
-      humidity: (weather && weather.humidity) || '75%',
-      rain: (weather && weather.rain) || '0 mm',
-      wind: (weather && weather.wind) || '10 km/h',
-      rainProb: (weather && (weather.rainProb !== undefined && weather.rainProb !== null ? String(weather.rainProb) : (weather.rainProbability ? String(weather.rainProbability) : '0%'))) || '0%',
+      temp: (weather && (weather.temp || weather.temperature)) || null,
+      condition: (weather && weather.condition) || null,
+      humidity: (weather && weather.humidity) || null,
+      rain: (weather && weather.rain) || null,
+      wind: (weather && weather.wind) || null,
+      rainProb: (weather && (weather.rainProb !== undefined && weather.rainProb !== null ? String(weather.rainProb) : (weather.rainProbability ? String(weather.rainProbability) : null))) || null,
       rainNotice: (weather && weather.rainNotice) ? String(weather.rainNotice) : null
     };
+
+    let engineRecs = null;
+    try {
+      engineRecs = evaluateIntelligenceEngine(liveData);
+    } catch {}
 
     return {
       farmName: farmInfo.farmName || null,
@@ -154,17 +137,20 @@ export class CropieAssistantService {
       cropContextMap: cropContextMap,
       plantingDate: resolvedPlantingDate,
       currentWeather: safeWeather,
-      forecast: (weather && Array.isArray(weather.forecastList)) ? weather.forecastList : []
+      forecast: (weather && Array.isArray(weather.forecastList)) ? weather.forecastList : [],
+      recommendations: engineRecs
     };
   }
 
-  // Process user question through Intelligence Engine
+  // Process user question through Conversational Intelligence Engine
   async processQuestion(userQuestionInEnglish, selectedLanguage = 'eng') {
     try {
       const context = await this.buildFarmContext();
+      this.sessionContext.selectedLanguage = selectedLanguage || 'eng';
+
       let qRaw = (userQuestionInEnglish || '').toLowerCase().trim();
 
-      // 0. Auto-correct common typos
+      // Auto-correct common typos
       qRaw = qRaw
         .replace(/\brhsi\b|\bthsi\b|\btish\b/gi, 'this')
         .replace(/\bwether\b|\bwather\b|\bweathr\b/gi, 'weather')
@@ -177,11 +163,11 @@ export class CropieAssistantService {
       const langCode = (selectedLanguage || 'eng').toLowerCase();
 
       // 1. Check for OUT-OF-DOMAIN non-farm questions FIRST
-      const isOutofDomain = /\b(football|soccer|match|game|score|joke|jokes|laugh|funny|python|code|programming|script|crypto|bitcoin|eth|ethereum|president|politics|election|minister|movie|actor|film|cinema|music|song|singer|cv|resume|job|salary|car|vehicle|bank)\b/i.test(qLower);
+      const isOutofDomain = /\b(football|soccer|match|game|score|joke|jokes|laugh|funny|python|code|programming|script|crypto|bitcoin|eth|ethereum|president|politics|election|minister|movie|actor|film|cinema|music|song|singer|cv|resume|job|salary|car|vehicle|bank|capital of|celebrity|relationship)\b/i.test(qLower);
 
       if (isOutofDomain) {
         const refusalMsg = this.getOutofDomainRefusal(langCode);
-        this.recordTurn(userQuestionInEnglish, refusalMsg, selectedLanguage);
+        this.recordTurn(userQuestionInEnglish, refusalMsg, selectedLanguage, 'out_of_domain');
         return {
           finalAnswer: refusalMsg,
           rawEnglish: this.getOutofDomainRefusal('eng'),
@@ -189,242 +175,249 @@ export class CropieAssistantService {
         };
       }
 
-    // 2. Identify crop focus (Farm-level vs Specific Crop)
-    let targetedCropObj = context.primaryCropObj;
-    context.cropContextMap.forEach(cObj => {
-      if (new RegExp(`\\b${cObj.name.toLowerCase()}\\b`, 'i').test(qLower)) {
-        targetedCropObj = cObj;
+      // 2. Identify crop focus
+      let targetedCropObj = context.primaryCropObj;
+      context.cropContextMap.forEach(cObj => {
+        if (new RegExp(`\\b${cObj.name.toLowerCase()}\\b`, 'i').test(qLower)) {
+          targetedCropObj = cObj;
+        }
+      });
+
+      const activeCropName = targetedCropObj.name;
+      const dataTruth = {
+        farmName: context.farmName || null,
+        location: context.location || null,
+        hasLocation: Boolean(context.location && context.location.trim().length > 0),
+        crops: context.crops || [],
+        primaryCrop: targetedCropObj.name,
+        weatherAvailable: Boolean(context.currentWeather && context.currentWeather.temp),
+        plantingDateAvailable: Boolean(targetedCropObj.hasPlantingDate),
+        growthStageAvailable: Boolean(targetedCropObj.hasPlantingDate)
+      };
+
+      // 3. Short Follow-Up & Semantic Group Triggers
+      const wordCount = qLower.split(/\s+/).filter(Boolean).length;
+      let category = 'unknown';
+
+      const isGreeting = /^\s*(hi|hello|hey|greetings|good\s*(morning|afternoon|evening)|akwaaba)\b/i.test(qLower) && wordCount <= 4;
+      const isCasual = /\b(how are (you|u|r)|are (you|u|r) (okay|ok|doing ok)|you good|what are (you|u|r) doing)\b/i.test(qLower);
+      const isInsult = /\b(mad|you are dumb|you r dumb|dumb|this is useless|useless|you don't understand|you dont understand|you're wrong|your wrong|this is bad|stupid|crazy)\b/i.test(qLower);
+      const isIdentity = /\b(who are you|what is cropie|what do you do|what can you help me with|who r u|about cropie|about yourself|who created you|who made you|what can you do)\b/i.test(qLower);
+
+      const isTodayTrigger = /^\s*(today|for today|today's|today's advice|today's plan|today's work)\s*$/i.test(qLower) || (wordCount <= 3 && /\btoday\b/i.test(qLower));
+      const isMoreTrigger = /\b(more|tell me more|expand|detail|details|what else|and\?|then\?)\b/i.test(qLower) && wordCount <= 4;
+      const isWhyTrigger = /\b(why|why is that|why wait|why so|why are you saying that|how do you know|really|really\?|are you sure|seriously|for real|is that true|are you serious)\b/i.test(qLower) && wordCount <= 5;
+      const isHowTrigger = /\b(how|how to|how to do it|how do i apply|how to apply|how to check|how to treat|how to do this|how should i do it)\b/i.test(qLower) && wordCount <= 5;
+      const isOkayTrigger = /\b(okay|ok|alright|cool|nice|great|good|thanks|thank you)\b/i.test(qLower) && wordCount <= 3;
+      const isGoAheadTrigger = /\b(go ahead|continue|proceed|keep going|next)\b/i.test(qLower) && wordCount <= 4;
+
+      const isTodayActionPattern = /\b(what farming tasks should i prioritize today|prioritize today|what should i do today|what should i do on my farm today|what should i do on the farm|advise me on my farm|advice me on my farm|give me advice|give me farm advice|what advice do you have|what work should i do today|what should i focus on today|what should i work on today|what do i need to do today|what farm work should i do|what should i do now|today's farm advice|today's recommendations|give me today's farm advice|what should i do|what to do|what should i watch|anything i should know|today's advice|advice for today|recommend|recommendation|recommend something for my farm|recommend something|what needs attention)\b/i.test(qLower);
+
+      const isFarmOverviewPattern = /\b(my farm|about my farm|the farm|farm|my farm info|my farm update|farm overview|overview|tell me about my farm|what is happening on my farm|what's happening on my farm|what's happening on my farm today|how is my farm|give me an update on my farm|give me an update|what is the current state of my farm|show me my farm status|current state|state of my farm|check my farm|farm update|farm report|farm summary|use the data on the site|use my farm data|use the information on my dashboard|based on my farm|look at my farm|site data|what is happening today|what is happening now|what's happening today|what is happening with my crops|check the system|check system|read the info from the site|read info from the site|read the info|read info|read site data|check site data)\b/i.test(qLower);
+
+      const isPestPattern = /\b(pest|pests|how do i protect my crops from fall armyworm|protect my crops from fall armyworm|how do i control pests|what pests affect my maize|what should i look for on my crops|worm|armyworm|fall armyworm|bug|bugs|weed|weeds|disease|diagnose|diagnosis|sick|wilt|yellowing|spots|spot|leaves|leaf|blight|fungus|rot)\b/i.test(qLower);
+
+      const isFertilizerPattern = /\b(can i apply fertilizer|should i apply fertilizer today|should i apply fertilizer to my farm today|will rain affect my fertilizer|will rain affect my fertilizer today|when should i apply fertilizer|can i fertilize my maize|fertilizer|fertiliser|npk|urea|nitrogen|topdress|topdress fertilizer)\b/i.test(qLower);
+
+      const isStagePattern = /\b(what stage is my maize|how is my maize doing in its growth stage|how is my maize doing|what growth stage is my crop|how old is my maize|how many days has my maize been growing|growth stage|growth stages|days after planting|dap|stage|progress|tassel|tasseling|flower|flowering|plant|planted|planting|harvest|harvesting|cob|grain|mature|maturity)\b/i.test(qLower);
+
+      const isWeatherPattern = /\b(will rain affect my maize field today|will it rain|is it going to rain|what is the weather|what is the weather today|what's the weather|what's the weather on my farm|will rain affect my farm|what is the rain forecast|will it rain soon|will it rain today|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|humidity)\b/i.test(qLower);
+
+      if (isGreeting) {
+        category = 'greeting';
+      } else if (isInsult) {
+        category = 'insult';
+      } else if (isCasual) {
+        category = 'casual';
+      } else if (isIdentity) {
+        category = 'identity';
+      } else if (isWhyTrigger) {
+        category = 'why';
+      } else if (isHowTrigger) {
+        category = 'how';
+      } else if (isMoreTrigger) {
+        category = 'more';
+      } else if (isOkayTrigger) {
+        category = 'okay';
+      } else if (isGoAheadTrigger) {
+        category = 'go_ahead';
+      } else if (isTodayTrigger) {
+        category = 'context_today';
+      } else if (isTodayActionPattern) {
+        category = 'today_action';
+      } else if (isFarmOverviewPattern) {
+        category = 'farm_overview';
+      } else if (isPestPattern) {
+        category = 'pests';
+      } else if (isFertilizerPattern) {
+        category = 'fertilizer';
+      } else if (isStagePattern) {
+        category = 'stage';
+      } else if (isWeatherPattern) {
+        category = 'weather';
+      } else if (/\b(cassava|rice|yam|plantain|cocoa|maize|crop|crops)\b/i.test(qLower)) {
+        category = 'specific_crop';
       }
-    });
 
-    const activeCropName = targetedCropObj.name;
+      let responseText = '';
+      const rainProbVal = parseInt(context.currentWeather.rainProb) || 0;
+      const tempVal = context.currentWeather.temp || 'Not available';
 
-    const dataTruth = {
-      farmName: context.farmName || null,
-      location: context.location || null,
-      hasLocation: context.hasLocation,
-      crops: context.crops || [],
-      primaryCrop: targetedCropObj.name,
-      weatherAvailable: Boolean(context.currentWeather && context.currentWeather.temp),
-      plantingDateAvailable: Boolean(targetedCropObj.hasPlantingDate),
-      growthStageAvailable: Boolean(targetedCropObj.hasPlantingDate)
-    };
+      switch (category) {
+        case 'greeting':
+          responseText = `Hello! 👋 I'm Cropie. I'm ready to help you check your farm today. What would you like to know?`;
+          this.sessionContext.lastTopic = 'greeting';
+          break;
 
-    // 3. Classify intent using robust semantic intent groups and conversation memory
-    let category = 'unknown';
+        case 'identity':
+          responseText = `I'm Cropie, your farm assistant. I use your farm information and weather data to help you understand your crops and decide what to check or do.`;
+          this.sessionContext.lastTopic = 'identity';
+          break;
 
-    const isFollowupTrigger = /\b(more|tell me more|explain more|expand|detail|details|how|oh how|how so|how to do it|how do i apply|how to apply|how to treat|why|why is that|why wait|why so|when|when can i apply|what next|then what|really|really\?|are you sure|seriously|for real|is that true|are you serious|are u serious|go ahead|what about maize|and cassava|what about cassava|what about rice|what about tomorrow\??|what about tomorrow|and tomorrow\??|tomorrow\??|next week|at what time|what time|hmm|oh|oh okay|okay|ok|alright|i see|and\?|then\?|what do you mean\??)\b/i.test(qLower);
+        case 'casual':
+          responseText = `I'm doing well and ready to help with your farm. 🌱 What would you like to check today?`;
+          this.sessionContext.lastTopic = 'casual';
+          break;
 
-    const isTodayActionPattern = /\b(what farming tasks should i prioritize today|prioritize today|what should i do today|what should i do on my farm today|what should i do on the farm|advise me on my farm|advice me on my farm|give me advice|give me farm advice|what advice do you have|what work should i do today|what should i focus on today|what should i work on today|what do i need to do today|what farm work should i do|what should i do now|today's farm advice|today's recommendations|give me today's farm advice|what should i do|what to do|what should i watch|anything i should know|today's advice|advice for today|recommend|recommendation|recommend something for my farm|recommend something)\b/i.test(qLower);
+        case 'insult':
+          responseText = `I may have misunderstood you. Let's try again. Tell me what you want to know about your farm.`;
+          this.sessionContext.lastTopic = 'insult';
+          break;
 
-    const isFarmOverviewPattern = /\b(my farm|the farm|farm|my farm info|my farm update|farm overview|overview|tell me about my farm|what is happening on my farm|what's happening on my farm|what's happening on my farm today|how is my farm|give me an update on my farm|give me an update|what is the current state of my farm|show me my farm status|current state|state of my farm|check my farm|farm update|farm report|farm summary|use the data on the site|use my farm data|use the information on my dashboard|based on my farm|look at my farm|site data|what is happening today|what is happening now|what's happening today|what is happening with my crops|check the system|check system|read the info from the site|read info from the site|read the info|read info|read site data|check site data)\b/i.test(qLower);
+        case 'okay':
+          responseText = `Alright! I'm here whenever you want to check your crops, weather, or farm actions.`;
+          break;
 
-    const isPestPattern = /\b(pest|pests|how do i protect my crops from fall armyworm|protect my crops from fall armyworm|how do i control pests|what pests affect my maize|what should i look for on my crops|worm|armyworm|fall armyworm|bug|bugs|weed|weeds|disease|diagnose|diagnosis|sick|wilt|yellowing|spots|spot|leaves|leaf|blight|fungus|rot)\b/i.test(qLower);
-
-    const isFertilizerPattern = /\b(can i apply fertilizer|should i apply fertilizer today|should i apply fertilizer to my farm today|will rain affect my fertilizer|will rain affect my fertilizer today|when should i apply fertilizer|can i fertilize my maize|fertilizer|fertiliser|npk|urea|nitrogen|topdress|topdress fertilizer)\b/i.test(qLower);
-
-    const isStagePattern = /\b(what stage is my maize|how is my maize doing in its growth stage|how is my maize doing|what growth stage is my crop|how old is my maize|how many days has my maize been growing|growth stage|growth stages|days after planting|dap|stage|progress|tassel|tasseling|flower|flowering|plant|planted|planting|harvest|harvesting|cob|grain|mature|maturity)\b/i.test(qLower);
-
-    const isWeatherPattern = /\b(will rain affect my maize field today|will it rain|is it going to rain|what is the weather|what is the weather today|what's the weather|what's the weather on my farm|will rain affect my farm|what is the rain forecast|will it rain soon|will it rain today|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|humidity)\b/i.test(qLower);
-
-    const isCropCarePattern = /\b(how should i care for my maize|what should i watch out for|how do i take care of my crop|crop care|take care of my crop|care for my maize|care for my crop)\b/i.test(qLower);
-
-    const isIdentityPattern = /\b(who are you|what is cropie|what do you do|what can you help me with|who r u|about cropie|about yourself|who created you|who made you|what can you do)\b/i.test(qLower);
-
-    const isHelpPattern = /\b(help|help me|help me out|what can i ask you|how to use|commands|features|what to ask|guide|guidance)\b/i.test(qLower);
-
-    if (isFollowupTrigger && this.conversationHistory.length > 0 && qLower.split(/\s+/).length <= 6) {
-      category = 'followup';
-    } else if (isTodayActionPattern) {
-      category = 'today_action';
-    } else if (isFarmOverviewPattern) {
-      category = 'farm_overview';
-    } else if (isPestPattern) {
-      category = 'pests';
-    } else if (isFertilizerPattern) {
-      category = 'fertilizer';
-    } else if (isStagePattern) {
-      category = 'stage';
-    } else if (isWeatherPattern) {
-      category = 'weather';
-    } else if (isCropCarePattern) {
-      category = 'crop_care';
-    } else if (isIdentityPattern) {
-      category = 'identity';
-    } else if (isHelpPattern) {
-      category = 'help';
-    } else if (/^\s*(hi|hello|hey|greetings|good\s*(morning|afternoon|evening)|akwaaba)\b/i.test(qLower) && qLower.split(/\s+/).length <= 4) {
-      category = 'greeting';
-    } else if (/\b(how are (you|u|r)|are (you|u|r) (okay|ok|doing ok)|you good|what are (you|u|r) doing|who are (you|u|r)|who r u|what is your name)\b/i.test(qLower)) {
-      category = 'casual';
-    } else if (/\b(thanks|thank you|okay|ok|alright|good|nice|cool|great)\b/i.test(qLower) && qLower.split(/\s+/).length <= 3) {
-      category = 'acknowledgement';
-    } else if (/\b(mad|you are dumb|you r dumb|dumb|this is useless|useless|you don't understand|you dont understand|you're wrong|your wrong|this is bad|stupid|crazy)\b/i.test(qLower)) {
-      category = 'frustration';
-    } else if (/\b(cassava|rice|yam|plantain|cocoa|maize|crop|crops)\b/i.test(qLower)) {
-      category = 'specific_crop';
-    } else if (/\b(farm|overview)\b/i.test(qLower)) {
-      category = 'multicrop';
-    }
-
-    // Step 11 Debug Checks
-    try {
-      console.table(
-        context.cropContextMap.map(c => ({
-          crop: c.name,
-          plantingDate: c.plantingDate,
-          dap: c.daysAfterPlanting,
-          growthStage: c.growthStage
-        }))
-      );
-      console.log("CHATBOT FINAL FARM CONTEXT", context);
-    } catch {}
-
-    let responseText = '';
-    const rainProbVal = parseInt(context.currentWeather.rainProb) || 0;
-    const tempVal = context.currentWeather.temp || '28°C';
-    const locText = context.location ? `in ${context.location}` : '';
-
-    switch (category) {
-      case 'greeting':
-        responseText = `Hello! I'm Cropie. How can I help with your farm today?`;
-        break;
-
-      case 'casual':
-        if (qLower.includes('who are you') || qLower.includes('who r u') || qLower.includes('what is your name')) {
-          responseText = `I'm Cropie, your AI farm assistant for Ghana! I'm here to help you with your crops, weather, and farm care.`;
-        } else if (qLower.includes('doing') || qLower.includes('what are you')) {
-          responseText = `I'm checking the farm information and weather available to me. Ask me about your crops, rain, planting, or farm care.`;
-        } else {
-          responseText = `I'm doing well and ready to help with your farm! What would you like to check?`;
-        }
-        break;
-
-      case 'acknowledgement':
-        if (qLower.includes('ok') || qLower.includes('alright')) {
-          responseText = `Alright! I'm here whenever you want to check your crops or weather.`;
-        } else {
-          responseText = `You're welcome! I'm here whenever you need help with your farm.`;
-        }
-        break;
-
-      case 'frustration':
-        responseText = `I may have misunderstood you. Tell me what you want to know about your farm and I'll try again.`;
-        break;
-
-      case 'followup':
-        responseText = this.handleFollowupQuery(qLower, context, activeCropName);
-        break;
-
-      case 'farm_overview':
-        responseText = this.buildDetailedFarmOverview(context, dataTruth);
-        break;
-
-      case 'today_action':
-        responseText = this.buildTodayActionReport(context, targetedCropObj, dataTruth);
-        break;
-
-      case 'specific_crop':
-        if (targetedCropObj.name.toLowerCase().includes('cocoa')) {
-          responseText = `Cocoa • Long-term tree crop\n\nStatus: Monitored via weather and humidity. Growth stage estimates apply to annual crops like maize, rice, and cassava.`;
-        } else if (targetedCropObj.hasPlantingDate) {
-          responseText = `Your ${targetedCropObj.name}\n\n• Estimated Growth Stage: ${targetedCropObj.growthStage}\n• Crop Age: Day ${targetedCropObj.daysAfterPlanting} after planting (Planted: ${targetedCropObj.plantingDate})\n\nRecommendations for ${targetedCropObj.name}: Maintain effective weed control and inspect leaf whorls early in the morning for pests.`;
-        } else {
-          responseText = `Your ${targetedCropObj.name}\n\n• Planting Date: Not provided (I can't estimate ${targetedCropObj.name}'s growth stage yet because your planting date hasn't been added in settings).\n\nWeather forecast ${locText}: ${tempVal}, ${context.currentWeather.condition || 'Clear'}. Weather conditions look favorable for field activities.`;
-        }
-        break;
-
-      case 'identity':
-        responseText = `I'm Cropie, your AI farm assistant!\n\nI combine live weather forecasts, your farm location, planting dates, and Ghana Ministry of Agriculture guidelines to provide clear recommendations for your farm.\n\nYou can ask me about:\n• Weather and rain forecasts\n• Crop growth stages\n• Fertilizer timing\n• Fall Armyworm and pest care\n• Daily farm actions`;
-        break;
-
-      case 'help':
-        responseText = `I can assist you with your farm ${locText}! You can ask questions such as:\n• "Will rain affect my fertilizer today?"\n• "How is my ${activeCropName} doing in its growth stage?"\n• "How do I protect my crops from Fall Armyworm?"\n• "What farming tasks should I prioritize today?"`;
-        break;
-
-      case 'crop_care':
-        responseText = `Recommendations for caring for your ${activeCropName}:\n\n1. Inspect leaf whorls early in the morning for Fall Armyworm caterpillars or stalk borers.\n2. Keep field edges and rows clear of heavy weeds to prevent pest buildup.\n3. Check rain forecasts before applying top-dressing fertilizer to prevent nutrient loss.`;
-        break;
-
-      case 'weather':
-        if (!dataTruth.hasLocation && !dataTruth.weatherAvailable) {
-          responseText = `I need your farm location to check whether rain or extreme temperatures are forecast for your field today.\n\nPlease add your farm location in farm settings so I can provide localized weather alerts.`;
-        } else if (rainProbVal >= 50) {
-          responseText = `Weather forecast for ${context.location || 'your farm'}: Temperature is ${tempVal} with a ${context.currentWeather.rainProb} chance of rain.\n\nWAIT BEFORE APPLYING FERTILIZER\nWhy? Rain is expected soon. Some fertilizer may be washed away.`;
-        } else {
-          responseText = `Weather forecast for ${context.location || 'your farm'}: Temperature is ${tempVal} (${context.currentWeather.condition || 'Clear'}) with a low rain chance (${context.currentWeather.rainProb || '20%'}). No major weather risk detected from the current forecast.`;
-        }
-        break;
-
-      case 'fertilizer':
-        if (!dataTruth.hasLocation && !dataTruth.weatherAvailable) {
-          responseText = `Rain can wash top-dressed fertilizer away if it falls shortly after application.\n\nI need your farm location to check whether rain is forecast for your field today.\n\nPlease add your farm location in farm settings so I can verify rain timing before you fertilize.`;
-        } else if (context.currentWeather.rainNotice && context.currentWeather.rainNotice.includes('Wait before applying fertilizer')) {
-          responseText = `Rain may affect fertilizer if it falls soon after application.\n\nI checked your farm's current forecast: ${context.currentWeather.rainNotice}.\n\nBased on this, wait before applying fertilizer until the rain risk passes.`;
-        } else if (rainProbVal >= 50) {
-          responseText = `Rain may affect fertilizer if it falls soon after application.\n\nI checked your farm's current forecast (${context.currentWeather.rainProb} chance of rain).\n\nBased on this, wait before applying fertilizer until the rain risk passes.`;
-        } else {
-          responseText = `No significant rain is expected in the next few hours (${tempVal}, low rain chance). You can consider applying fertilizer today, while still checking the latest forecast.`;
-        }
-        break;
-
-      case 'pests':
-        responseText = `I don't have a photo or physical sensor reading of your crop, so I can't physically confirm its health or diagnose diseases.\n\nFor ${activeCropName}: Inspect leaves and cobs for signs of Fall Armyworm or stalk borers. If detected, apply Neem seed extract or approved bio-pesticides early in the morning or late afternoon. Keep field edges clear of weeds.`;
-        break;
-
-      case 'stage':
-        if (activeCropName.toLowerCase().includes('cocoa')) {
-          responseText = `Cocoa • Long-term tree crop\n\nYour cocoa is monitored using weather and crop-care conditions rather than a yearly harvest countdown. Growth stage estimates apply to annual crops like maize, rice, and cassava.`;
-        } else if (targetedCropObj.hasPlantingDate) {
-          responseText = `Your ${activeCropName} is estimated to be in the ${targetedCropObj.growthStage} stage (Day ${targetedCropObj.daysAfterPlanting} after planting).\n\nNote: Growth stage is an estimate calculated from your planting date (${targetedCropObj.plantingDate}) and the normal crop growth cycle.`;
-        } else {
-          responseText = `I don't have your planting date for ${activeCropName} yet, so I can't estimate its growth stage. Please add your planting date in your farm settings to enable growth stage calculations.`;
-        }
-        break;
-
-      case 'multicrop':
-        responseText = `Farm Overview ${locText}:\n\n` + context.cropContextMap.map(cObj => {
-          if (cObj.name.toLowerCase().includes('cocoa')) {
-            return `• Cocoa: Long-term tree crop (Monitored via weather & humidity).`;
+        case 'go_ahead':
+        case 'more':
+          if (this.sessionContext.lastTopic === 'fertilizer' || this.sessionContext.lastTopic === 'weather') {
+            responseText = `Expanding forecast guidance: Rain can wash top-dressed fertilizer out of root zones. Ensure field drainage furrows are open so heavy showers do not flood your crops.`;
+          } else if (this.sessionContext.lastTopic === 'pests') {
+            responseText = `Expanding pest checks: Walk through your field early in the morning. Inspect the inner leaves of 20 random plants for caterpillar frass (droppings) or small holes.`;
+          } else {
+            responseText = `Expanding your farm briefing: Walk your crop rows to inspect leaf whorls for caterpillars and ensure drainage paths are clear before heavy rains.`;
           }
-          if (cObj.hasPlantingDate) {
-            return `• ${cObj.name}: Estimated ${cObj.growthStage} (Day ${cObj.daysAfterPlanting}).`;
+          break;
+
+        case 'why':
+          responseText = this.buildWhyExplanation(context, targetedCropObj, dataTruth);
+          break;
+
+        case 'how':
+          responseText = this.buildHowExplanation(context, targetedCropObj, dataTruth);
+          break;
+
+        case 'context_today':
+          if (this.sessionContext.lastTopic === 'weather') {
+            responseText = dataTruth.weatherAvailable 
+              ? `Today's weather for ${context.location}: ${context.currentWeather.temp}, ${context.currentWeather.condition || 'Clear'} (${context.currentWeather.rainProb || '0%'} rain chance).`
+              : `I don't have your farm location yet, so I can't check today's weather.`;
+          } else if (this.sessionContext.lastTopic === 'fertilizer') {
+            responseText = rainProbVal >= 50
+              ? `Wait before applying fertilizer today. Rain is expected soon (${context.currentWeather.rainProb || '50%'}).`
+              : `Rain probability is low today (${context.currentWeather.rainProb || '0%'}). Check soil moisture before fertilizing.`;
+          } else {
+            responseText = this.buildTodayActionReport(context, targetedCropObj, dataTruth);
           }
-          return `• ${cObj.name}: Growth stage unestimated (Add planting date in settings).`;
-        }).join('\n\n');
-        break;
+          break;
 
-      default:
-        responseText = `I can help with that! Are you asking about today's weather, your crop growth stage, or what farm work you should do today?`;
-        break;
-    }
+        case 'farm_overview':
+          responseText = this.buildDetailedFarmOverview(context, dataTruth);
+          this.sessionContext.lastTopic = 'farm_overview';
+          break;
 
-    // 4. Native Ghanaian Language Translation Engine (if selected)
-    let finalAnswer = responseText;
-    if (langCode !== 'eng') {
-      try {
-        const translatedFromKhaya = await this.khayaService.translateText(responseText, 'eng', langCode);
-        if (translatedFromKhaya && translatedFromKhaya !== responseText) {
-          finalAnswer = translatedFromKhaya;
-        } else {
+        case 'today_action':
+          responseText = this.buildTodayActionReport(context, targetedCropObj, dataTruth);
+          this.sessionContext.lastTopic = 'today_action';
+          break;
+
+        case 'specific_crop':
+          if (targetedCropObj.name.toLowerCase().includes('cocoa')) {
+            responseText = `Cocoa • Long-term tree crop\n\nStatus: Monitored via weather and humidity. Growth stage estimates apply to annual crops like maize, rice, and cassava.`;
+          } else if (targetedCropObj.hasPlantingDate) {
+            responseText = `Your ${targetedCropObj.name}\n\n• Estimated Growth Stage: ${targetedCropObj.growthStage}\n• Crop Age: Day ${targetedCropObj.daysAfterPlanting} after planting (Planted: ${targetedCropObj.plantingDate})\n\nRecommendations for ${targetedCropObj.name}: Maintain effective weed control and inspect leaf whorls early in the morning for pests.`;
+          } else {
+            responseText = `Your ${targetedCropObj.name}\n\n• Planting Date: Not provided (Your planting date is not available yet, so I can't estimate ${targetedCropObj.name}'s growth stage).\n\nWeather forecast: ${dataTruth.weatherAvailable ? `${context.currentWeather.temp}, ${context.currentWeather.condition || 'Clear'}` : 'Location not set'}.`;
+          }
+          this.sessionContext.lastTopic = targetedCropObj.name.toLowerCase();
+          this.sessionContext.lastCrop = targetedCropObj.name;
+          break;
+
+        case 'weather':
+          if (!dataTruth.hasLocation && !dataTruth.weatherAvailable) {
+            responseText = `I don't have your farm location yet, so I can't check your local weather. Please add your farm location in farm settings.`;
+          } else if (rainProbVal >= 50) {
+            responseText = `Weather forecast for ${context.location || 'your farm'}: Temperature is ${context.currentWeather.temp || '25°C'} with a ${context.currentWeather.rainProb} chance of rain.\n\nWAIT BEFORE APPLYING FERTILIZER\nWhy? Rain is expected soon. Some fertilizer may be washed away.`;
+          } else {
+            responseText = `Weather forecast for ${context.location || 'your farm'}: Temperature is ${context.currentWeather.temp || '25°C'} (${context.currentWeather.condition || 'Clear'}) with a low rain chance (${context.currentWeather.rainProb || '0%'}). No major weather risk detected.`;
+          }
+          this.sessionContext.lastTopic = 'weather';
+          break;
+
+        case 'fertilizer':
+          if (!dataTruth.hasLocation && !dataTruth.weatherAvailable) {
+            responseText = `Rain can wash top-dressed fertilizer away. I don't have your farm location yet, so I can't check whether rain is forecast for your field today.`;
+          } else if (rainProbVal >= 50) {
+            responseText = `Rain may affect fertilizer if it falls soon after application (${context.currentWeather.rainProb || '50%'} chance of rain). Wait before applying fertilizer until the rain risk passes.`;
+          } else {
+            responseText = `No significant rain is expected in the next few hours (${tempVal}, ${context.currentWeather.rainProb || '0%'} rain chance). You can consider applying fertilizer today, while checking soil moisture.`;
+          }
+          this.sessionContext.lastTopic = 'fertilizer';
+          break;
+
+        case 'pests':
+          responseText = `For ${activeCropName}: Inspect leaves and whorls for signs of Fall Armyworm or stalk borers. If detected, apply Neem seed extract or approved bio-pesticides early in the morning or late afternoon. Keep field edges clear of weeds.`;
+          this.sessionContext.lastTopic = 'pests';
+          break;
+
+        case 'stage':
+          if (activeCropName.toLowerCase().includes('cocoa')) {
+            responseText = `Cocoa • Long-term tree crop\n\nYour cocoa is monitored using weather and crop-care conditions rather than a yearly harvest countdown.`;
+          } else if (targetedCropObj.hasPlantingDate) {
+            responseText = `Your ${activeCropName} is estimated to be in the ${targetedCropObj.growthStage} stage (Day ${targetedCropObj.daysAfterPlanting} after planting).\n\nNote: Growth stage is an estimate calculated from your planting date (${targetedCropObj.plantingDate}).`;
+          } else {
+            responseText = `Your planting date for ${activeCropName} is not available yet, so I can't estimate the growth stage. Please add your planting date in farm settings.`;
+          }
+          this.sessionContext.lastTopic = 'stage';
+          break;
+
+        default:
+          responseText = `Hello! I'm Cropie. You can ask me about your crops, weather, rain, fertilizer, pests, or farm work.`;
+          break;
+      }
+
+      // Update session memory
+      this.sessionContext.lastUserMessage = userQuestionInEnglish;
+      this.sessionContext.lastIntent = category;
+      this.sessionContext.lastResponse = responseText;
+      this.sessionContext.lastCrop = activeCropName;
+
+      // 4. Native Ghanaian Language Translation Pipeline
+      let finalAnswer = responseText;
+      if (langCode !== 'eng') {
+        try {
+          const translatedFromKhaya = await this.khayaService.translateText(responseText, 'eng', langCode);
+          if (translatedFromKhaya && translatedFromKhaya !== responseText) {
+            finalAnswer = translatedFromKhaya;
+          } else {
+            finalAnswer = this.translateResponseToLanguage(responseText, langCode, context, targetedCropObj, category);
+          }
+        } catch {
           finalAnswer = this.translateResponseToLanguage(responseText, langCode, context, targetedCropObj, category);
         }
-      } catch {
-        finalAnswer = this.translateResponseToLanguage(responseText, langCode, context, targetedCropObj, category);
       }
-    }
 
-    // 5. Record turn in conversation history (rolling 10-turn memory)
-    this.recordTurn(userQuestionInEnglish, finalAnswer, selectedLanguage, category);
+      this.recordTurn(userQuestionInEnglish, finalAnswer, selectedLanguage, category);
 
-    return {
-      finalAnswer: finalAnswer,
-      rawEnglish: responseText,
-      language: selectedLanguage,
-      cropContext: activeCropName,
-      locationContext: context.location,
-      weatherContext: context.currentWeather
-    };
+      return {
+        finalAnswer: finalAnswer,
+        rawEnglish: responseText,
+        language: selectedLanguage,
+        cropContext: activeCropName,
+        locationContext: context.location,
+        weatherContext: context.currentWeather
+      };
+
     } catch (procErr) {
       console.error('[CROPIE ASSISTANT ERROR]', procErr);
       const fallbackMsg = `I'm monitoring your farm context! Ask me about your crop stage, fertilizer application, or current weather.`;
@@ -449,80 +442,28 @@ export class CropieAssistantService {
     }
   }
 
-  handleFollowupQuery(qLower, context, activeCropName) {
-    const lastTurn = this.conversationHistory[this.conversationHistory.length - 1];
-    const lastA = lastTurn ? (lastTurn.response || '').toLowerCase() : '';
+  buildWhyExplanation(context, cropObj, dataTruth) {
+    let out = `WHAT CROPIE USED\n\n`;
+    out += `• Crop: ${cropObj ? cropObj.name : 'Maize'}\n`;
+    out += `• Planting Date: ${cropObj && cropObj.hasPlantingDate ? cropObj.plantingDate : 'Not provided'}\n`;
+    out += `• Estimated Stage: ${cropObj && cropObj.hasPlantingDate ? `${cropObj.growthStage} (Day ${cropObj.daysAfterPlanting})` : 'Stage unestimated'}\n`;
+    out += `• Farm Location: ${dataTruth.hasLocation ? context.location : 'Not set'}\n`;
+    out += `• Weather Forecast: ${dataTruth.weatherAvailable ? `${context.currentWeather.temp}, ${context.currentWeather.condition || 'Clear'} (${context.currentWeather.rainProb || '0%'} rain chance)` : 'Not available'}\n`;
+    out += `• Guidelines: Ghana Ministry of Food and Agriculture (MoFA) guidelines\n\n`;
+    out += `Explanation: Cropie checks expected rain and crop stage to prevent fertilizer runoff and nutrient loss.`;
+    return out;
+  }
 
-    // Acknowledgements (hmm, oh, okay, ok, alright, i see)
-    if (/^\s*(hmm|oh|oh okay|okay|ok|alright|i see)\b/i.test(qLower)) {
-      return `Alright. I'm ready whenever you want to check your crops, weather, or farm advice.`;
-    }
-
-    // Go ahead / Continue
-    if (/\b(go ahead|continue|proceed|keep going)\b/i.test(qLower)) {
-      return `Continuing with your farm advice: Inspect crop leaf whorls early in the morning for Fall Armyworm caterpillars, keep field borders free of weeds, and check rain forecasts before top-dressing fertilizer.`;
-    }
-
-    // Crop Context Switch (Maize vs Cassava vs Rice)
-    if (/\b(what about maize|how about maize|and maize)\b/i.test(qLower)) {
-      const mObj = context.cropContextMap.find(c => c.name.toLowerCase() === 'maize') || context.primaryCropObj;
-      if (mObj.hasPlantingDate) {
-        return `Maize Update: Estimated ${mObj.growthStage} stage (Day ${mObj.daysAfterPlanting} after planting). Inspect leaf whorls early morning for caterpillars.`;
-      }
-      return `Maize Update: Planting date not provided yet. Add your maize planting date in settings so I can estimate its growth stage.`;
-    }
-
-    if (/\b(what about cassava|how about cassava|and cassava)\b/i.test(qLower)) {
-      const cObj = context.cropContextMap.find(c => c.name.toLowerCase() === 'cassava');
-      if (cObj && cObj.hasPlantingDate) {
-        return `Cassava Update: Estimated ${cObj.growthStage} stage (Day ${cObj.daysAfterPlanting} after planting). Ensure adequate soil drainage and weed control.`;
-      }
-      return `Cassava Update: Cassava is monitored for root establishment and weed competition. Add your cassava planting date in settings for growth stage estimates.`;
-    }
-
-    // Really / Are you sure / Are you serious
-    if (/\b(really|really\?|are you sure|seriously|for real|is that true|are you serious|are u serious)\b/i.test(qLower)) {
-      if (lastA.includes('not provided') || lastA.includes('missing') || lastA.includes('not set') || lastA.includes('don\'t have')) {
-        return `Yes. That's based on the information currently available on your Cropie account. I don't want to guess about information that hasn't been provided.`;
-      }
-      return `Yes! This recommendation is calculated from your active farm settings, Ministry of Agriculture guidelines, and live Open-Meteo weather forecasts.`;
-    }
-
-    // How / Oh how
-    if (/\b(oh how|how|how to do it)\b/i.test(qLower)) {
-      if (lastA.includes('planting date') || lastA.includes('location') || lastA.includes('settings')) {
-        return `Open your farm settings, choose your crop, and enter your planting date or location. This will allow Cropie to calculate your crop's growth stage and fetch local weather advice.`;
-      }
-      if (lastA.includes('fertilizer')) {
-        return `Apply top-dressing fertilizer 5 to 10 cm away from the base of the plant stem (side-dressing) into moist soil, then lightly cover with soil.`;
-      }
-      return `Inspect crop leaf whorls early in the morning for Fall Armyworm caterpillars, keep field edges clear of weeds, and check weather before applying chemicals.`;
-    }
-
-    // Why
-    if (/\b(why|why is that|why wait|why so)\b/i.test(qLower)) {
-      if (lastA.includes('fertilizer') || lastA.includes('rain')) {
-        return `Because rain expected soon can wash away top-dressed fertilizer before crop roots absorb it. It is safer to wait until the rain risk has passed.`;
-      }
-      return `Because agricultural recommendations are based on live weather forecasts and Ministry of Agriculture guidelines to prevent crop loss and nutrient wastage.`;
-    }
-
-    // When
-    if (/\b(when|when can i apply|at what time|tomorrow)\b/i.test(qLower)) {
-      return `Rain is expected tomorrow morning. You can check your farm forecast again after the rain risk has passed.`;
-    }
-
-    // More / Tell me more
-    if (/\b(more|tell me more|expand|detail|details|and\?|then\?)\b/i.test(qLower)) {
-      return `Expanding your farm briefing: Ensure your field has clear drainage furrows if rain is forecast to prevent waterlogging around crop roots. Scout leaf whorls early in the morning for caterpillars.`;
-    }
-
-    return `Alright. I'm here whenever you need help with your crops or farm advice.`;
+  buildHowExplanation(context, cropObj, dataTruth) {
+    const cName = cropObj ? cropObj.name : 'Maize';
+    return `Practical steps for your ${cName}:\n\n` +
+      `1. Walk around the lower parts of your farm and check whether rainwater is staying there.\n` +
+      `2. If water is collecting around the ${cName.toLowerCase()} roots, clear blocked drainage paths.\n` +
+      `3. Inspect leaf whorls early in the morning for caterpillars before applying any farm treatments.`;
   }
 
   buildDetailedFarmOverview(context, dataTruth) {
     let out = `WHAT I KNOW\n\n`;
-
     out += `Crop: ${context.crops.join(', ')}\n\n`;
 
     out += `Growth:\n`;
@@ -545,82 +486,70 @@ export class CropieAssistantService {
     if (dataTruth.weatherAvailable) {
       out += `${context.currentWeather.temp}, ${context.currentWeather.condition || 'Clear'} (${context.currentWeather.rainProb} rain chance)\n`;
     } else {
-      out += `${context.currentWeather.temp || '25°C'}, ${context.currentWeather.condition || 'Clear'} (${context.currentWeather.rainProb || '0%'} rain chance)\n`;
+      out += `Not available because farm location is not set.\n`;
     }
 
     out += `\nWHAT THIS MEANS\n`;
-    const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
-    if (rainProbNum >= 50) {
-      out += `Rain is expected soon (${context.currentWeather.rainProb}), which may wash away top-dressed fertilizer.\n\nTODAY'S ADVICE\nWait before applying fertilizer until the rain risk passes.`;
+    if (!dataTruth.hasLocation || !context.primaryCropObj.hasPlantingDate) {
+      const missing = [];
+      if (!context.primaryCropObj.hasPlantingDate) missing.push('planting date');
+      if (!dataTruth.hasLocation) missing.push('farm location');
+      out += `I can monitor your ${context.primaryCropObj.name}, but I need your ${missing.join(' and ')} to give you more specific advice.\n\nOnce added, I can estimate your crop's growth stage and check local weather.`;
     } else {
-      out += `No major weather risk detected from the current forecast.\n\nTODAY'S ADVICE\nEnsure adequate soil moisture before top-dressing fertilizer.`;
+      const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
+      if (rainProbNum >= 50) {
+        out += `Rain is expected soon (${context.currentWeather.rainProb}), which may wash away top-dressed fertilizer.\n\nTODAY'S ADVICE\nWait before applying fertilizer until the rain risk passes.`;
+      } else {
+        out += `No major weather risk detected from the current forecast.\n\nTODAY'S ADVICE\nEnsure adequate soil moisture before top-dressing fertilizer.`;
+      }
     }
 
     return out;
   }
 
   buildTodayActionReport(context, targetedCropObj, dataTruth) {
-    let out = `Here is my advice for your farm today:\n\n`;
+    let out = `TODAY'S FARM PLAN 🌱\n\n`;
 
-    out += `${targetedCropObj.name}\nI can see you are growing ${targetedCropObj.name.toLowerCase()}.\n\n`;
-
-    out += `Growth stage\n`;
-    if (dataTruth.growthStageAvailable) {
-      out += `Estimated ${targetedCropObj.growthStage} stage (Day ${targetedCropObj.daysAfterPlanting} after planting, planted ${targetedCropObj.plantingDate}).\n\n`;
+    out += `1. 🌽 Check your ${targetedCropObj.name}\n`;
+    if (targetedCropObj.hasPlantingDate) {
+      out += `Your ${targetedCropObj.name.toLowerCase()} is around ${targetedCropObj.growthStage.toLowerCase()} (Day ${targetedCropObj.daysAfterPlanting}).\n\n`;
     } else {
-      out += `I can't estimate this yet because your planting date has not been provided.\n\n`;
+      out += `Your planting date is not provided yet.\n\n`;
     }
 
-    out += `Weather\n`;
-    if (dataTruth.weatherAvailable) {
-      const tempVal = context.currentWeather.temp || '28°C';
-      const rainProbVal = context.currentWeather.rainProb || '20%';
-      out += `${tempVal}, ${context.currentWeather.condition || 'Clear'} (${rainProbVal} rain chance).\n\n`;
-    } else {
-      out += `I don't have your farm location yet, so I can't give you local weather advice.\n\n`;
-    }
-
-    out += `What you can do:\n`;
-    const actions = [];
-
+    out += `2. 🌧️ Check the rain forecast\n`;
     if (dataTruth.weatherAvailable) {
       const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
       if (rainProbNum >= 50) {
-        actions.push(`• Wait before applying fertilizer because rain is expected soon (${context.currentWeather.rainProb}).`);
+        out += `High rain chance today (${context.currentWeather.rainProb}). Wait before applying fertilizer.\n\n`;
       } else {
-        actions.push(`• No major weather risk detected from the current forecast.`);
+        out += `No significant rain is currently expected (${context.currentWeather.rainProb || '0%'} rain chance).\n\n`;
       }
+    } else {
+      out += `Location not set — local weather forecast unavailable.\n\n`;
     }
 
-    actions.push(`• Check your ${targetedCropObj.name.toLowerCase()} leaves for signs of pests.`);
-    actions.push(`• Keep field borders free from heavy weeds.`);
+    out += `3. 💧 Soil & Field Check\n`;
+    out += `Ensure soil has enough moisture and check field borders for weeds.`;
 
-    if (!dataTruth.hasLocation || !dataTruth.plantingDateAvailable) {
-      const missing = [];
-      if (!dataTruth.hasLocation) missing.push('farm location');
-      if (!dataTruth.plantingDateAvailable) missing.push('planting date');
-      actions.push(`• Add your ${missing.join(' and ')} in settings so I can give you more specific advice.`);
-    }
-
-    out += actions.join('\n');
     return out;
   }
 
   getVoiceGreeting(langCode) {
     const lang = (langCode || 'eng').toLowerCase();
     if (lang === 'twi') {
-      return `Mema wo akwaaba! Me ne Cropie. Kyerɛ me deɛ ɛrekɔ so wɔ wo afuo so anaa bisa me nsɛmmisa.`;
+      return `Akwaaba! Me yɛ Cropie. Me siesie me ho sɛ meboa wo afuo nnɛ.`;
     }
     if (lang === 'ewe') {
-      return `Woezɔ! Nye wnye Cropie. Gblɔ nu si le dzadzam le wò agble dzi alo bia biabia m.`;
+      return `Woezɔ! Nye wnye Cropie. Meli kple wò be makpe ɖe wò agble ŋu egbe.`;
     }
     if (lang === 'gaa' || lang === 'ga') {
-      return `Blema baa! Mi ji Cropie. Gbeee mi nɔ ni yaa no yɛ o-ŋmɔɔ nɔ alo biam sane.`;
+      return `Blema baa! Mi ji Cropie. Miasiesie mihe ne maye mbua o-ŋmɔɔ ŋmɛnɛ.`;
     }
     if (lang === 'hau' || lang === 'hausa') {
-      return `Sannu, ni ne Cropie. Fada min abin da ke faruwa a gonarku ko ka tambaye ni.`;
+      return `Sannu! Ni ne Cropie. Ina shirye don taimaka muku gona a yau.`;
     }
-    return `Hi, I'm Cropie. Tell me what is happening on your farm or ask me a question.`;
+    return `Hello! 👋 I'm Cropie, your farm assistant. I'm ready to help you with your farm.`;
   }
 
   getNoSpeechMessage(langCode) {
@@ -643,7 +572,7 @@ export class CropieAssistantService {
   getOutofDomainRefusal(langCode) {
     const lang = (langCode || 'eng').toLowerCase();
     if (lang === 'twi') {
-      return `Metumi boa wo wɔ wo afuo, afuo nnwuma, ewiemu tebea ne afuo afotu nkuto ho. Meni tumi mboa wo wɔ asɛm yi ho.`;
+      return `Me tumi boa wo wɔ wo afuo, afuo nnwuma, ewiemu tebea ne afuo afotu nkuto ho. Meni tumi mboa wo wɔ asɛm yi ho.`;
     }
     if (lang === 'ewe') {
       return `Mate ŋu akpe ɖe wo ŋu le wò agble, agbledɔwo, xexeme kple agblenyãwo koe ŋuti. Nyemate ŋu akpe ɖe wo ŋu le biabia ma ŋu o.`;
@@ -654,140 +583,74 @@ export class CropieAssistantService {
     if (lang === 'hau' || lang === 'hausa') {
       return `Zan iya taimaka muku kawai da gonarku, shuka, yanayi da shawarwarin gona. Ban iya taimakawa da wannan tambayar ba.`;
     }
-    return `I can help with your farm, crops, weather and farming advice. I can't help with that question.`;
+    return `I'm here to help with your farm and crops. You can ask me about your crops, weather, rain, fertilizer, pests, or farm work.`;
   }
 
-  // Localized Ghanaian Language Translation Engine Fallback
   translateResponseToLanguage(responseText, selectedLanguage, context, cropObj, category = 'general') {
     if (selectedLanguage === 'eng' || !selectedLanguage) return responseText;
 
     const lang = selectedLanguage.toLowerCase();
     const activeCrop = cropObj ? cropObj.name : 'Maize';
-    const rainProb = context.currentWeather.rainProb || "20%";
+    const rainProb = (context.currentWeather && context.currentWeather.rainProb) ? context.currentWeather.rainProb : "0%";
     const location = context.location || "your farm";
-    const temp = context.currentWeather.temp || "28°C";
+    const temp = (context.currentWeather && context.currentWeather.temp) ? context.currentWeather.temp : "25°C";
     const days = cropObj && cropObj.daysAfterPlanting ? `Da ${cropObj.daysAfterPlanting}` : '';
     const stage = cropObj && cropObj.growthStage ? cropObj.growthStage : '';
 
     if (lang === 'twi') {
-      if (category === 'greeting') {
-        return `Hello! Me ne Cropie. Ɛyɛ deɛn na me tumi boa wo afuo nnɛ?`;
-      }
-      if (category === 'casual') {
-        return `Me ho yɛ, na measiesie me ho sɛ meboa wo afuo! Mɛni na wopɛ sɛ wosɔ hwɛ?`;
-      }
-      if (category === 'acknowledgement') {
-        return `Yoo! Sɛ wopɛ sɛ wosɔ wo nsuban anaa ewiemu tebea hwɛ a, me wɔ ha.`;
-      }
-      if (category === 'frustration') {
-        return `Ebia mante wo ase yie. Kyerɛ me deɛ wopɛ sɛ wosɔ hwɛ wɔ wo afuo ho na measɔ bio.`;
-      }
-      if (category === 'weather' || category === 'fertilizer') {
-        return `Ewiemu tebea wɔ ${location}: Ewiemu yɛ ${temp}, nsuo tɔ nteteeɔ yɛ ${rainProb}. Sɛ nsuo bɛtwa a, twɛn fertilizer guo kosi sɛ nsuo no bɛtwa.`;
-      }
-      if (category === 'pests') {
-        return `Hwɛ Fall Armyworm ne aboa fi afuo no so wɔ ${activeCrop} so. Sɛ wohunu aboa bi a, sɔ Neem nsuo anaa bio-pesticides gu so.`;
-      }
+      if (category === 'greeting') return `Akwaaba! Me yɛ Cropie. Me siesie me ho sɛ meboa wo afuo nnɛ. Mɛni na wopɛ sɛ wosɔ hwɛ?`;
+      if (category === 'casual') return `Me ho yɛ, na measiesie me ho sɛ meboa wo afuo! Mɛni na wopɛ sɛ wosɔ hwɛ?`;
+      if (category === 'acknowledgement' || category === 'okay') return `Yoo! Sɛ wopɛ sɛ wosɔ wo nsuban anaa ewiemu tebea hwɛ a, me wɔ ha.`;
+      if (category === 'insult') return `Ebia mante wo ase yie. Kyerɛ me deɛ wopɛ sɛ wosɔ hwɛ wɔ wo afuo ho na measɔ bio.`;
+      if (category === 'weather' || category === 'fertilizer') return `Ewiemu tebea wɔ ${location}: Ewiemu yɛ ${temp}, nsuo tɔ nteteeɔ yɛ ${rainProb}. Sɛ nsuo bɛtwa a, twɛn fertilizer guo kosi sɛ nsuo no bɛtwa.`;
+      if (category === 'pests') return `Hwɛ Fall Armyworm ne aboa fi afuo no so wɔ ${activeCrop} so. Sɛ wohunu aboa bi a, sɔ Neem nsuo anaa bio-pesticides gu so.`;
       if (category === 'stage') {
-        if (cropObj && cropObj.hasPlantingDate) {
-          return `Wo ${activeCrop} mpuntuo tebea yɛ ${stage} (${days}). Yɛde wo dua berɛ na ɛbuuu yi.`;
-        }
-        return `Mni wo dua berɛ nti metumi nkyerɛ wo ${activeCrop} mpuntuo tebea. Kɔ wo afuo nsɛm mu na fa wo dua berɛ hyɛ mu.`;
+        if (cropObj && cropObj.hasPlantingDate) return `Wo ${activeCrop} mpuntuo tebea yɛ ${stage} (${days}). Yɛde wo dua berɛ na ɛbuuu yi.`;
+        return `Wo dua berɛ nni hɔ nti metumi nkyerɛ wo ${activeCrop} mpuntuo tebea. Fa wo dua berɛ hyɛ mu wɔ afuo nsɛm mu.`;
       }
       return `Wɔ wo afuo so wɔ ${location} (${activeCrop}): Ewiemu yɛ ${temp}, nsuo tɔ nteteeɔ yɛ ${rainProb}.`;
     }
 
     if (lang === 'ewe') {
-      if (category === 'greeting') {
-        return `Woezɔ! Nye wnye Cropie. Aleke mate ŋu akpe kpe wo egbe le wò agble ŋu?`;
-      }
-      if (category === 'casual') {
-        return `Ele nyuie, eye melolo be makpe ɖe wo ŋu le wò agble ŋu! Nu ka wòdi be yeakpɔ?`;
-      }
-      if (category === 'acknowledgement') {
-        return `Akpe na wo! Ne èdi be yeakpɔ wò nukuwo alo xexeme ŋu la, mele afi.`;
-      }
-      if (category === 'frustration') {
-        return `Mese wo gme o. Gblɔ nu si èdi be yeakpɔ le wò agble ŋuti meagba ase.`;
-      }
-      if (category === 'weather' || category === 'fertilizer') {
-        return `Xexeme le ${location}: Xexeme le ${temp}, tsidza le ${rainProb}. Megada duu egbe o ne tsi le dzadzam.`;
-      }
-      if (category === 'pests') {
-        return `Lé ŋku ɖe agbledɔlele kple vɔ̃wo ŋu le wò ${activeCrop} dzi. Zã Neem amine.`;
-      }
+      if (category === 'greeting') return `Woezɔ! Nye wnye Cropie. Aleke mate ŋu akpe kpe wo egbe le wò agble ŋu?`;
+      if (category === 'casual') return `Ele nyuie, eye melolo be makpe ɖe wo ŋu le wò agble ŋu! Nu ka wòdi be yeakpɔ?`;
+      if (category === 'acknowledgement' || category === 'okay') return `Akpe na wo! Ne èdi be yeakpɔ wò nukuwo alo xexeme ŋu la, mele afi.`;
+      if (category === 'insult') return `Mese wo gme o. Gblɔ nu si èdi be yeakpɔ le wò agble ŋuti meagba ase.`;
+      if (category === 'weather' || category === 'fertilizer') return `Xexeme le ${location}: Xexeme le ${temp}, tsidza le ${rainProb}. Megada duu egbe o ne tsi le dzadzam.`;
+      if (category === 'pests') return `Lé ŋku ɖe agbledɔlele kple vɔ̃wo ŋu le wò ${activeCrop} dzi. Zã Neem amine.`;
       if (category === 'stage') {
-        if (cropObj && cropObj.hasPlantingDate) {
-          return `Wò ${activeCrop} le ${stage} dzi.`;
-        }
-        return `Nye megba nyã ŋkeke si dzi èdo wò ${activeCrop} o. Da ŋkeke ma ɖe wò agble nutowomewomewo me.`;
+        if (cropObj && cropObj.hasPlantingDate) return `Wò ${activeCrop} le ${stage} dzi.`;
+        return `Wò ŋkeke si dzi èdo wò ${activeCrop} mele afi o. Da ŋkeke ma ɖe wò agble nutowomewomewo me.`;
       }
       return `Le wò agble dzi le ${location} (${activeCrop}): Xexeme le ${temp}, tsidza le ${rainProb}.`;
     }
 
     if (lang === 'gaa' || lang === 'ga') {
-      if (category === 'greeting') {
-        return `Blema baa! Mi ji Cropie. Mɛni mafe ma-ye obua o-ŋmɔɔ ŋmɛnɛ?`;
-      }
-      if (category === 'casual') {
-        return `Miyɛ kpakpa, eye míasiesie mihe ne maye mbua o-ŋmɔɔ! Mɛni wodi be okwɛ?`;
-      }
-      if (category === 'acknowledgement') {
-        return `Oyiwaladon! Kedji o-di be o-kwɛ o-ŋmɔɔ nibii alo je ŋmɛnɛ la, mi yɛ bi.`;
-      }
-      if (category === 'frustration') {
-        return `Kɛji minuu o-gbee emli yie o, ha biam nɔ ni o-di yɛ o-ŋmɔɔ he ni mate bio.`;
-      }
-      if (category === 'weather' || category === 'fertilizer') {
-        return `Je ŋmɛnɛ le ${location}: Je yɛ ${temp}, nu tɔɔ yɛ ${rainProb}. Kaafã nsoo amrɔ nɛɛ ne nu ematɔ.`;
-      }
+      if (category === 'greeting') return `Blema baa! Mi ji Cropie. Mɛni mafe ma-ye obua o-ŋmɔɔ ŋmɛnɛ?`;
+      if (category === 'casual') return `Miyɛ kpakpa, eye míasiesie mihe ne maye mbua o-ŋmɔɔ! Mɛni wodi be okwɛ?`;
+      if (category === 'acknowledgement' || category === 'okay') return `Oyiwaladon! Kedji o-di be o-kwɛ o-ŋmɔɔ nibii alo je ŋmɛnɛ la, mi yɛ bi.`;
+      if (category === 'insult') return `Kɛji minuu o-gbee emli yie o, ha biam nɔ ni o-di yɛ o-ŋmɔɔ he ni mate bio.`;
+      if (category === 'weather' || category === 'fertilizer') return `Je ŋmɛnɛ le ${location}: Je yɛ ${temp}, nu tɔɔ yɛ ${rainProb}. Kaafã nsoo amrɔ nɛɛ ne nu ematɔ.`;
       if (category === 'stage') {
-        if (cropObj && cropObj.hasPlantingDate) {
-          return `O-ŋmɔɔ ${activeCrop} yɛ ${stage} nɔ.`;
-        }
-        return `Milee be ni odu o-ŋmɔɔ ${activeCrop} lɔ. Ha be ni odu kɛ yaa o-ŋmɔɔ nibii le mli.`;
+        if (cropObj && cropObj.hasPlantingDate) return `O-ŋmɔɔ ${activeCrop} yɛ ${stage} nɔ.`;
+        return `Be ni odu o-ŋmɔɔ ${activeCrop} bɛ bi. Ha be ni odu kɛ yaa o-ŋmɔɔ nibii le mli.`;
       }
       return `Yɛ o-ŋmɔɔ nɔ le ${location} (${activeCrop}): Je ŋmɛnɛ yɛ ${temp}, nu tɔɔ yɛ ${rainProb}.`;
     }
 
     if (lang === 'hau' || lang === 'hausa') {
-      if (category === 'greeting') {
-        return `Sannu! Ni ne Cropie. Ta yaya zan iya taimaka maka da gonarku a yau?`;
-      }
-      if (category === 'casual') {
-        return `Lafiya ta lau, kuma a shirye nake in taimaka da gonarku! Me kuke son bincikawa?`;
-      }
-      if (category === 'acknowledgement') {
-        return `Bayan haka! Ina nan a duk lokacin da kuke son bincika shukarku ko yanayi.`;
-      }
-      if (category === 'frustration') {
-        return `Wataƙila Ban fahimce ku da kyau ba. Fada min abin da kuke son bincikawa game da gonarku kuma zan sake gwadawa.`;
-      }
-      if (category === 'weather' || category === 'fertilizer') {
-        return `Yanayin ${location}: Yanayi ${temp}, yiwuwar ruwa ${rainProb}. A dakata da saka taki idan ana saurin ruwa.`;
-      }
+      if (category === 'greeting') return `Sannu! Ni ne Cropie. Ina shirye don taimaka muku gona a yau. Menene kuke son sani?`;
+      if (category === 'casual') return `Lafiya lau, kuma ina shirye don taimaka muku da gona! Me kuke son dubawa?`;
+      if (category === 'acknowledgement' || category === 'okay') return `To Madalla! Ina nan a duk lokacin da kuke son duba amfanin gona ko yanayi.`;
+      if (category === 'insult') return `Wataƙila ban fahimce ku da kyau ba. Sanar da ni abin da kuke son sani game da gonarku.`;
+      if (category === 'weather' || category === 'fertilizer') return `Rana a ${location}: Zazzabi ${temp}, damar ruwa ${rainProb}. Kada a sa taki idan ana tsammanin ruwa.`;
       if (category === 'stage') {
-        if (cropObj && cropObj.hasPlantingDate) {
-          return `Shuka ${activeCrop} tana matakin ${stage}.`;
-        }
-        return `Ba ni da ranar shukarku ba tukuna don ${activeCrop}. Da fatan za a ƙara ranar shuka a saitunan gonarku.`;
+        if (cropObj && cropObj.hasPlantingDate) return `Shukar ${activeCrop} tana matakin ${stage}.`;
+        return `Ranar shukarku ba ta samuwa ba tukuna. Da fatan za a ƙara ranar shuka.`;
       }
-      return `A gonar ku a ${location} (${activeCrop}): Yanayin ${temp}, yiwuwar ruwa ${rainProb}.`;
+      return `A gonarku a ${location} (${activeCrop}): Yanayi ${temp}, damar ruwa ${rainProb}.`;
     }
 
     return responseText;
-  }
-
-  // Generate suggested quick prompts based on farm context
-  async getSuggestedPrompts() {
-    const context = await this.buildFarmContext();
-    const mainCrop = context.primaryCrop;
-
-    return [
-      `Will rain affect my ${mainCrop} field today?`,
-      `How is my ${mainCrop} doing in its growth stage?`,
-      `What should I do for my farm today?`,
-      `Should I apply fertilizer to my farm today?`
-    ];
   }
 }
