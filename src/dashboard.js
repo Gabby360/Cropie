@@ -912,7 +912,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
       } catch (err) {
         gpsBtn.disabled = false;
-        if (btnSpan) btnSpan.textContent = '📍 Detect My Location';
+        if (btnSpan) btnSpan.textContent = 'Detect My Location';
 
         if (dashLocationCardWrapper) {
           if (err.type === 'PERMISSION_DENIED') {
@@ -986,7 +986,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       <div class="location-status-card">
         <div class="map-instruction-tag" style="margin-bottom: 0.85rem;">
           <i class="fa-solid fa-hand-pointer" style="color: #16a34a;"></i>
-          <span>📍 Move the pin to your exact farm location</span>
+          <span>Move the pin to your exact farm location</span>
         </div>
 
         <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
