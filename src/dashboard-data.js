@@ -222,15 +222,24 @@ export class CropieDataService {
 
     this.data.weather.rainProb = `${rainProbVal}%`;
 
-    // Dynamic rain notice calculated from live Open-Meteo hourly telemetry
+    // Dynamic rain notice calculated from live Open-Meteo hourly & current telemetry
     if (cur.precipitation > 0) {
-      this.data.weather.rainNotice = `🌧️ Currently raining (${cur.precipitation} mm). Field operations on pause.`;
+      // 1. Currently Raining
+      this.data.weather.rainNotice = `🌧️ Currently raining (${cur.precipitation} mm). Field operations may be affected.`;
       this.data.weather.rainNoticeType = 'alert';
     } else {
-      // Meaningful rain threshold: precipitationProbability >= 50% OR precipitation >= 0.2 mm
+      /* 
+       * Application Thresholds for Farmer-Friendly Rain Interpretation:
+       * - No meaningful rain: < 0.2 mm
+       * - Light rain: 0.2 mm – 2.5 mm
+       * - Moderate rain: 2.5 mm – 10.0 mm
+       * - Heavy rain: > 10.0 mm
+       * (Note: Application decision thresholds, not official meteorological definitions)
+       */
       const hourlyList = weatherData.hourly || [];
       const nowTimestamp = Date.now();
 
+      // Find upcoming hourly events with meaningful rainfall (precipitation >= 0.2 mm AND probability >= 40%)
       const upcomingRainEvents = hourlyList.filter(item => {
         const itemTime = new Date(item.time).getTime();
         // Ignore past hours (allow 30-minute buffer for ongoing hour slot)
@@ -238,7 +247,7 @@ export class CropieDataService {
 
         const prob = item.precipitationProbability || 0;
         const mm = item.precipitation || item.rain || 0;
-        return prob >= 50 || mm >= 0.2;
+        return mm >= 0.2 && prob >= 40;
       });
 
       if (upcomingRainEvents.length > 0) {
@@ -248,7 +257,7 @@ export class CropieDataService {
 
         let timingText = '';
         if (diffHours <= 0.75) {
-          timingText = 'Rain expected very soon.';
+          timingText = 'Rain is likely within the next hour.';
         } else if (diffHours <= 1.5) {
           timingText = 'Rain likely in about 1 hour.';
         } else if (diffHours <= 3.5) {
@@ -264,14 +273,14 @@ export class CropieDataService {
           this.data.weather.rainNotice = `🌧️ High rain chance today (${rainProbVal}%). ${timingText}`;
           this.data.weather.rainNoticeType = 'warning';
         } else {
-          this.data.weather.rainNotice = `🌦️ Rain chance today (${rainProbVal}%). ${timingText}`;
+          this.data.weather.rainNotice = `🌦️ Rain is possible soon. Some rainfall is forecast.`;
           this.data.weather.rainNoticeType = 'info';
         }
 
       } else {
-        // No meaningful upcoming rain event in hourly forecast
+        // High daily probability (e.g. 98%) BUT upcoming hours show 0.00 mm (zero / trace predicted rainfall)
         if (rainProbVal >= 60) {
-          this.data.weather.rainNotice = `🌦️ High rain chance today (${rainProbVal}%). Rain is possible later today.`;
+          this.data.weather.rainNotice = `🌦️ High rain chance today (${rainProbVal}%). Rain is possible soon, but significant rainfall is not currently forecast.`;
           this.data.weather.rainNoticeType = 'warning';
         } else if (rainProbVal >= 30) {
           this.data.weather.rainNotice = `🌤️ Moderate rain chance today (${rainProbVal}%). Keep an eye on local sky.`;
