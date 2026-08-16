@@ -148,6 +148,7 @@ export class CropieWeatherService {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
       current: 'temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,wind_direction_10m,cloud_cover',
+      hourly: 'precipitation_probability,precipitation,rain',
       daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,rain_sum,precipitation_probability_max,weather_code,wind_speed_10m_max',
       timezone: 'auto'
     });
@@ -166,6 +167,7 @@ export class CropieWeatherService {
   normalizeWeatherData(data, latitude, longitude, farmLocationName) {
     const cur = data.current || {};
     const daily = data.daily || {};
+    const hourlyData = data.hourly || {};
     const curWmo = this.getWmoWeatherInfo(cur.weather_code || 0);
 
     const forecastList = [];
@@ -191,6 +193,18 @@ export class CropieWeatherService {
       });
     }
 
+    const hourlyList = [];
+    if (hourlyData.time && Array.isArray(hourlyData.time)) {
+      hourlyData.time.forEach((tStr, i) => {
+        hourlyList.push({
+          time: tStr,
+          precipitationProbability: hourlyData.precipitation_probability ? hourlyData.precipitation_probability[i] : 0,
+          precipitation: hourlyData.precipitation ? hourlyData.precipitation[i] : 0,
+          rain: hourlyData.rain ? hourlyData.rain[i] : 0
+        });
+      });
+    }
+
     return {
       location: {
         name: farmLocationName,
@@ -211,6 +225,7 @@ export class CropieWeatherService {
         cloudCover: Math.round(cur.cloud_cover ?? 45)
       },
       forecast: forecastList,
+      hourly: hourlyList,
       fetchedAt: Date.now(),
       isCached: false
     };
