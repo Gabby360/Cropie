@@ -230,20 +230,24 @@ export class CropieDataService {
     } else {
       /* 
        * Application Thresholds for Farmer-Friendly Rain Interpretation:
-       * - No meaningful rain: < 0.2 mm
-       * - Light rain: 0.2 mm – 2.5 mm
-       * - Moderate rain: 2.5 mm – 10.0 mm
-       * - Heavy rain: > 10.0 mm
-       * (Note: Application decision thresholds, not official meteorological definitions)
+       * - Meaningful significant rainfall period: precipitation >= 0.2 mm AND probability >= 40%
+       * (Note: Cropie decision-support thresholds, not official meteorological classifications)
        */
       const hourlyList = weatherData.hourly || [];
-      const nowTimestamp = Date.now();
+      const now = new Date();
+      const nowTimestamp = now.getTime();
 
-      // Find upcoming hourly events with meaningful rainfall (precipitation >= 0.2 mm AND probability >= 40%)
+      // Extract ISO date strings for date comparison (YYYY-MM-DD)
+      const nowDateStr = now.toISOString().split('T')[0];
+      const tomorrowObj = new Date(now);
+      tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+      const tomorrowDateStr = tomorrowObj.toISOString().split('T')[0];
+
+      // Find FIRST future hourly slot satisfying meaningful rain criteria (precipitation >= 0.2 mm AND probability >= 40%)
       const upcomingRainEvents = hourlyList.filter(item => {
         const itemTime = new Date(item.time).getTime();
-        // Ignore past hours (allow 30-minute buffer for ongoing hour slot)
-        if (isNaN(itemTime) || itemTime < nowTimestamp - (30 * 60 * 1000)) return false;
+        // Exclude slots that ended in the past (allow 15-min buffer for current clock time)
+        if (isNaN(itemTime) || itemTime < nowTimestamp - (15 * 60 * 1000)) return false;
 
         const prob = item.precipitationProbability || 0;
         const mm = item.precipitation || item.rain || 0;
@@ -252,35 +256,71 @@ export class CropieDataService {
 
       if (upcomingRainEvents.length > 0) {
         const firstEvent = upcomingRainEvents[0];
-        const firstTime = new Date(firstEvent.time).getTime();
-        const diffHours = (firstTime - nowTimestamp) / (1000 * 60 * 60);
+        const firstEventDate = new Date(firstEvent.time);
+        const firstTime = firstEventDate.getTime();
+        const firstEventDateStr = firstEventDate.toISOString().split('T')[0];
+        const diffHours = Math.max(0.1, (firstTime - nowTimestamp) / (1000 * 60 * 60));
 
-        let timingText = '';
-        if (diffHours <= 0.75) {
-          timingText = 'Rain is likely within the next hour.';
-        } else if (diffHours <= 1.5) {
-          timingText = 'Rain likely in about 1 hour.';
-        } else if (diffHours <= 3.5) {
-          const roundedH = Math.round(diffHours);
-          timingText = `Rain likely in about ${roundedH} hours.`;
-        } else if (diffHours <= 6) {
-          timingText = 'Rain likely within the next few hours.';
-        } else {
-          timingText = 'Rain is expected later today.';
-        }
+        const isEventToday = (firstEventDateStr === nowDateStr);
+        const isEventTomorrow = (firstEventDateStr === tomorrowDateStr);
 
-        if (rainProbVal >= 60) {
-          this.data.weather.rainNotice = `🌧️ High rain chance today (${rainProbVal}%). ${timingText}`;
-          this.data.weather.rainNoticeType = 'warning';
+        if (isEventToday) {
+          // --- CASE A: SIGNIFICANT RAIN EVENT IS TODAY ---
+          let timingText = '';
+          if (diffHours < 1) {
+            timingText = 'Rain is likely within the next hour.';
+          } else if (diffHours <= 3.5) {
+            const roundedH = Math.max(1, Math.round(diffHours));
+            timingText = `Rain likely in about ${roundedH} hours.`;
+          } else if (diffHours <= 6) {
+            timingText = 'Rain likely within the next few hours.';
+          } else {
+            timingText = 'Rain is expected later today.';
+          }
+
+          if (rainProbVal >= 60) {
+            this.data.weather.rainNotice = `🌧️ High rain chance today (${rainProbVal}%). ${timingText}`;
+            this.data.weather.rainNoticeType = 'warning';
+          } else {
+            this.data.weather.rainNotice = `🌦️ Rain chance today (${rainProbVal}%). ${timingText}`;
+            this.data.weather.rainNoticeType = 'info';
+          }
+
+        } else if (isEventTomorrow) {
+          // --- CASE B: NO SIGNIFICANT RAIN TODAY, NEXT RAIN IS TOMORROW ---
+          const eventHour = firstEventDate.getHours();
+          let timeOfDayStr = 'tomorrow morning';
+          if (eventHour >= 12 && eventHour < 17) {
+            timeOfDayStr = 'tomorrow afternoon';
+          } else if (eventHour >= 17 && eventHour < 22) {
+            timeOfDayStr = 'tomorrow evening';
+          } else if (eventHour >= 22 || eventHour < 4) {
+            timeOfDayStr = 'tomorrow night';
+          }
+
+          if (rainProbVal >= 60) {
+            this.data.weather.rainNotice = `🌦️ High rain chance today (${rainProbVal}%). No significant rain is currently forecast for the next few hours. Rain is expected ${timeOfDayStr}.`;
+            this.data.weather.rainNoticeType = 'warning';
+          } else {
+            this.data.weather.rainNotice = `🌤️ Moderate rain chance today (${rainProbVal}%). Rain is expected ${timeOfDayStr}.`;
+            this.data.weather.rainNoticeType = 'info';
+          }
+
         } else {
-          this.data.weather.rainNotice = `🌦️ Rain is possible soon. Some rainfall is forecast.`;
-          this.data.weather.rainNoticeType = 'info';
+          // --- CASE C: NEXT SIGNIFICANT RAIN IS LATER THIS WEEK ---
+          if (rainProbVal >= 60) {
+            this.data.weather.rainNotice = `🌦️ High rain chance today (${rainProbVal}%). No significant rain is currently forecast today. Rain is possible later this week.`;
+            this.data.weather.rainNoticeType = 'warning';
+          } else {
+            this.data.weather.rainNotice = `🌤️ Moderate rain chance today (${rainProbVal}%). No significant rain is currently forecast for the next few days.`;
+            this.data.weather.rainNoticeType = 'info';
+          }
         }
 
       } else {
-        // High daily probability (e.g. 98%) BUT upcoming hours show 0.00 mm (zero / trace predicted rainfall)
+        // --- CASE D: NO SIGNIFICANT RAIN EVENT FOUND IN ENTIRE FORECAST ---
         if (rainProbVal >= 60) {
-          this.data.weather.rainNotice = `🌦️ High rain chance today (${rainProbVal}%). Rain is possible soon, but significant rainfall is not currently forecast.`;
+          this.data.weather.rainNotice = `🌦️ High rain chance today (${rainProbVal}%). No significant rain is currently forecast today.`;
           this.data.weather.rainNoticeType = 'warning';
         } else if (rainProbVal >= 30) {
           this.data.weather.rainNotice = `🌤️ Moderate rain chance today (${rainProbVal}%). Keep an eye on local sky.`;
