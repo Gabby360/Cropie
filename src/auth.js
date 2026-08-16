@@ -109,18 +109,24 @@ export class CropieAuthService {
           error = null;
         }
       }
-      
-      // Check if data is null, or if local storage has a farm
+
+      let activeSavedObj = null;
+      let localFarmsObj = null;
+      try {
+        const activeSavedStr = localStorage.getItem('cropie_active_farm');
+        if (activeSavedStr) activeSavedObj = JSON.parse(activeSavedStr);
+        const localFarmsStr = localStorage.getItem('cropie_farms');
+        if (localFarmsStr) {
+          const arr = JSON.parse(localFarmsStr);
+          if (Array.isArray(arr) && arr.length > 0) {
+            localFarmsObj = arr.find(f => f.userId === userId || f.user_id === userId) || arr[0];
+          }
+        }
+      } catch {}
+
       let farm = (data && data.length > 0) ? data[0] : null;
       if (!farm) {
-        try {
-          const activeSaved = localStorage.getItem('cropie_active_farm');
-          if (activeSaved) farm = JSON.parse(activeSaved);
-          if (!farm) {
-            const localFarms = JSON.parse(localStorage.getItem('cropie_farms')) || [];
-            farm = localFarms.find(f => f.userId === userId || f.user_id === userId) || (localFarms.length > 0 ? localFarms[0] : null);
-          }
-        } catch {}
+        farm = activeSavedObj || localFarmsObj || null;
       }
 
       if (farm) {
@@ -140,20 +146,6 @@ export class CropieAuthService {
           } catch (cErr) {}
         }
 
-        let activeSavedObj = null;
-        let localFarmsObj = null;
-        try {
-          const activeSavedStr = localStorage.getItem('cropie_active_farm');
-          if (activeSavedStr) activeSavedObj = JSON.parse(activeSavedStr);
-          const localFarmsStr = localStorage.getItem('cropie_farms');
-          if (localFarmsStr) {
-            const arr = JSON.parse(localFarmsStr);
-            if (Array.isArray(arr) && arr.length > 0) {
-              localFarmsObj = arr.find(f => f.userId === userId || f.user_id === userId) || arr[0];
-            }
-          }
-        } catch {}
-
         const fallbackPlantingDate = farm.planting_date || farm.plantingDate ||
           (activeSavedObj ? activeSavedObj.plantingDate : null) ||
           (localFarmsObj ? localFarmsObj.plantingDate : null);
@@ -164,7 +156,7 @@ export class CropieAuthService {
               cropId: null,
               cropName: c,
               plantingDate: fallbackPlantingDate,
-              variety: farm.variety || null,
+              variety: farm.variety || (activeSavedObj ? activeSavedObj.variety : null),
               growthStage: farm.growth_stage || farm.growthStage || null
             };
           }
@@ -172,36 +164,46 @@ export class CropieAuthService {
             cropId: c.id || c.cropId || null,
             cropName: c.crop_name || c.cropName || c.crop || 'Maize',
             plantingDate: c.planting_date || c.plantingDate || fallbackPlantingDate,
-            variety: c.variety || farm.variety || null,
+            variety: c.variety || farm.variety || (activeSavedObj ? activeSavedObj.variety : null),
             growthStage: c.growth_stage || c.growthStage || farm.growth_stage || null
           };
         });
 
-        if (cropsDetails.length === 0 && (farm.crop || farm.crop_name || farm.cropName)) {
+        if (cropsDetails.length === 0 && (farm.crop || farm.crop_name || farm.cropName || (activeSavedObj && activeSavedObj.crop))) {
           cropsDetails.push({
             cropId: null,
-            cropName: farm.crop_name || farm.cropName || farm.crop || 'Maize',
+            cropName: farm.crop_name || farm.cropName || farm.crop || (activeSavedObj ? activeSavedObj.crop : 'Maize'),
             plantingDate: fallbackPlantingDate,
-            variety: farm.variety || null,
+            variety: farm.variety || (activeSavedObj ? activeSavedObj.variety : null),
             growthStage: farm.growth_stage || farm.growthStage || null
           });
         }
 
         const cropsList = cropsDetails.map(cd => cd.cropName);
-        const resolvedLat = farm.latitude !== undefined && farm.latitude !== null && !isNaN(parseFloat(farm.latitude)) 
+        const resolvedLat = (farm.latitude !== undefined && farm.latitude !== null && !isNaN(parseFloat(farm.latitude))) 
           ? parseFloat(farm.latitude) 
-          : (farm.lat !== undefined && farm.lat !== null && !isNaN(parseFloat(farm.lat)) ? parseFloat(farm.lat) : (activeSavedObj ? activeSavedObj.latitude : null));
+          : ((farm.lat !== undefined && farm.lat !== null && !isNaN(parseFloat(farm.lat)))
+            ? parseFloat(farm.lat) 
+            : (activeSavedObj && activeSavedObj.latitude ? parseFloat(activeSavedObj.latitude) : (localFarmsObj && localFarmsObj.latitude ? parseFloat(localFarmsObj.latitude) : null)));
 
-        const resolvedLng = farm.longitude !== undefined && farm.longitude !== null && !isNaN(parseFloat(farm.longitude)) 
+        const resolvedLng = (farm.longitude !== undefined && farm.longitude !== null && !isNaN(parseFloat(farm.longitude))) 
           ? parseFloat(farm.longitude) 
-          : (farm.lng !== undefined && farm.lng !== null && !isNaN(parseFloat(farm.lng)) ? parseFloat(farm.lng) : (activeSavedObj ? activeSavedObj.longitude : null));
+          : ((farm.lng !== undefined && farm.lng !== null && !isNaN(parseFloat(farm.lng)))
+            ? parseFloat(farm.lng) 
+            : (activeSavedObj && activeSavedObj.longitude ? parseFloat(activeSavedObj.longitude) : (localFarmsObj && localFarmsObj.longitude ? parseFloat(localFarmsObj.longitude) : null)));
 
-        const resolvedLocationName = farm.location_name || farm.locationName || farm.location || (activeSavedObj ? activeSavedObj.locationName : null);
-        const resolvedFarmName = farm.farm_name || farm.farmName || farm.name || (activeSavedObj ? activeSavedObj.farmName : 'My Farm');
+        const resolvedLocationName = farm.location_name || farm.locationName || farm.location ||
+          (activeSavedObj ? activeSavedObj.locationName : null) ||
+          (localFarmsObj ? localFarmsObj.locationName : null);
+
+        const resolvedFarmName = farm.farm_name || farm.farmName || farm.name ||
+          (activeSavedObj ? activeSavedObj.farmName : null) ||
+          (localFarmsObj ? localFarmsObj.farmName : 'My Farm');
+
         const primaryPlantingDate = (cropsDetails[0] && cropsDetails[0].plantingDate) || fallbackPlantingDate;
 
         const resolvedFarmObj = {
-          id: farm.id || farm.farmId || null,
+          id: farm.id || farm.farmId || (activeSavedObj ? activeSavedObj.id : null),
           userId: farm.user_id || farm.userId || userId,
           farmName: resolvedFarmName,
           locationName: resolvedLocationName,

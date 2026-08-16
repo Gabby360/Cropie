@@ -630,6 +630,10 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         const userFarm = await auth.getUserFarm(user.id);
         if (userFarm) {
           activeFarm = activeFarm ? { ...activeFarm, ...userFarm } : userFarm;
+          if (userFarm.locationName) activeFarm.locationName = userFarm.locationName;
+          if (userFarm.latitude !== undefined && userFarm.latitude !== null) activeFarm.latitude = userFarm.latitude;
+          if (userFarm.longitude !== undefined && userFarm.longitude !== null) activeFarm.longitude = userFarm.longitude;
+          if (userFarm.plantingDate) activeFarm.plantingDate = userFarm.plantingDate;
         }
       }
 
