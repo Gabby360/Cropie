@@ -701,17 +701,12 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     // Evaluate accuracy tier
     const accEval = locationService.evaluateAccuracy(accuracy);
 
-    // Update Header Title & Subtext dynamically (immediate visual sync)
+    // Update Header Title & Subtext dynamically (clean farmer-friendly display)
     const farmTitleEl = document.getElementById('dashFarmTitle');
     const farmMetaLocation = document.getElementById('dashMetaLocation');
 
-    if (accEval && accEval.isUnreliable) {
-      if (farmTitleEl) farmTitleEl.textContent = "Current Location Detected";
-      if (farmMetaLocation) farmMetaLocation.textContent = `Location: Approx. ${locality} Area (±${(accuracy / 1000).toFixed(1)} km accuracy)`;
-    } else {
-      if (farmTitleEl) farmTitleEl.textContent = `Farm at ${locality}`;
-      if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${locationName}`;
-    }
+    if (farmTitleEl) farmTitleEl.textContent = `Farm at ${locality}`;
+    if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${locationName}`;
 
     // Update Farmer Picture Card Location Badges dynamically
     const picLocBadge = document.getElementById('dashPicLocationBadge');
@@ -721,7 +716,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     if (picLocBadge) picLocBadge.textContent = `${locality} Field • 2 Acres`;
     if (picFooterStation) picFooterStation.textContent = `${locality} Field Station • Ghana`;
     if (picFooterGps) {
-      picFooterGps.textContent = `${locationName} (${numericLat.toFixed(4)}° N, ${Math.abs(numericLng).toFixed(4)}° W)`;
+      picFooterGps.textContent = `${locationName}`;
     }
 
     // Reposition Map & Marker
@@ -818,25 +813,25 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     await loadAndRenderData(updatedFarm);
   }
 
-  // OPTION 1: Use My Current Location
+  // OPTION 1: Detect My Location
   if (gpsBtn) {
     gpsBtn.addEventListener('click', async () => {
       gpsBtn.disabled = true;
       const btnSpan = gpsBtn.querySelector('span');
-      if (btnSpan) btnSpan.textContent = 'Getting your current location...';
+      if (btnSpan) btnSpan.textContent = 'Finding your location...';
       if (dashLocationCardWrapper) dashLocationCardWrapper.style.display = 'none';
 
       try {
         const pos = await locationService.getCurrentPosition();
         await initDashGoogleMap(pos.latitude, pos.longitude);
-        await syncLocationUI(pos.latitude, pos.longitude, 'Device GPS', pos.accuracy, pos);
+        await syncLocationUI(pos.latitude, pos.longitude, 'gps', pos.accuracy, pos);
 
         gpsBtn.disabled = false;
-        if (btnSpan) btnSpan.textContent = 'Use My Current Location';
+        if (btnSpan) btnSpan.textContent = 'Location found';
 
       } catch (err) {
         gpsBtn.disabled = false;
-        if (btnSpan) btnSpan.textContent = 'Use My Current Location';
+        if (btnSpan) btnSpan.textContent = '📍 Detect My Location';
 
         if (dashLocationCardWrapper) {
           if (err.type === 'PERMISSION_DENIED') {
@@ -844,17 +839,17 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
               <div class="location-status-card error-card">
                 <div class="location-card-header">
                   <i class="fa-solid fa-location-slash"></i>
-                  <span>Cropie can't access your location</span>
+                  <span>Location Permission Needed</span>
                 </div>
                 <p class="location-card-msg">
-                  Please enable location permission for your browser/device or select your farm location on the map manually.
+                  Please enable location permission or select your farm location on the map.
                 </p>
                 <div class="location-card-actions">
                   <button type="button" class="btn btn-primary btn-sm" id="dashRetryGpsBtn">
                     <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
                   </button>
                   <button type="button" class="btn btn-outline-hero btn-sm" id="dashOpenMapBtn">
-                    <i class="fa-solid fa-map-location-dot" style="margin-right: 0.3rem;"></i> Select on Map
+                    <i class="fa-solid fa-map-location-dot" style="margin-right: 0.3rem;"></i> Adjust Farm Location
                   </button>
                 </div>
               </div>
@@ -864,17 +859,17 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
               <div class="location-status-card warning-card">
                 <div class="location-card-header">
                   <i class="fa-solid fa-clock"></i>
-                  <span>We couldn't determine your current location</span>
+                  <span>Finding location took too long</span>
                 </div>
                 <p class="location-card-msg">
-                  ${escapeHtml(err.message || 'GPS request timed out. Please try again or select on map.')}
+                  ${escapeHtml(err.message || "We couldn't determine your location. Please try again or select on map.")}
                 </p>
                 <div class="location-card-actions">
                   <button type="button" class="btn btn-primary btn-sm" id="dashRetryGpsBtn">
                     <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
                   </button>
                   <button type="button" class="btn btn-outline-hero btn-sm" id="dashOpenMapBtn">
-                    <i class="fa-solid fa-map-location-dot" style="margin-right: 0.3rem;"></i> Select on Map
+                    <i class="fa-solid fa-map-location-dot" style="margin-right: 0.3rem;"></i> Adjust Farm Location
                   </button>
                 </div>
               </div>
@@ -892,143 +887,44 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     });
   }
 
-  // OPTION 2: Select on Map
+  // OPTION 2: Adjust Farm Location
   if (dashSelectMapBtn) {
     dashSelectMapBtn.addEventListener('click', async () => {
       let initLat = currentLocation.latitude || 7.3824;
       let initLng = currentLocation.longitude || -1.3621;
 
       await initDashGoogleMap(initLat, initLng);
-      await syncLocationUI(initLat, initLng, 'Select on Map', currentLocation.accuracy, null);
+      await syncLocationUI(initLat, initLng, 'manual_pin', currentLocation.accuracy, null);
     });
   }
 
   function renderDashConfirmationCard(lat, lng, locationName, accEval = null, rawGps = null) {
     if (!dashLocationCardWrapper) return;
 
-    let accHTML = '';
-    let warningBannerHTML = '';
-    let diagPanelHTML = '';
-    let actionsHTML = '';
-
-    if (accEval) {
-      accHTML = `
-        <div class="location-accuracy-pill ${accEval.level}">
-          <i class="fa-solid fa-circle-check"></i> ${escapeHtml(accEval.statusBadge)}
-        </div>
-      `;
-      if (accEval.warningMsg) {
-        warningBannerHTML = `
-          <div class="location-status-card warning-card" style="margin-top: 0.75rem; margin-bottom: 0.75rem; border-left: 4px solid #eab308; background: #fefce8; padding: 0.85rem 1rem; border-radius: 8px;">
-            <div class="location-card-header" style="font-weight: 800; color: #a16207; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-              <span>Location Accuracy Notice</span>
-            </div>
-            <p class="location-card-msg" style="color: #854d0e; font-size: 0.9rem; margin-bottom: 0.4rem;">${escapeHtml(accEval.warningMsg)}</p>
-            ${accEval.deviceAdvice ? `<p class="location-card-advice" style="font-size: 0.82rem; color: #713f12; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed #fef08a;"><i class="fa-solid fa-mobile-screen-button"></i> ${escapeHtml(accEval.deviceAdvice)}</p>` : ''}
-          </div>
-        `;
-      }
-    }
-
-    if (rawGps) {
-      const altStr = rawGps.altitude !== null && rawGps.altitude !== undefined ? `${rawGps.altitude.toFixed(1)} m` : 'N/A';
-      const headStr = rawGps.heading !== null && rawGps.heading !== undefined ? `${rawGps.heading.toFixed(1)}°` : 'N/A';
-      const speedStr = rawGps.speed !== null && rawGps.speed !== undefined ? `${rawGps.speed.toFixed(1)} m/s` : 'N/A';
-      const timeStr = new Date(rawGps.timestamp || Date.now()).toLocaleTimeString();
-
-      diagPanelHTML = `
-        <div class="gps-diagnostic-panel">
-          <div class="gps-panel-header">
-            <i class="fa-solid fa-satellite-dish"></i>
-            <span>CURRENT GPS DATA</span>
-          </div>
-          <div class="gps-panel-grid">
-            <div class="gps-panel-item">
-              <span class="gps-item-lbl">Latitude:</span>
-              <span class="gps-item-val">${rawGps.latitude.toFixed(6)}</span>
-            </div>
-            <div class="gps-panel-item">
-              <span class="gps-item-lbl">Longitude:</span>
-              <span class="gps-item-val">${rawGps.longitude.toFixed(6)}</span>
-            </div>
-            <div class="gps-panel-item">
-              <span class="gps-item-lbl">Accuracy:</span>
-              <span class="gps-item-val">±${Math.round(rawGps.accuracy)} metres</span>
-            </div>
-            <div class="gps-panel-item">
-              <span class="gps-item-lbl">Altitude:</span>
-              <span class="gps-item-val">${altStr}</span>
-            </div>
-            <div class="gps-panel-item">
-              <span class="gps-item-lbl">Heading:</span>
-              <span class="gps-item-val">${headStr}</span>
-            </div>
-            <div class="gps-panel-item">
-              <span class="gps-item-lbl">Speed:</span>
-              <span class="gps-item-val">${speedStr}</span>
-            </div>
-          </div>
-          <div class="gps-panel-footer">
-            <span>Timestamp: <strong>${timeStr}</strong></span>
-            <span>Source: Raw Browser GPS</span>
-          </div>
-        </div>
-      `;
-    }
-
-    if (accEval && accEval.isUnreliable) {
-      actionsHTML = `
-        <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
-          <button type="button" class="btn btn-outline-hero btn-sm" id="dashTryGpsAgainBtn">
-            <i class="fa-solid fa-rotate-right" style="color: #16a34a;"></i> Try GPS Again
-          </button>
-          <button type="button" class="btn btn-primary btn-sm" id="dashSelectOnMapManuallyBtn">
-            <i class="fa-solid fa-map-location-dot"></i> Select Farm Location on Map
-          </button>
-        </div>
-      `;
-    } else {
-      actionsHTML = `
-        <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
-          <button type="button" class="btn btn-primary btn-sm" id="dashConfirmFarmLocBtn">
-            <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Confirm Farm Location
-          </button>
-          <button type="button" class="btn btn-outline-hero btn-sm" id="dashMovePinBtn">
-            <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Adjust Pin Position
-          </button>
-        </div>
-      `;
-    }
-
     dashLocationCardWrapper.innerHTML = `
       <div class="location-status-card">
         <div class="location-card-header">
-          <span>📍 Selected Farm Location</span>
+          <span>📍 Farm Location</span>
         </div>
         <div class="location-name-title">${escapeHtml(locationName)}</div>
-        ${accHTML}
 
-        <div class="map-coords-grid">
-          <div class="map-coords-item">
-            <span class="map-coords-lbl">Latitude</span>
-            <span class="map-coords-val">${lat.toFixed(6)}° N</span>
-          </div>
-          <div class="map-coords-item">
-            <span class="map-coords-lbl">Longitude</span>
-            <span class="map-coords-val">${Math.abs(lng).toFixed(6)}° W</span>
-          </div>
-        </div>
-
-        ${warningBannerHTML}
-        ${diagPanelHTML}
-
-        <div class="map-instruction-tag">
+        <div class="map-instruction-tag" style="margin-top: 0.85rem; margin-bottom: 0.85rem;">
           <i class="fa-solid fa-hand-pointer" style="color: #16a34a;"></i>
-          <span>📍 Move the pin on the map to your exact farm position</span>
+          <span>📍 Move the pin to your exact farm location</span>
         </div>
 
-        ${actionsHTML}
+        <div class="location-confirmation-prompt" style="font-weight: 700; color: #1e293b; margin-bottom: 0.65rem; font-size: 0.92rem;">
+          Is this your farm location?
+        </div>
+
+        <div class="location-card-actions" style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary btn-sm" id="dashConfirmFarmLocBtn">
+            <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Confirm Location
+          </button>
+          <button type="button" class="btn btn-outline-hero btn-sm" id="dashMovePinBtn">
+            <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Adjust Farm Location
+          </button>
+        </div>
       </div>
     `;
     dashLocationCardWrapper.style.display = 'block';
@@ -1036,7 +932,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     const cBtn = document.getElementById('dashConfirmFarmLocBtn');
     if (cBtn) {
       cBtn.addEventListener('click', () => {
-        updateActiveFarmLocation(lat, lng, locationName, 'Map Marker');
+        updateActiveFarmLocation(lat, lng, locationName, currentLocation.source || 'manual_pin');
       });
     }
 
@@ -1045,20 +941,6 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       mBtn.addEventListener('click', () => {
         dashGoogleMapWrapper.style.display = 'block';
         dashGoogleMapWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    }
-
-    const tryGpsBtn = document.getElementById('dashTryGpsAgainBtn');
-    if (tryGpsBtn && gpsBtn) {
-      tryGpsBtn.addEventListener('click', () => {
-        gpsBtn.click();
-      });
-    }
-
-    const manualBtn = document.getElementById('dashSelectOnMapManuallyBtn');
-    if (manualBtn && dashSelectMapBtn) {
-      manualBtn.addEventListener('click', () => {
-        dashSelectMapBtn.click();
       });
     }
   }

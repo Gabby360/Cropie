@@ -200,40 +200,11 @@ export class CropieLocationService {
   }
 
   /**
-   * Draw an accuracy circle on Leaflet or Google Maps centered at the reported coordinates
+   * Draw accuracy circle (disabled in farmer UI to keep map visually clean and uncluttered)
    */
   drawAccuracyCircle(lat, lng, accuracyMeters) {
-    if (!accuracyMeters || accuracyMeters <= 0) return;
-
-    const strokeColor = accuracyMeters > 1000 ? '#d97706' : (accuracyMeters > 200 ? '#ca8a04' : '#16a34a');
-    const fillColor = accuracyMeters > 1000 ? '#fef08a' : (accuracyMeters > 200 ? '#fef9c3' : '#22c55e');
-
-    if (this.mapType === 'leaflet' && this.mapInstance && window.L) {
-      if (this.accuracyCircleInstance) {
-        this.mapInstance.removeLayer(this.accuracyCircleInstance);
-      }
-      this.accuracyCircleInstance = window.L.circle([lat, lng], {
-        radius: accuracyMeters,
-        color: strokeColor,
-        fillColor: fillColor,
-        fillOpacity: 0.22,
-        weight: 2
-      }).addTo(this.mapInstance);
-    } else if (this.mapType === 'google' && this.mapInstance && window.google && window.google.maps) {
-      if (this.accuracyCircleInstance) {
-        this.accuracyCircleInstance.setMap(null);
-      }
-      this.accuracyCircleInstance = new window.google.maps.Circle({
-        strokeColor: strokeColor,
-        strokeOpacity: 0.85,
-        strokeWeight: 2,
-        fillColor: fillColor,
-        fillOpacity: 0.22,
-        map: this.mapInstance,
-        center: { lat, lng },
-        radius: accuracyMeters
-      });
-    }
+    // Intentionally no-op to keep the map clean for farmers
+    return;
   }
 
   /**
@@ -354,14 +325,8 @@ export class CropieLocationService {
           icon: cropieGreenSvgIcon,
           draggable: true,
           animation: maps.Animation.DROP,
-          title: '📍 Your Farm Location (Drag pin to adjust)'
+          title: 'Drag pin to your exact farm location'
         });
-
-        this.infoWindowInstance = new maps.InfoWindow({
-          content: `<div style="font-weight: 800; font-family: sans-serif; font-size: 13px; color: #166534; padding: 2px 4px;">📍 Your Farm Location</div>`,
-          disableAutoPan: true
-        });
-        this.infoWindowInstance.open(this.mapInstance, this.markerInstance);
 
         maps.event.addListener(this.markerInstance, 'dragend', () => {
           const pos = this.markerInstance.getPosition();
@@ -378,8 +343,6 @@ export class CropieLocationService {
             onMarkerChange(lat, lng, 'click');
           }
         });
-
-        this.addMyLocationControl(this.mapInstance, onMarkerChange, 'google');
 
         return {
           type: 'google',
@@ -404,27 +367,26 @@ export class CropieLocationService {
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '© OpenStreetMap contributors | Cropie Free Farm Maps'
+        attribution: '© OpenStreetMap contributors | Cropie'
       }).addTo(map);
 
       const cropieDivIcon = L.divIcon({
         className: 'cropie-leaflet-custom-pin',
         html: `
           <div class="cropie-pin-wrapper">
-            <div class="cropie-pin-badge">📍 Your Farm Location</div>
             <div class="cropie-pin-circle">
               <i class="fa-solid fa-location-dot"></i>
             </div>
           </div>
         `,
-        iconSize: [120, 75],
-        iconAnchor: [60, 75]
+        iconSize: [46, 46],
+        iconAnchor: [23, 46]
       });
 
       const marker = L.marker([initialLat, initialLng], {
         icon: cropieDivIcon,
         draggable: true,
-        title: '📍 Your Farm Location (Drag pin to adjust)'
+        title: 'Drag pin to your exact farm location'
       }).addTo(map);
 
       marker.on('dragend', () => {
