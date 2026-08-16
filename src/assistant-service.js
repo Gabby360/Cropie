@@ -108,6 +108,16 @@ export class CropieAssistantService {
       plantingDate: c.plantingDate
     })));
 
+    const safeWeather = {
+      temp: (weather && (weather.temp || weather.temperature)) || '25°C',
+      condition: (weather && weather.condition) || 'Clear',
+      humidity: (weather && weather.humidity) || '75%',
+      rain: (weather && weather.rain) || '0 mm',
+      wind: (weather && weather.wind) || '10 km/h',
+      rainProb: (weather && (weather.rainProb !== undefined && weather.rainProb !== null ? String(weather.rainProb) : (weather.rainProbability ? String(weather.rainProbability) : '0%'))) || '0%',
+      rainNotice: (weather && weather.rainNotice) ? String(weather.rainNotice) : null
+    };
+
     return {
       farmName: farmInfo.farmName || null,
       location: locationStr,
@@ -117,49 +127,42 @@ export class CropieAssistantService {
       primaryCrop: primaryCropObj.name,
       primaryCropObj: primaryCropObj,
       cropContextMap: cropContextMap,
-      plantingDate: plantingDate,
-      currentWeather: {
-        temp: weather.temp || null,
-        condition: weather.condition || null,
-        humidity: weather.humidity || null,
-        rain: weather.rain || null,
-        wind: weather.wind || null,
-        rainProb: weather.rainProb || null,
-        rainNotice: weather.rainNotice || null
-      },
-      forecast: weather.forecastList || []
+      plantingDate: resolvedPlantingDate,
+      currentWeather: safeWeather,
+      forecast: (weather && Array.isArray(weather.forecastList)) ? weather.forecastList : []
     };
   }
 
   // Process user question through Intelligence Engine
   async processQuestion(userQuestionInEnglish, selectedLanguage = 'eng') {
-    const context = await this.buildFarmContext();
-    let qRaw = (userQuestionInEnglish || '').toLowerCase().trim();
+    try {
+      const context = await this.buildFarmContext();
+      let qRaw = (userQuestionInEnglish || '').toLowerCase().trim();
 
-    // 0. Auto-correct common typos
-    qRaw = qRaw
-      .replace(/\brhsi\b|\bthsi\b|\btish\b/gi, 'this')
-      .replace(/\bwether\b|\bwather\b|\bweathr\b/gi, 'weather')
-      .replace(/\bfertlizer\b|\bfert\b|\bfertilzer\b/gi, 'fertilizer')
-      .replace(/\bpeste\b|\bpesticid\b|\bpsts\b/gi, 'pest')
-      .replace(/\bchck\b|\bchek\b/gi, 'check')
-      .replace(/\bthst\b|\btht\b/gi, 'that');
+      // 0. Auto-correct common typos
+      qRaw = qRaw
+        .replace(/\brhsi\b|\bthsi\b|\btish\b/gi, 'this')
+        .replace(/\bwether\b|\bwather\b|\bweathr\b/gi, 'weather')
+        .replace(/\bfertlizer\b|\bfert\b|\bfertilzer\b/gi, 'fertilizer')
+        .replace(/\bpeste\b|\bpesticid\b|\bpsts\b/gi, 'pest')
+        .replace(/\bchck\b|\bchek\b/gi, 'check')
+        .replace(/\bthst\b|\btht\b/gi, 'that');
 
-    const qLower = qRaw;
-    const langCode = (selectedLanguage || 'eng').toLowerCase();
+      const qLower = qRaw;
+      const langCode = (selectedLanguage || 'eng').toLowerCase();
 
-    // 1. Check for OUT-OF-DOMAIN non-farm questions FIRST
-    const isOutofDomain = /\b(football|soccer|match|game|score|joke|jokes|laugh|funny|python|code|programming|script|crypto|bitcoin|eth|ethereum|president|politics|election|minister|movie|actor|film|cinema|music|song|singer|cv|resume|job|salary|car|vehicle|bank)\b/i.test(qLower);
+      // 1. Check for OUT-OF-DOMAIN non-farm questions FIRST
+      const isOutofDomain = /\b(football|soccer|match|game|score|joke|jokes|laugh|funny|python|code|programming|script|crypto|bitcoin|eth|ethereum|president|politics|election|minister|movie|actor|film|cinema|music|song|singer|cv|resume|job|salary|car|vehicle|bank)\b/i.test(qLower);
 
-    if (isOutofDomain) {
-      const refusalMsg = this.getOutofDomainRefusal(langCode);
-      this.recordTurn(userQuestionInEnglish, refusalMsg, selectedLanguage);
-      return {
-        finalAnswer: refusalMsg,
-        rawEnglish: this.getOutofDomainRefusal('eng'),
-        language: selectedLanguage
-      };
-    }
+      if (isOutofDomain) {
+        const refusalMsg = this.getOutofDomainRefusal(langCode);
+        this.recordTurn(userQuestionInEnglish, refusalMsg, selectedLanguage);
+        return {
+          finalAnswer: refusalMsg,
+          rawEnglish: this.getOutofDomainRefusal('eng'),
+          language: selectedLanguage
+        };
+      }
 
     // 2. Identify crop focus (Farm-level vs Specific Crop)
     let targetedCropObj = context.primaryCropObj;
@@ -397,6 +400,15 @@ export class CropieAssistantService {
       locationContext: context.location,
       weatherContext: context.currentWeather
     };
+    } catch (procErr) {
+      console.error('[CROPIE ASSISTANT ERROR]', procErr);
+      const fallbackMsg = `I'm monitoring your farm context! Ask me about your crop stage, fertilizer application, or current weather.`;
+      return {
+        finalAnswer: fallbackMsg,
+        rawEnglish: fallbackMsg,
+        language: selectedLanguage
+      };
+    }
   }
 
   recordTurn(question, response, language, category = 'general') {

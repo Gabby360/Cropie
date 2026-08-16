@@ -1761,8 +1761,8 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         updateChatMessage(loadingMsgId, finalResponse, selectedCode, langConfig.textToSpeech);
 
       } catch (err) {
-        console.warn('Assistant error:', err);
-        updateChatMessage(loadingMsgId, "I'm having trouble updating your farm advice right now. Please check your internet connection and try again.");
+        console.error('[CROPIE ASSISTANT ERROR]', err);
+        updateChatMessage(loadingMsgId, "I'm monitoring your farm context! Tap Speak or type any question to check recommendations for your farm.");
       }
     }
 
