@@ -140,12 +140,20 @@ export class CropieAuthService {
           } catch (cErr) {}
         }
 
+        let activeSavedObj = null;
+        try {
+          const activeSavedStr = localStorage.getItem('cropie_active_farm');
+          if (activeSavedStr) activeSavedObj = JSON.parse(activeSavedStr);
+        } catch {}
+
+        const fallbackPlantingDate = farm.planting_date || farm.plantingDate || (activeSavedObj ? activeSavedObj.plantingDate : null);
+
         const cropsDetails = allCrops.map(c => {
           if (typeof c === 'string') {
             return {
               cropId: null,
               cropName: c,
-              plantingDate: farm.planting_date || farm.plantingDate || null,
+              plantingDate: fallbackPlantingDate,
               variety: farm.variety || null,
               growthStage: farm.growth_stage || farm.growthStage || null
             };
@@ -153,7 +161,7 @@ export class CropieAuthService {
           return {
             cropId: c.id || c.cropId || null,
             cropName: c.crop_name || c.cropName || c.crop || 'Maize',
-            plantingDate: c.planting_date || c.plantingDate || farm.planting_date || farm.plantingDate || null,
+            plantingDate: c.planting_date || c.plantingDate || fallbackPlantingDate,
             variety: c.variety || farm.variety || null,
             growthStage: c.growth_stage || c.growthStage || farm.growth_stage || null
           };
@@ -163,7 +171,7 @@ export class CropieAuthService {
           cropsDetails.push({
             cropId: null,
             cropName: farm.crop_name || farm.cropName || farm.crop || 'Maize',
-            plantingDate: farm.planting_date || farm.plantingDate || null,
+            plantingDate: fallbackPlantingDate,
             variety: farm.variety || null,
             growthStage: farm.growth_stage || farm.growthStage || null
           });

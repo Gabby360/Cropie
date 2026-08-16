@@ -133,8 +133,16 @@ export function calculateCropStage(cropName, plantingDate) {
     };
   }
 
-  const planted = new Date(plantingDate);
-  if (isNaN(planted.getTime())) {
+  let planted = null;
+  if (plantingDate instanceof Date) {
+    planted = plantingDate;
+  } else if (typeof plantingDate === 'number') {
+    planted = new Date(plantingDate);
+  } else if (typeof plantingDate === 'string' && plantingDate.trim()) {
+    planted = new Date(plantingDate.trim());
+  }
+
+  if (!planted || isNaN(planted.getTime())) {
     return {
       cropName: knowledge.cropName,
       hasPlantingDate: false,

@@ -187,7 +187,7 @@ export class CropieAssistantService {
 
     const isTodayActionPattern = /\b(what farming tasks should i prioritize today|prioritize today|what should i do today|what should i do on my farm today|what should i do on the farm|advise me on my farm|advice me on my farm|give me advice|give me farm advice|what advice do you have|what work should i do today|what should i focus on today|what should i work on today|what do i need to do today|what farm work should i do|what should i do now|today's farm advice|today's recommendations|give me today's farm advice|what should i do|what to do|what should i watch|anything i should know|today's advice|advice for today|recommend|recommendation|recommend something for my farm|recommend something)\b/i.test(qLower);
 
-    const isFarmOverviewPattern = /\b(tell me about my farm|what is happening on my farm|what's happening on my farm|what's happening on my farm today|how is my farm|give me an update on my farm|give me an update|what is the current state of my farm|show me my farm status|current state|state of my farm|check my farm|farm update|farm report|farm summary|use the data on the site|use my farm data|use the information on my dashboard|based on my farm|look at my farm|site data|what is happening today|what is happening now|what's happening today|what is happening with my crops|check the system|check system|read the info from the site|read info from the site|read the info|read info|read site data|check site data)\b/i.test(qLower);
+    const isFarmOverviewPattern = /\b(my farm|the farm|farm|my farm info|my farm update|farm overview|overview|tell me about my farm|what is happening on my farm|what's happening on my farm|what's happening on my farm today|how is my farm|give me an update on my farm|give me an update|what is the current state of my farm|show me my farm status|current state|state of my farm|check my farm|farm update|farm report|farm summary|use the data on the site|use my farm data|use the information on my dashboard|based on my farm|look at my farm|site data|what is happening today|what is happening now|what's happening today|what is happening with my crops|check the system|check system|read the info from the site|read info from the site|read the info|read info|read site data|check site data)\b/i.test(qLower);
 
     const isPestPattern = /\b(pest|pests|how do i protect my crops from fall armyworm|protect my crops from fall armyworm|how do i control pests|what pests affect my maize|what should i look for on my crops|worm|armyworm|fall armyworm|bug|bugs|weed|weeds|disease|diagnose|diagnosis|sick|wilt|yellowing|spots|spot|leaves|leaf|blight|fungus|rot)\b/i.test(qLower);
 
@@ -236,6 +236,19 @@ export class CropieAssistantService {
     } else if (/\b(farm|overview)\b/i.test(qLower)) {
       category = 'multicrop';
     }
+
+    // Step 11 Debug Checks
+    try {
+      console.table(
+        context.cropContextMap.map(c => ({
+          crop: c.name,
+          plantingDate: c.plantingDate,
+          dap: c.daysAfterPlanting,
+          growthStage: c.growthStage
+        }))
+      );
+      console.log("CHATBOT FINAL FARM CONTEXT", context);
+    } catch {}
 
     let responseText = '';
     const rainProbVal = parseInt(context.currentWeather.rainProb) || 0;
