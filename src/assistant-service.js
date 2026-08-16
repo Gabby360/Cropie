@@ -38,10 +38,20 @@ export class CropieAssistantService {
 
     const hasGpsOrWeather = Boolean((farmInfo.latitude && farmInfo.longitude) || (farmInfo.gps && farmInfo.gps.trim()) || locationStr || (weather && weather.temp));
 
+    const cropsDetails = (cropStatus.cropsDetails && Array.isArray(cropStatus.cropsDetails) && cropStatus.cropsDetails.length > 0)
+      ? cropStatus.cropsDetails
+      : cropsList.map(cName => ({
+          cropName: cName,
+          plantingDate: plantingDate
+        }));
+
     // Independent multi-crop context list using calculateCropStage
-    const cropContextMap = cropsList.map(cName => {
-      const stageInfo = calculateCropStage(cName, plantingDate);
+    const cropContextMap = cropsDetails.map(cd => {
+      const cName = cd.cropName || 'Crop';
+      const pDate = cd.plantingDate || plantingDate || null;
+      const stageInfo = calculateCropStage(cName, pDate);
       return {
+        cropId: cd.cropId || null,
         name: cName,
         plantingDate: stageInfo.hasPlantingDate ? stageInfo.plantingDate : null,
         daysAfterPlanting: stageInfo.hasPlantingDate ? stageInfo.daysAfterPlanting : null,
@@ -63,6 +73,29 @@ export class CropieAssistantService {
       hasPlantingDate: false,
       knowledge: getKnowledgeForCrop('Maize')
     };
+
+    // Requirement 13: Temporary Development Logging
+    console.log("CHAT FARM CONTEXT", {
+      farmId: farmInfo.farmId || farmInfo.id || null,
+      farmName: farmInfo.farmName || null,
+      location: locationStr,
+      latitude: farmInfo.latitude || null,
+      longitude: farmInfo.longitude || null,
+      crops: cropContextMap.map(c => ({
+        cropName: c.name,
+        cropId: c.cropId,
+        plantingDate: c.plantingDate,
+        DAP: c.daysAfterPlanting,
+        growthStage: c.growthStage
+      })),
+      weather: {
+        temperature: weather.temp || null,
+        rainProbability: weather.rainProb || null,
+        rainfall: weather.rain || null,
+        humidity: weather.humidity || null,
+        forecast: weather.forecastList || []
+      }
+    });
 
     return {
       farmName: farmInfo.farmName || null,
@@ -556,18 +589,18 @@ export class CropieAssistantService {
   getOutofDomainRefusal(langCode) {
     const lang = (langCode || 'eng').toLowerCase();
     if (lang === 'twi') {
-      return `Metumi boa wo wɔ wo afuo, afuo nnwuma, ne Cropie nkuto ho. Bisam nsɛmmisa fa wo afuo, ewiemu tebea, anaa fertilizer guo ho.`;
+      return `Metumi boa wo wɔ wo afuo, afuo nnwuma, ewiemu tebea ne afuo afotu nkuto ho. Meni tumi mboa wo wɔ asɛm yi ho.`;
     }
     if (lang === 'ewe') {
-      return `Mate ŋu akpe ɖe wo ŋu le wò agble, agbledɔwo kple Cropie koe ŋuti. Biam nu le wò nukuwo, xexeme, alo agbledɔwo ŋu.`;
+      return `Mate ŋu akpe ɖe wo ŋu le wò agble, agbledɔwo, xexeme kple agblenyãwo koe ŋuti. Nyemate ŋu akpe ɖe wo ŋu le biabia ma ŋu o.`;
     }
     if (lang === 'gaa' || lang === 'ga') {
-      return `Mate ŋu maye mbua o yɛ o-ŋmɔɔ, nukuwo kɛ Cropie he kɛkɛ. Biam sane yɛ o-ŋmɔɔ, je ŋmɛnɛ, kɛ ŋmɔɔ dɔwo he.`;
+      return `Mate ŋu maye mbua o yɛ o-ŋmɔɔ, nukuwo, je ŋmɛnɛ kɛ ŋmɔɔ ŋaawo he kɛkɛ. Minyoŋ ma-ye obua o yɛ sane nɛɛ he.`;
     }
     if (lang === 'hau' || lang === 'hausa') {
-      return `Zan iya taimaka muku kawai da gonarku, shuka, da Cropie. Tambaye ni game da shukarku, yanayi, ko kula da gona.`;
+      return `Zan iya taimaka muku kawai da gonarku, shuka, yanayi da shawarwarin gona. Ban iya taimakawa da wannan tambayar ba.`;
     }
-    return `I can only help with your farm, crops, and Cropie. Ask me about your crops, weather, planting, or farm care.`;
+    return `I can help with your farm, crops, weather and farming advice. I can't help with that question.`;
   }
 
   // Localized Ghanaian Language Translation Engine Fallback

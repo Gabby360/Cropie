@@ -112,29 +112,39 @@ export class CropieAuthService {
       
       if (data && data.length > 0) {
         const farm = data[0];
-        let primaryCrop = (farm.crops && Array.isArray(farm.crops) && farm.crops.length > 0) ? farm.crops[0] : null;
+        const allCrops = (farm.crops && Array.isArray(farm.crops) && farm.crops.length > 0) ? [...farm.crops] : [];
+        let primaryCrop = allCrops[0] || null;
 
-        // If no primary crop from join embed, attempt separate crops query
         if (!primaryCrop && farm.id) {
           try {
             const cropRes = await this.supabase
               .from('crops')
               .select('*')
-              .eq('farm_id', farm.id)
-              .limit(1);
+              .eq('farm_id', farm.id);
             if (cropRes.data && cropRes.data.length > 0) {
-              primaryCrop = cropRes.data[0];
+              cropRes.data.forEach(c => allCrops.push(c));
+              primaryCrop = allCrops[0];
             }
           } catch (cErr) {}
         }
+
+        const cropsDetails = allCrops.map(c => ({
+          cropId: c.id || null,
+          cropName: c.crop_name || c.crop || 'Maize',
+          plantingDate: c.planting_date || c.plantingDate || farm.planting_date || farm.plantingDate || null,
+          variety: c.variety || farm.variety || null,
+          growthStage: c.growth_stage || farm.growth_stage || null
+        }));
+
+        const cropsList = cropsDetails.map(cd => cd.cropName);
 
         return {
           id: farm.id,
           userId: farm.user_id,
           farmName: farm.farm_name || 'My Farm',
-          locationName: farm.location_name || 'Ejura, Ashanti Region, Ghana',
-          latitude: parseFloat(farm.latitude) || 7.3824,
-          longitude: parseFloat(farm.longitude) || -1.3621,
+          locationName: farm.location_name || null,
+          latitude: (farm.latitude !== undefined && farm.latitude !== null && !isNaN(farm.latitude)) ? parseFloat(farm.latitude) : null,
+          longitude: (farm.longitude !== undefined && farm.longitude !== null && !isNaN(farm.longitude)) ? parseFloat(farm.longitude) : null,
           locationSource: farm.location_source || 'GPS',
           locationAccuracy: farm.location_accuracy || null,
           country: farm.country || 'Ghana',
@@ -147,6 +157,8 @@ export class CropieAuthService {
           irrigationType: farm.irrigation_type || null,
           variety: farm.variety || null,
           crop: primaryCrop ? (primaryCrop.crop_name || primaryCrop.crop) : (farm.crop || null),
+          crops: cropsList.length > 0 ? cropsList : (farm.crops ? farm.crops : (farm.crop ? [farm.crop] : [])),
+          cropsDetails: cropsDetails,
           plantingDate: primaryCrop ? (primaryCrop.planting_date || primaryCrop.plantingDate) : (farm.planting_date || null),
           growthStage: primaryCrop ? primaryCrop.growth_stage : null
         };

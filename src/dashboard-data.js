@@ -637,6 +637,10 @@ export class CropieDataService {
       this.data.headerInfo.gps = `${userFarm.latitude}° N, ${Math.abs(userFarm.longitude)}° W`;
     }
 
+    if (userFarm.cropsDetails && Array.isArray(userFarm.cropsDetails) && userFarm.cropsDetails.length > 0) {
+      this.data.cropStatus.cropsDetails = userFarm.cropsDetails;
+    }
+
     if (userFarm.crops && Array.isArray(userFarm.crops) && userFarm.crops.length > 0) {
       this.data.cropStatus.cropsList = userFarm.crops;
       this.data.cropStatus.cropName = userFarm.crops.join(', ');
