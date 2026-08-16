@@ -20,7 +20,8 @@ export class CropieAssistantService {
       : [cropStatus.cropName || 'Maize'];
     
     const plantingDate = cropStatus.plantingDate || null;
-    let locationStr = farmInfo.location || farmInfo.locationName || null;
+
+    let locationStr = farmInfo.location || farmInfo.locationName || weather.locationName || null;
     if (locationStr && (
       locationStr.toLowerCase().includes("set your farm location") ||
       locationStr.toLowerCase().includes("select your farm") ||
@@ -28,6 +29,14 @@ export class CropieAssistantService {
     )) {
       locationStr = null;
     }
+
+    if (!locationStr && (farmInfo.latitude && farmInfo.longitude)) {
+      locationStr = `Farm Field (${farmInfo.latitude}° N, ${Math.abs(farmInfo.longitude)}° W)`;
+    } else if (!locationStr && farmInfo.gps && farmInfo.gps.trim()) {
+      locationStr = `Farm Field (${farmInfo.gps})`;
+    }
+
+    const hasGpsOrWeather = Boolean((farmInfo.latitude && farmInfo.longitude) || (farmInfo.gps && farmInfo.gps.trim()) || locationStr || (weather && weather.temp));
 
     // Independent multi-crop context list using calculateCropStage
     const cropContextMap = cropsList.map(cName => {
@@ -58,6 +67,7 @@ export class CropieAssistantService {
     return {
       farmName: farmInfo.farmName || null,
       location: locationStr,
+      hasLocation: hasGpsOrWeather,
       gps: farmInfo.gps || null,
       crops: cropsList,
       primaryCrop: primaryCropObj.name,
@@ -70,7 +80,8 @@ export class CropieAssistantService {
         humidity: weather.humidity || null,
         rain: weather.rain || null,
         wind: weather.wind || null,
-        rainProb: weather.rainProb || null
+        rainProb: weather.rainProb || null,
+        rainNotice: weather.rainNotice || null
       },
       forecast: weather.forecastList || []
     };
@@ -119,10 +130,10 @@ export class CropieAssistantService {
     const dataTruth = {
       farmName: context.farmName || null,
       location: context.location || null,
-      hasLocation: Boolean(context.location),
+      hasLocation: context.hasLocation,
       crops: context.crops || [],
       primaryCrop: targetedCropObj.name,
-      weatherAvailable: Boolean(context.location && context.currentWeather && context.currentWeather.temp),
+      weatherAvailable: Boolean(context.currentWeather && context.currentWeather.temp),
       plantingDateAvailable: Boolean(targetedCropObj.hasPlantingDate),
       growthStageAvailable: Boolean(targetedCropObj.hasPlantingDate)
     };
@@ -138,11 +149,11 @@ export class CropieAssistantService {
 
     const isPestPattern = /\b(pest|pests|how do i protect my crops from fall armyworm|protect my crops from fall armyworm|how do i control pests|what pests affect my maize|what should i look for on my crops|worm|armyworm|fall armyworm|bug|bugs|weed|weeds|disease|diagnose|diagnosis|sick|wilt|yellowing|spots|spot|leaves|leaf|blight|fungus|rot)\b/i.test(qLower);
 
-    const isFertilizerPattern = /\b(can i apply fertilizer|should i apply fertilizer today|should i apply fertilizer to my farm today|will rain affect my fertilizer|when should i apply fertilizer|can i fertilize my maize|fertilizer|fertiliser|npk|urea|nitrogen|topdress|topdress fertilizer)\b/i.test(qLower);
+    const isFertilizerPattern = /\b(can i apply fertilizer|should i apply fertilizer today|should i apply fertilizer to my farm today|will rain affect my fertilizer|will rain affect my fertilizer today|when should i apply fertilizer|can i fertilize my maize|fertilizer|fertiliser|npk|urea|nitrogen|topdress|topdress fertilizer)\b/i.test(qLower);
 
     const isStagePattern = /\b(what stage is my maize|how is my maize doing in its growth stage|how is my maize doing|what growth stage is my crop|how old is my maize|how many days has my maize been growing|growth stage|growth stages|days after planting|dap|stage|progress|tassel|tasseling|flower|flowering|plant|planted|planting|harvest|harvesting|cob|grain|mature|maturity)\b/i.test(qLower);
 
-    const isWeatherPattern = /\b(will rain affect my maize field today|will it rain|is it going to rain|what is the weather|what is the weather today|will rain affect my farm|what is the rain forecast|will it rain today|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|humidity)\b/i.test(qLower);
+    const isWeatherPattern = /\b(will rain affect my maize field today|will it rain|is it going to rain|what is the weather|what is the weather today|what's the weather|what's the weather on my farm|will rain affect my farm|what is the rain forecast|will it rain soon|will it rain today|weather|temperature|temp|storm|cloud|cloudy|sun|sunny|wind|forecast|humidity)\b/i.test(qLower);
 
     const isCropCarePattern = /\b(how should i care for my maize|what should i watch out for|how do i take care of my crop|crop care|take care of my crop|care for my maize|care for my crop)\b/i.test(qLower);
 
@@ -251,22 +262,24 @@ export class CropieAssistantService {
         break;
 
       case 'weather':
-        if (!dataTruth.hasLocation) {
+        if (!dataTruth.hasLocation && !dataTruth.weatherAvailable) {
           responseText = `I need your farm location to check whether rain or extreme temperatures are forecast for your field today.\n\nPlease add your farm location in farm settings so I can provide localized weather alerts.`;
         } else if (rainProbVal >= 50) {
-          responseText = `Weather forecast ${locText}: Temperature is ${tempVal} with a ${context.currentWeather.rainProb} chance of rain.\n\nWAIT BEFORE APPLYING FERTILIZER\nWhy? Rain is expected soon. Some fertilizer may be washed away.`;
+          responseText = `Weather forecast for ${context.location || 'your farm'}: Temperature is ${tempVal} with a ${context.currentWeather.rainProb} chance of rain.\n\nWAIT BEFORE APPLYING FERTILIZER\nWhy? Rain is expected soon. Some fertilizer may be washed away.`;
         } else {
-          responseText = `Weather forecast ${locText}: Temperature is ${tempVal} (${context.currentWeather.condition || 'Clear'}) with a low rain chance (${context.currentWeather.rainProb || '20%'}). No major weather risk detected from the current forecast.`;
+          responseText = `Weather forecast for ${context.location || 'your farm'}: Temperature is ${tempVal} (${context.currentWeather.condition || 'Clear'}) with a low rain chance (${context.currentWeather.rainProb || '20%'}). No major weather risk detected from the current forecast.`;
         }
         break;
 
       case 'fertilizer':
-        if (!dataTruth.hasLocation) {
+        if (!dataTruth.hasLocation && !dataTruth.weatherAvailable) {
           responseText = `Rain can wash top-dressed fertilizer away if it falls shortly after application.\n\nI need your farm location to check whether rain is forecast for your field today.\n\nPlease add your farm location in farm settings so I can verify rain timing before you fertilize.`;
+        } else if (context.currentWeather.rainNotice && context.currentWeather.rainNotice.includes('Wait before applying fertilizer')) {
+          responseText = `Rain may affect fertilizer if it falls soon after application.\n\nI checked your farm's current forecast: ${context.currentWeather.rainNotice}.\n\nBased on this, wait before applying fertilizer until the rain risk passes.`;
         } else if (rainProbVal >= 50) {
-          responseText = `WAIT BEFORE APPLYING FERTILIZER\n\nWhy? Rain is expected soon (${context.currentWeather.rainProb} rain chance). Applying fertilizer now may wash some of it away before your ${activeCropName} can use it.`;
+          responseText = `Rain may affect fertilizer if it falls soon after application.\n\nI checked your farm's current forecast (${context.currentWeather.rainProb} chance of rain).\n\nBased on this, wait before applying fertilizer until the rain risk passes.`;
         } else {
-          responseText = `Weather conditions (${tempVal}, low rain chance) are favorable for applying fertilizer to your ${activeCropName} today. Make sure the soil has adequate moisture before starting.`;
+          responseText = `No significant rain is expected in the next few hours (${tempVal}, low rain chance). You can consider applying fertilizer today, while still checking the latest forecast.`;
         }
         break;
 

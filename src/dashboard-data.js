@@ -321,6 +321,22 @@ export class CropieDataService {
 
     this.data.weather.rainProb = `${rainProbVal}%`;
 
+    if (weatherData.location) {
+      if (weatherData.location.name) {
+        this.data.weather.locationName = weatherData.location.name;
+        if (!this.data.headerInfo.location) {
+          this.data.headerInfo.location = weatherData.location.name;
+        }
+      }
+      if (weatherData.location.latitude && weatherData.location.longitude) {
+        this.data.headerInfo.latitude = weatherData.location.latitude;
+        this.data.headerInfo.longitude = weatherData.location.longitude;
+        if (!this.data.headerInfo.gps) {
+          this.data.headerInfo.gps = `${weatherData.location.latitude}° N, ${Math.abs(weatherData.location.longitude)}° W`;
+        }
+      }
+    }
+
     // Dynamic rain notice calculated from live Open-Meteo hourly & current telemetry
     if (cur.precipitation > 0) {
       this.data.weather.rainNotice = `🌧️ Currently raining (${cur.precipitation} mm). Field operations may be affected.`;
@@ -616,6 +632,8 @@ export class CropieDataService {
     if (userFarm.farmName) this.data.headerInfo.farmName = userFarm.farmName;
     if (userFarm.locationName) this.data.headerInfo.location = userFarm.locationName;
     if (userFarm.latitude && userFarm.longitude) {
+      this.data.headerInfo.latitude = userFarm.latitude;
+      this.data.headerInfo.longitude = userFarm.longitude;
       this.data.headerInfo.gps = `${userFarm.latitude}° N, ${Math.abs(userFarm.longitude)}° W`;
     }
 
