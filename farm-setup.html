@@ -302,7 +302,22 @@
       let locationSource = 'Manual';
       let isLocationConfirmed = false;
 
-      locationInput.value = 'Ejura, Ashanti Region, Ghana';
+      // Pre-load existing saved farm location if available (Test 7)
+      try {
+        const existingFarm = await auth.getUserFarm(currentUser.id);
+        if (existingFarm && existingFarm.latitude && existingFarm.longitude) {
+          currentLat = parseFloat(existingFarm.latitude);
+          currentLng = parseFloat(existingFarm.longitude);
+          pendingLat = currentLat;
+          pendingLng = currentLng;
+          if (existingFarm.locationName) {
+            pendingLocName = existingFarm.locationName;
+            locationInput.value = existingFarm.locationName;
+          }
+        }
+      } catch (e) {}
+
+      locationInput.value = pendingLocName;
 
       // ==========================================
       // GOOGLE MAPS FARM LOCATION SYSTEM
@@ -311,58 +326,74 @@
 
       async function initGoogleFarmMap(initialLat, initialLng) {
         googleMapWrapper.style.display = 'block';
+        locationStatusCardWrapper.innerHTML = `<div class="map-instruction-tag"><i class="fa-solid fa-spinner fa-spin"></i><span>Loading map...</span></div>`;
+        locationStatusCardWrapper.style.display = 'block';
         
-        const mapRes = await locationService.createFarmMap(
-          googleMapCanvas,
-          initialLat,
-          initialLng,
-          async (lat, lng, actionType) => {
-            pendingLat = lat;
-            pendingLng = lng;
-            locationSource = actionType === 'drag' ? 'Map Marker Drag' : 'Map Click';
-            
-            const geocodeRes = await locationService.reverseGeocode(lat, lng);
-            pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+        try {
+          const mapRes = await locationService.createFarmMap(
+            googleMapCanvas,
+            initialLat,
+            initialLng,
+            async (lat, lng, actionType) => {
+              pendingLat = lat;
+              pendingLng = lng;
+              locationSource = actionType === 'drag' ? 'Map Marker Drag' : 'Map Click';
+              
+              const geocodeRes = await locationService.reverseGeocode(lat, lng);
+              pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
 
-            locationService.logLocationDebug({
-              permissionStatus: 'granted',
-              latitude: lat,
-              longitude: lng,
-              accuracy: pendingAccuracy,
-              timestamp: Date.now(),
-              locationName: pendingLocName
+              locationService.logLocationDebug({
+                permissionStatus: 'granted',
+                latitude: lat,
+                longitude: lng,
+                accuracy: pendingAccuracy,
+                timestamp: Date.now(),
+                locationName: pendingLocName
+              });
+
+              renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName, pendingAccuracy);
+            }
+          );
+
+          if (mapRes) {
+            isMapInitialized = true;
+            locationService.attachPlacesAutocomplete(mapSearchInput, async (selectedPlace) => {
+              pendingLat = selectedPlace.latitude;
+              pendingLng = selectedPlace.longitude;
+              locationSource = 'Places Search';
+
+              const geocodeRes = await locationService.reverseGeocode(pendingLat, pendingLng);
+              pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+
+              renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName, null);
             });
 
-            renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName, pendingAccuracy);
+            renderMapConfirmationCard(initialLat, initialLng, pendingLocName, pendingAccuracy);
           }
-        );
-
-        if (mapRes) {
-          isMapInitialized = true;
-          // Attach Places Autocomplete
-          locationService.attachPlacesAutocomplete(mapSearchInput, async (selectedPlace) => {
-            pendingLat = selectedPlace.latitude;
-            pendingLng = selectedPlace.longitude;
-            locationSource = 'Places Search';
-
-            const geocodeRes = await locationService.reverseGeocode(pendingLat, pendingLng);
-            pendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-            renderMapConfirmationCard(pendingLat, pendingLng, pendingLocName, null);
-          });
-        } else {
-          renderGoogleMapsFallbackNotice();
+        } catch (mErr) {
+          renderGoogleMapsErrorCard(mErr.message || "Unable to load Google Maps. Please check your connection and try again.");
         }
       }
 
-      function renderGoogleMapsFallbackNotice() {
+      function renderGoogleMapsErrorCard(msg) {
         locationStatusCardWrapper.innerHTML = `
-          <div class="map-fallback-banner">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>Google Maps API Key configuration notice: Using standard location detection. You can enter or search your community name below.</span>
+          <div class="location-status-card error-card">
+            <div class="location-card-header">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Unable to load Google Maps</span>
+            </div>
+            <p class="location-card-msg">${escapeHtml(msg)}</p>
+            <div class="location-card-actions">
+              <button type="button" class="btn btn-outline-hero btn-sm" id="retryMapLoadBtn">
+                <i class="fa-solid fa-rotate-right"></i> Try Again
+              </button>
+            </div>
           </div>
         `;
         locationStatusCardWrapper.style.display = 'block';
+
+        const rBtn = document.getElementById('retryMapLoadBtn');
+        if (rBtn) rBtn.addEventListener('click', () => initGoogleFarmMap(currentLat, currentLng));
       }
 
       // OPTION 1: Use My Current Location

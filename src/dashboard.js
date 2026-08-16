@@ -673,42 +673,63 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
   async function initDashGoogleMap(initialLat, initialLng) {
     if (dashGoogleMapWrapper) dashGoogleMapWrapper.style.display = 'block';
+    if (dashLocationCardWrapper) {
+      dashLocationCardWrapper.innerHTML = `<div class="map-instruction-tag"><i class="fa-solid fa-spinner fa-spin"></i><span>Loading map...</span></div>`;
+      dashLocationCardWrapper.style.display = 'block';
+    }
 
-    const mapRes = await locationService.createFarmMap(
-      dashGoogleMapCanvas,
-      initialLat,
-      initialLng,
-      async (lat, lng, actionType) => {
-        dashPendingLat = lat;
-        dashPendingLng = lng;
-        
-        const geocodeRes = await locationService.reverseGeocode(lat, lng);
-        dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+    try {
+      const mapRes = await locationService.createFarmMap(
+        dashGoogleMapCanvas,
+        initialLat,
+        initialLng,
+        async (lat, lng, actionType) => {
+          dashPendingLat = lat;
+          dashPendingLng = lng;
+          
+          const geocodeRes = await locationService.reverseGeocode(lat, lng);
+          dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
 
-        locationService.logLocationDebug({
-          permissionStatus: 'granted',
-          latitude: lat,
-          longitude: lng,
-          accuracy: dashPendingAccuracy,
-          timestamp: Date.now(),
-          locationName: dashPendingLocName
+          locationService.logLocationDebug({
+            permissionStatus: 'granted',
+            latitude: lat,
+            longitude: lng,
+            accuracy: dashPendingAccuracy,
+            timestamp: Date.now(),
+            locationName: dashPendingLocName
+          });
+
+          renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, dashPendingAccuracy);
+        }
+      );
+
+      if (mapRes) {
+        isDashMapInitialized = true;
+        locationService.attachPlacesAutocomplete(dashMapSearchInput, async (selectedPlace) => {
+          dashPendingLat = selectedPlace.latitude;
+          dashPendingLng = selectedPlace.longitude;
+
+          const geocodeRes = await locationService.reverseGeocode(dashPendingLat, dashPendingLng);
+          dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+
+          renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, null);
         });
 
-        renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, dashPendingAccuracy);
+        renderDashConfirmationCard(initialLat, initialLng, dashPendingLocName, dashPendingAccuracy);
       }
-    );
-
-    if (mapRes) {
-      isDashMapInitialized = true;
-      locationService.attachPlacesAutocomplete(dashMapSearchInput, async (selectedPlace) => {
-        dashPendingLat = selectedPlace.latitude;
-        dashPendingLng = selectedPlace.longitude;
-
-        const geocodeRes = await locationService.reverseGeocode(dashPendingLat, dashPendingLng);
-        dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-        renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, null);
-      });
+    } catch (mErr) {
+      if (dashLocationCardWrapper) {
+        dashLocationCardWrapper.innerHTML = `
+          <div class="location-status-card error-card">
+            <div class="location-card-header">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Unable to load Google Maps</span>
+            </div>
+            <p class="location-card-msg">${escapeHtml(mErr.message || "Unable to load Google Maps. Please check your connection and try again.")}</p>
+          </div>
+        `;
+        dashLocationCardWrapper.style.display = 'block';
+      }
     }
   }
 
