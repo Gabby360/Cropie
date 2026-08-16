@@ -5338,3 +5338,152 @@ html, body {
   background: #e2e8f0;
   color: #1e293b;
 }
+
+/* ==========================================================================
+   CROPIE HIGH-ACCURACY LOCATION DETECTION & VERIFICATION STYLES
+   ========================================================================== */
+
+/* Location Status Card */
+.location-status-card {
+  background: #ffffff;
+  border: 1.5px solid #bbf7d0;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.08);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.location-status-card.warning-card {
+  border-color: #fef08a;
+  background: #fffbeb;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.08);
+}
+
+.location-status-card.error-card {
+  border-color: #fecaca;
+  background: #fef2f2;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.08);
+}
+
+.location-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #166534;
+  margin-bottom: 0.5rem;
+}
+
+.location-status-card.warning-card .location-card-header {
+  color: #92400e;
+}
+
+.location-status-card.error-card .location-card-header {
+  color: #991b1b;
+}
+
+.location-name-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-forest-950);
+  margin-bottom: 0.35rem;
+}
+
+.location-accuracy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  margin-bottom: 0.85rem;
+}
+
+.location-accuracy-pill.moderate {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fef08a;
+}
+
+.location-accuracy-pill.poor {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.location-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+
+.location-card-msg {
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.45;
+  margin-bottom: 0.75rem;
+}
+
+/* Autocomplete search results menu */
+.location-search-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.location-autocomplete-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 100;
+  margin-top: 0.35rem;
+  display: none;
+}
+
+.location-autocomplete-menu.open {
+  display: block;
+}
+
+.location-autocomplete-item {
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  color: #1e293b;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s ease;
+}
+
+.location-autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.location-autocomplete-item:hover {
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 600;
+}
+
+.location-autocomplete-item i {
+  color: #16a34a;
+  font-size: 0.95rem;
+}
+

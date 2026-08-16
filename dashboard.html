@@ -86,11 +86,17 @@
               <span>Use My Current Location</span>
             </button>
 
-            <form id="dashLocationForm" style="display: flex; align-items: center; gap: 0.35rem;">
-              <input type="text" id="dashLocationSearchInput" placeholder="Type city (e.g. Laterbiokorshie)" style="padding: 0.45rem 0.85rem; border: 1.5px solid #cbd5e1; border-radius: 9999px; font-size: 0.82rem; width: 220px;" required />
+            <form id="dashLocationForm" style="display: flex; align-items: center; gap: 0.35rem; position: relative;">
+              <div class="location-search-wrapper" style="width: 230px;">
+                <input type="text" id="dashLocationSearchInput" placeholder="🔎 Search town or city" style="padding: 0.45rem 0.85rem; border: 1.5px solid #cbd5e1; border-radius: 9999px; font-size: 0.82rem; width: 100%;" autocomplete="off" required />
+                <div id="dashLocationAutocompleteMenu" class="location-autocomplete-menu"></div>
+              </div>
               <button type="submit" class="btn btn-outline-hero btn-sm" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; border-radius: 9999px; background: #f8fafc;">Search</button>
             </form>
           </div>
+
+          <!-- DYNAMIC LOCATION STATUS & CONFIRMATION CONTAINER -->
+          <div id="dashLocationStatusCardWrapper" style="display: none; width: 100%; max-width: 520px; margin-top: 0.75rem;"></div>
         </div>
 
         <div class="dash-control-actions">

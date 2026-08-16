@@ -4,6 +4,7 @@ import { CropieAuthService } from './auth.js';
 import { CropieWeatherService } from './weather-service.js';
 import { KhayaService } from './khaya-service.js';
 import { CropieAssistantService } from './assistant-service.js';
+import { CropieLocationService } from './location-service.js';
 
 // Define global toggle functions immediately on window
 window.toggleMobileDrawer = function(eOrForce = null) {
@@ -654,8 +655,263 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     }
   }
 
-  // Location Search Handler
+  // ==========================================
+  // DASHBOARD LOCATION DETECTOR CONTROLLER
+  // ==========================================
+  const locationService = new CropieLocationService();
+  const dashLocationCardWrapper = document.getElementById('dashLocationStatusCardWrapper');
+  const dashAutocompleteMenu = document.getElementById('dashLocationAutocompleteMenu');
+
+  async function updateActiveFarmLocation(lat, lon, locationName, source = 'GPS') {
+    let updatedFarm = {
+      id: `farm_${Date.now()}`,
+      farmName: `Farm at ${locationName.split(',')[0]}`,
+      locationName: locationName,
+      latitude: parseFloat(lat),
+      longitude: parseFloat(lon),
+      locationSource: source,
+      crop: 'maize',
+      plantingDate: '2026-06-10'
+    };
+
+    if (currentUser) {
+      try {
+        const savedRes = await auth.saveFarmProfile({
+          userId: currentUser.id,
+          farmName: updatedFarm.farmName,
+          locationName: locationName,
+          latitude: parseFloat(lat),
+          longitude: parseFloat(lon),
+          locationSource: source,
+          crop: 'maize',
+          plantingDate: '2026-06-10',
+          farmSize: 2,
+          farmSizeUnit: 'Acres'
+        });
+        if (savedRes && savedRes.farm) {
+          updatedFarm = { ...updatedFarm, ...savedRes.farm };
+        }
+      } catch (sErr) {
+        console.warn('Save farm profile notice:', sErr);
+      }
+    }
+
+    localStorage.setItem('cropie_active_farm', JSON.stringify(updatedFarm));
+    await loadAndRenderData(updatedFarm);
+    if (dashLocationCardWrapper) dashLocationCardWrapper.style.display = 'none';
+  }
+
+  // GPS Auto-Detect Handler
+  if (gpsBtn) {
+    gpsBtn.addEventListener('click', async () => {
+      gpsBtn.disabled = true;
+      const btnSpan = gpsBtn.querySelector('span');
+      if (btnSpan) btnSpan.textContent = 'Detecting GPS...';
+      if (dashLocationCardWrapper) dashLocationCardWrapper.style.display = 'none';
+
+      try {
+        // 1. Acquire high-accuracy position from browser Geolocation API
+        const pos = await locationService.getCurrentPosition();
+
+        // 2. Reverse geocode coordinates
+        const resolvedLoc = await locationService.reverseGeocode(pos.latitude, pos.longitude);
+
+        // 3. Evaluate accuracy
+        const accEval = locationService.evaluateAccuracy(pos.accuracy);
+
+        // 4. Log detailed location telemetry for verification
+        locationService.logLocationDebug({
+          permissionStatus: 'granted',
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          accuracy: pos.accuracy,
+          timestamp: pos.timestamp,
+          locationName: resolvedLoc
+        });
+
+        gpsBtn.disabled = false;
+        if (btnSpan) btnSpan.textContent = 'Use My Current Location';
+
+        // 5. Render location verification status card
+        if (dashLocationCardWrapper) {
+          if (accEval.isAccurate) {
+            dashLocationCardWrapper.innerHTML = `
+              <div class="location-status-card">
+                <div class="location-card-header">
+                  <i class="fa-solid fa-location-dot"></i>
+                  <span>📍 Location detected</span>
+                </div>
+                <div class="location-name-title">${escapeHtml(resolvedLoc)}</div>
+                <div class="location-accuracy-pill ${accEval.level}">
+                  <i class="fa-solid fa-circle-check"></i> Accuracy: ${accEval.accuracyText}
+                </div>
+                <div class="location-card-actions">
+                  <button type="button" class="btn btn-primary btn-sm" id="dashConfirmLocBtn">
+                    <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location
+                  </button>
+                  <button type="button" class="btn btn-outline-hero btn-sm" id="dashRetryLocBtn">
+                    <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+                  </button>
+                </div>
+              </div>
+            `;
+            dashLocationCardWrapper.style.display = 'block';
+
+            document.getElementById('dashConfirmLocBtn').addEventListener('click', () => {
+              updateActiveFarmLocation(pos.latitude, pos.longitude, resolvedLoc, 'GPS');
+            });
+
+            document.getElementById('dashRetryLocBtn').addEventListener('click', () => {
+              gpsBtn.click();
+            });
+
+          } else {
+            dashLocationCardWrapper.innerHTML = `
+              <div class="location-status-card warning-card">
+                <div class="location-card-header">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>Your location may not be very accurate</span>
+                </div>
+                <div class="location-name-title">${escapeHtml(resolvedLoc)}</div>
+                <div class="location-accuracy-pill poor">
+                  <i class="fa-solid fa-triangle-exclamation"></i> Accuracy: ${accEval.accuracyText}
+                </div>
+                <p class="location-card-msg">
+                  Your device reported low GPS accuracy. Please make sure Location/GPS is enabled on your device and try again.
+                </p>
+                <div class="location-card-actions">
+                  <button type="button" class="btn btn-primary btn-sm" id="dashRetryLocBtn">
+                    <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+                  </button>
+                  <button type="button" class="btn btn-outline-hero btn-sm" id="dashUseAnywayBtn">
+                    <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location Anyway
+                  </button>
+                </div>
+              </div>
+            `;
+            dashLocationCardWrapper.style.display = 'block';
+
+            document.getElementById('dashRetryLocBtn').addEventListener('click', () => {
+              gpsBtn.click();
+            });
+
+            document.getElementById('dashUseAnywayBtn').addEventListener('click', () => {
+              updateActiveFarmLocation(pos.latitude, pos.longitude, resolvedLoc, 'GPS');
+            });
+          }
+        }
+
+      } catch (err) {
+        gpsBtn.disabled = false;
+        if (btnSpan) btnSpan.textContent = 'Use My Current Location';
+
+        locationService.logLocationDebug({
+          permissionStatus: err.type === 'PERMISSION_DENIED' ? 'denied' : 'error',
+          latitude: null,
+          longitude: null,
+          accuracy: null,
+          timestamp: Date.now(),
+          locationName: 'Error: ' + (err.message || 'GPS location error')
+        });
+
+        if (dashLocationCardWrapper) {
+          if (err.type === 'PERMISSION_DENIED') {
+            dashLocationCardWrapper.innerHTML = `
+              <div class="location-status-card error-card">
+                <div class="location-card-header">
+                  <i class="fa-solid fa-location-slash"></i>
+                  <span>Cropie can't access your location</span>
+                </div>
+                <p class="location-card-msg">
+                  Please enable location permission for your browser/device or search for your farm location manually.
+                </p>
+                <div class="location-card-actions">
+                  <button type="button" class="btn btn-primary btn-sm" id="dashRetryLocBtn">
+                    <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+                  </button>
+                  <button type="button" class="btn btn-outline-hero btn-sm" id="dashFocusSearchBtn">
+                    <i class="fa-solid fa-magnifying-glass" style="margin-right: 0.3rem;"></i> Search Location
+                  </button>
+                </div>
+              </div>
+            `;
+          } else {
+            dashLocationCardWrapper.innerHTML = `
+              <div class="location-status-card warning-card">
+                <div class="location-card-header">
+                  <i class="fa-solid fa-clock"></i>
+                  <span>Cropie is having trouble detecting your location</span>
+                </div>
+                <p class="location-card-msg">
+                  ${escapeHtml(err.message || 'GPS request timed out. Please try again or search manually.')}
+                </p>
+                <div class="location-card-actions">
+                  <button type="button" class="btn btn-primary btn-sm" id="dashRetryLocBtn">
+                    <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+                  </button>
+                  <button type="button" class="btn btn-outline-hero btn-sm" id="dashFocusSearchBtn">
+                    <i class="fa-solid fa-keyboard" style="margin-right: 0.3rem;"></i> Enter Location Manually
+                  </button>
+                </div>
+              </div>
+            `;
+          }
+          dashLocationCardWrapper.style.display = 'block';
+
+          const retryBtnEl = document.getElementById('dashRetryLocBtn');
+          if (retryBtnEl) retryBtnEl.addEventListener('click', () => gpsBtn.click());
+
+          const focusBtnEl = document.getElementById('dashFocusSearchBtn');
+          if (focusBtnEl && locationInput) focusBtnEl.addEventListener('click', () => locationInput.focus());
+        }
+      }
+    });
+  }
+
+  // Location Search Handler with Autocomplete
   if (locationForm && locationInput) {
+    let dashSearchTimer = null;
+
+    locationInput.addEventListener('input', (e) => {
+      const q = e.target.value;
+      clearTimeout(dashSearchTimer);
+
+      if (!q || q.trim().length < 2) {
+        if (dashAutocompleteMenu) dashAutocompleteMenu.classList.remove('open');
+        return;
+      }
+
+      dashSearchTimer = setTimeout(async () => {
+        try {
+          const results = await locationService.searchLocations(q);
+          if (results && results.length > 0 && dashAutocompleteMenu) {
+            dashAutocompleteMenu.innerHTML = results.map(r => `
+              <div class="location-autocomplete-item" data-name="${escapeHtml(r.name)}" data-lat="${r.lat}" data-lon="${r.lon}">
+                <i class="fa-solid fa-location-dot"></i>
+                <span>${escapeHtml(r.name)}</span>
+              </div>
+            `).join('');
+
+            dashAutocompleteMenu.classList.add('open');
+
+            dashAutocompleteMenu.querySelectorAll('.location-autocomplete-item').forEach(item => {
+              item.addEventListener('click', () => {
+                const name = item.getAttribute('data-name');
+                const lat = parseFloat(item.getAttribute('data-lat'));
+                const lon = parseFloat(item.getAttribute('data-lon'));
+
+                locationInput.value = name;
+                dashAutocompleteMenu.classList.remove('open');
+                updateActiveFarmLocation(lat, lon, name, 'Manual Search');
+              });
+            });
+          }
+        } catch (sErr) {
+          console.warn('Dashboard location search notice:', sErr);
+        }
+      }, 250);
+    });
+
     locationForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const query = locationInput.value.trim();
@@ -666,16 +922,8 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       try {
         const geo = await weatherService.geocodeLocation(query);
         if (geo) {
-          const newFarm = {
-            id: `farm_${Date.now()}`,
-            farmName: `Farm at ${geo.name.split(',')[0]}`,
-            locationName: geo.name,
-            latitude: geo.lat,
-            longitude: geo.lon,
-            crop: 'maize',
-            plantingDate: '2026-06-10'
-          };
-          await loadAndRenderData(newFarm);
+          if (dashAutocompleteMenu) dashAutocompleteMenu.classList.remove('open');
+          await updateActiveFarmLocation(geo.lat, geo.lon, geo.name, 'Manual Search');
         }
       } catch (gErr) {
         console.warn('Search location error:', gErr);
@@ -683,48 +931,11 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         if (btn) btn.disabled = false;
       }
     });
-  }
 
-  // GPS Auto-Detect Handler
-  if (gpsBtn) {
-    gpsBtn.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        alert('Geolocation is not supported by your browser.');
-        return;
+    document.addEventListener('click', (e) => {
+      if (dashAutocompleteMenu && !locationForm.contains(e.target)) {
+        dashAutocompleteMenu.classList.remove('open');
       }
-
-      gpsBtn.disabled = true;
-      gpsBtn.querySelector('span').textContent = 'Detecting GPS...';
-
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          
-          const locName = await weatherService.reverseGeocode(lat, lon);
-
-          const gpsFarm = {
-            id: `farm_gps_${Date.now()}`,
-            farmName: `My Local Farm`,
-            locationName: locName,
-            latitude: lat,
-            longitude: lon,
-            crop: 'maize',
-            plantingDate: '2026-06-10'
-          };
-
-          await loadAndRenderData(gpsFarm);
-          gpsBtn.disabled = false;
-          gpsBtn.querySelector('span').textContent = 'Use My Current Location';
-        },
-        (err) => {
-          console.warn('GPS detection notice:', err);
-          alert('Could not detect location. Please type your city or town in the search box.');
-          gpsBtn.disabled = false;
-          gpsBtn.querySelector('span').textContent = 'Use My Current Location';
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
     });
   }
 

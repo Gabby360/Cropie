@@ -322,13 +322,17 @@ export class CropieAuthService {
     const numSize = farmSize ? parseFloat(farmSize) : 2;
 
     try {
+      const parsedLat = (latitude !== undefined && latitude !== null && !isNaN(latitude)) ? parseFloat(latitude) : 7.3824;
+      const parsedLng = (longitude !== undefined && longitude !== null && !isNaN(longitude)) ? parseFloat(longitude) : -1.3621;
+
       // 1. Insert into public.farms
       const farmPayload = {
         user_id: userId,
         farm_name: finalFarmName,
         location_name: locationName.trim(),
-        latitude: latitude || 7.3824,
-        longitude: longitude || -1.3621,
+        latitude: parsedLat,
+        longitude: parsedLng,
+        location_source: locationSource || 'GPS',
         farm_size: numSize,
         farm_size_unit: farmSizeUnit || 'Acres',
         soil_type: 'Loam',
@@ -388,9 +392,9 @@ export class CropieAuthService {
         userId,
         farmName: finalFarmName,
         locationName: locationName.trim(),
-        latitude: latitude || 7.3824,
-        longitude: longitude || -1.3621,
-        locationSource: locationSource || 'Manual',
+        latitude: parsedLat,
+        longitude: parsedLng,
+        locationSource: locationSource || 'GPS',
         crop: cropList[0].toLowerCase(),
         crops: cropList,
         plantingDate,

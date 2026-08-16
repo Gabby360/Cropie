@@ -25,7 +25,26 @@ export class CropieWeatherService {
         }
       }
     } catch (err) {
-      console.warn('Reverse geocode notice:', err);
+      console.warn('BigDataCloud reverse geocode notice:', err);
+    }
+
+    try {
+      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=en`;
+      const res = await fetch(nomUrl, { headers: { 'User-Agent': 'Cropie-Farm-App/1.0' } });
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address || {};
+        const town = addr.town || addr.city || addr.village || addr.suburb || addr.county || '';
+        const state = addr.state || addr.region || '';
+        const country = addr.country || 'Ghana';
+
+        if (town) {
+          const regionStr = (state && state !== town) ? `${state}, ` : '';
+          return `${town}, ${regionStr}${country}`;
+        }
+      }
+    } catch (err) {
+      console.warn('Nominatim reverse geocode notice:', err);
     }
 
     return `Location (${latitude.toFixed(4)}° N, ${Math.abs(longitude).toFixed(4)}° W)`;

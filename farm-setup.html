@@ -84,25 +84,31 @@
             <div class="location-options-grid">
               <!-- USE CURRENT LOCATION BUTTON -->
               <button type="button" class="btn btn-outline-hero btn-location-action" id="useGpsBtn">
+                <i class="fa-solid fa-location-crosshairs" style="margin-right: 0.35rem; color: #16a34a;"></i>
                 <span>Use my current location</span>
               </button>
 
-              <span class="location-or-divider">or search manually below</span>
+              <span class="location-or-divider">or search for your farm location below</span>
             </div>
 
-            <!-- SEARCH LOCATION INPUT -->
-            <div class="input-wrapper" style="margin-top: 0.75rem;">
+            <!-- DYNAMIC LOCATION DETECTION & ACCURACY CARD -->
+            <div id="locationStatusCardWrapper" style="display: none;"></div>
+
+            <!-- SEARCH LOCATION INPUT WITH AUTOCOMPLETE -->
+            <div class="location-search-wrapper" style="margin-top: 0.75rem;">
               <input 
                 type="text" 
                 id="locationSearchInput" 
                 class="form-input clean-input" 
-                placeholder="e.g. Ejura, Ashanti Region, Ghana" 
+                placeholder="🔎 Search town or community (e.g. Ejura, Ashanti Region, Ghana)" 
+                autocomplete="off"
                 required 
               />
+              <div id="locationAutocompleteMenu" class="location-autocomplete-menu"></div>
             </div>
             
-            <div id="gpsSuccessStatus" class="location-status-tag" style="display: none;">
-              <span id="gpsCoordsText">GPS Coordinates captured successfully.</span>
+            <div id="gpsSuccessStatus" class="location-status-tag" style="display: none; margin-top: 0.5rem;">
+              <span id="gpsCoordsText">Location saved.</span>
             </div>
             <span class="field-error-msg" id="locationError"></span>
           </div>
@@ -251,9 +257,11 @@
 
   <script type="module">
     import { CropieAuthService } from '/src/auth.js';
+    import { CropieLocationService } from '/src/location-service.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       const auth = new CropieAuthService();
+      const locationService = new CropieLocationService();
       const currentUser = await auth.requireAuth('/login.html');
       if (!currentUser) return;
 
@@ -269,6 +277,8 @@
 
       const useGpsBtn = document.getElementById('useGpsBtn');
       const locationInput = document.getElementById('locationSearchInput');
+      const locationAutocompleteMenu = document.getElementById('locationAutocompleteMenu');
+      const locationStatusCardWrapper = document.getElementById('locationStatusCardWrapper');
       const gpsSuccessStatus = document.getElementById('gpsSuccessStatus');
       const gpsCoordsText = document.getElementById('gpsCoordsText');
       const alertBanner = document.getElementById('setupAlertBanner');
@@ -276,6 +286,284 @@
       const btnText = document.getElementById('setupBtnText');
 
       locationInput.value = 'Ejura, Ashanti Region, Ghana';
+
+      // ==========================================
+      // HIGH-ACCURACY GEOLOCATION CONTROLLER
+      // ==========================================
+      async function detectDeviceLocation() {
+        useGpsBtn.disabled = true;
+        useGpsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 0.35rem;"></i><span>Detecting location...</span>';
+        locationStatusCardWrapper.style.display = 'none';
+        hideError('locationError');
+
+        try {
+          // 1. Request fresh location using Geolocation API
+          const pos = await locationService.getCurrentPosition();
+          
+          // 2. Reverse geocode coordinates
+          const resolvedLoc = await locationService.reverseGeocode(pos.latitude, pos.longitude);
+          
+          // 3. Evaluate accuracy
+          const accEval = locationService.evaluateAccuracy(pos.accuracy);
+
+          // 4. Log detailed location telemetry for verification
+          locationService.logLocationDebug({
+            permissionStatus: 'granted',
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+            accuracy: pos.accuracy,
+            timestamp: pos.timestamp,
+            locationName: resolvedLoc
+          });
+
+          useGpsBtn.disabled = false;
+          useGpsBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs" style="margin-right: 0.35rem; color: #16a34a;"></i><span>Use my current location</span>';
+
+          // 5. Check accuracy & render confirmation UI card
+          if (accEval.isAccurate) {
+            renderLocationConfirmationCard(pos.latitude, pos.longitude, resolvedLoc, accEval);
+          } else {
+            renderPoorAccuracyWarningCard(pos.latitude, pos.longitude, resolvedLoc, accEval);
+          }
+
+        } catch (err) {
+          useGpsBtn.disabled = false;
+          useGpsBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs" style="margin-right: 0.35rem; color: #16a34a;"></i><span>Use my current location</span>';
+
+          locationService.logLocationDebug({
+            permissionStatus: err.type === 'PERMISSION_DENIED' ? 'denied' : 'error',
+            latitude: null,
+            longitude: null,
+            accuracy: null,
+            timestamp: Date.now(),
+            locationName: 'Error: ' + (err.message || 'Location acquisition failed')
+          });
+
+          if (err.type === 'PERMISSION_DENIED') {
+            renderPermissionDeniedCard();
+          } else {
+            renderTimeoutOrErrorCard(err.message || "Cropie is having trouble detecting your location.");
+          }
+        }
+      }
+
+      function renderLocationConfirmationCard(lat, lng, locationName, accEval) {
+        locationStatusCardWrapper.innerHTML = `
+          <div class="location-status-card">
+            <div class="location-card-header">
+              <i class="fa-solid fa-location-dot"></i>
+              <span>📍 Location detected</span>
+            </div>
+            <div class="location-name-title">${escapeHtml(locationName)}</div>
+            <div class="location-accuracy-pill ${accEval.level}">
+              <i class="fa-solid fa-circle-check"></i> Accuracy: ${accEval.accuracyText}
+            </div>
+            <div class="location-card-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="confirmLocBtn">
+                <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location
+              </button>
+              <button type="button" class="btn btn-outline-hero btn-sm" id="retryLocBtn">
+                <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+              </button>
+            </div>
+          </div>
+        `;
+        locationStatusCardWrapper.style.display = 'block';
+
+        document.getElementById('confirmLocBtn').addEventListener('click', () => {
+          currentLat = lat;
+          currentLng = lng;
+          locationSource = 'GPS';
+          locationInput.value = locationName;
+
+          gpsCoordsText.textContent = `Location saved via GPS: ${locationName} (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
+          gpsSuccessStatus.style.display = 'flex';
+          locationStatusCardWrapper.style.display = 'none';
+          hideError('locationError');
+        });
+
+        document.getElementById('retryLocBtn').addEventListener('click', () => {
+          detectDeviceLocation();
+        });
+      }
+
+      function renderPoorAccuracyWarningCard(lat, lng, locationName, accEval) {
+        locationStatusCardWrapper.innerHTML = `
+          <div class="location-status-card warning-card">
+            <div class="location-card-header">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Your location may not be very accurate</span>
+            </div>
+            <div class="location-name-title">${escapeHtml(locationName)}</div>
+            <div class="location-accuracy-pill poor">
+              <i class="fa-solid fa-triangle-exclamation"></i> Accuracy: ${accEval.accuracyText}
+            </div>
+            <p class="location-card-msg">
+              Your device reported low GPS accuracy. Please make sure Location/GPS is enabled on your device and try again.
+            </p>
+            <div class="location-card-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="retryLocBtn">
+                <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+              </button>
+              <button type="button" class="btn btn-outline-hero btn-sm" id="useAnywayBtn">
+                <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Use This Location Anyway
+              </button>
+            </div>
+          </div>
+        `;
+        locationStatusCardWrapper.style.display = 'block';
+
+        document.getElementById('retryLocBtn').addEventListener('click', () => {
+          detectDeviceLocation();
+        });
+
+        document.getElementById('useAnywayBtn').addEventListener('click', () => {
+          currentLat = lat;
+          currentLng = lng;
+          locationSource = 'GPS';
+          locationInput.value = locationName;
+
+          gpsCoordsText.textContent = `Location saved: ${locationName} (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
+          gpsSuccessStatus.style.display = 'flex';
+          locationStatusCardWrapper.style.display = 'none';
+        });
+      }
+
+      function renderPermissionDeniedCard() {
+        locationStatusCardWrapper.innerHTML = `
+          <div class="location-status-card error-card">
+            <div class="location-card-header">
+              <i class="fa-solid fa-location-slash"></i>
+              <span>Cropie can't access your location</span>
+            </div>
+            <p class="location-card-msg">
+              Please enable location permission for your browser/device or search for your farm location manually.
+            </p>
+            <div class="location-card-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="retryLocBtn">
+                <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+              </button>
+              <button type="button" class="btn btn-outline-hero btn-sm" id="manualSearchFocusBtn">
+                <i class="fa-solid fa-magnifying-glass" style="margin-right: 0.3rem;"></i> Search Location
+              </button>
+            </div>
+          </div>
+        `;
+        locationStatusCardWrapper.style.display = 'block';
+
+        document.getElementById('retryLocBtn').addEventListener('click', () => {
+          detectDeviceLocation();
+        });
+
+        document.getElementById('manualSearchFocusBtn').addEventListener('click', () => {
+          locationInput.focus();
+        });
+      }
+
+      function renderTimeoutOrErrorCard(errorMsg) {
+        locationStatusCardWrapper.innerHTML = `
+          <div class="location-status-card warning-card">
+            <div class="location-card-header">
+              <i class="fa-solid fa-clock"></i>
+              <span>Cropie is having trouble detecting your location</span>
+            </div>
+            <p class="location-card-msg">
+              ${escapeHtml(errorMsg)}
+            </p>
+            <div class="location-card-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="retryLocBtn">
+                <i class="fa-solid fa-rotate-right" style="margin-right: 0.3rem;"></i> Try Again
+              </button>
+              <button type="button" class="btn btn-outline-hero btn-sm" id="manualSearchFocusBtn">
+                <i class="fa-solid fa-keyboard" style="margin-right: 0.3rem;"></i> Enter Location Manually
+              </button>
+            </div>
+          </div>
+        `;
+        locationStatusCardWrapper.style.display = 'block';
+
+        document.getElementById('retryLocBtn').addEventListener('click', () => {
+          detectDeviceLocation();
+        });
+
+        document.getElementById('manualSearchFocusBtn').addEventListener('click', () => {
+          locationInput.focus();
+        });
+      }
+
+      useGpsBtn.addEventListener('click', () => {
+        detectDeviceLocation();
+      });
+
+      // ==========================================
+      // SEARCH LOCATION AUTOCOMPLETE CONTROLLER
+      // ==========================================
+      let searchDebounceTimer = null;
+
+      locationInput.addEventListener('input', (e) => {
+        const query = e.target.value;
+        clearTimeout(searchDebounceTimer);
+
+        if (!query || query.trim().length < 2) {
+          locationAutocompleteMenu.classList.remove('open');
+          return;
+        }
+
+        searchDebounceTimer = setTimeout(async () => {
+          try {
+            const results = await locationService.searchLocations(query);
+            renderLocationAutocomplete(results);
+          } catch (err) {
+            console.warn('Location search notice:', err);
+          }
+        }, 250);
+      });
+
+      function renderLocationAutocomplete(results) {
+        if (!results || results.length === 0) {
+          locationAutocompleteMenu.classList.remove('open');
+          return;
+        }
+
+        locationAutocompleteMenu.innerHTML = results.map(r => `
+          <div class="location-autocomplete-item" data-name="${escapeHtml(r.name)}" data-lat="${r.lat}" data-lon="${r.lon}">
+            <i class="fa-solid fa-location-dot"></i>
+            <span>${escapeHtml(r.name)}</span>
+          </div>
+        `).join('');
+
+        locationAutocompleteMenu.classList.add('open');
+
+        locationAutocompleteMenu.querySelectorAll('.location-autocomplete-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const locName = item.getAttribute('data-name');
+            const lat = parseFloat(item.getAttribute('data-lat'));
+            const lon = parseFloat(item.getAttribute('data-lon'));
+
+            locationInput.value = locName;
+            currentLat = lat;
+            currentLng = lon;
+            locationSource = 'Manual Search';
+
+            gpsCoordsText.textContent = `Selected location: ${locName}`;
+            gpsSuccessStatus.style.display = 'flex';
+            locationAutocompleteMenu.classList.remove('open');
+            locationStatusCardWrapper.style.display = 'none';
+            hideError('locationError');
+          });
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (!document.querySelector('.location-search-wrapper').contains(e.target)) {
+          locationAutocompleteMenu.classList.remove('open');
+        }
+      });
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
 
       // ==========================================
       // SEARCHABLE MULTI-SELECT CROPS CONTROLLER
