@@ -1507,7 +1507,7 @@ function renderWeatherLoadingCard() {
     <div class="weather-loading-card" style="padding: 2.25rem 1.25rem; text-align: center; background: #ffffff; border-radius: 12px;">
       <div style="font-size: 2rem; color: #16a34a; margin-bottom: 0.5rem;"><i class="fa-solid fa-cloud-sun fa-spin"></i></div>
       <h4 style="font-size: 1.05rem; font-weight: 700; color: #1e293b; margin-bottom: 0.2rem;">🌤️ Updating local weather...</h4>
-      <p style="color: #64748b; font-size: 0.85rem; margin: 0;">Fetching live satellite telemetry for your farm</p>
+      <p style="color: #64748b; font-size: 0.85rem; margin: 0;">Fetching live weather data for your farm</p>
     </div>
   `;
 }
@@ -1561,7 +1561,7 @@ function renderWeather(w) {
       </div>
 
       <div class="rain-forecast-badge" id="dashRainNotice">
-        ${w.rainNotice || 'Checking live weather telemetry...'}
+        ${w.rainNotice || 'Checking live weather data...'}
       </div>
     </div>
 
@@ -1654,20 +1654,33 @@ function renderCropStatus(c) {
   }
 
   if (stepperContainer && c.stages) {
-    stepperContainer.innerHTML = c.stages.map((stage, idx) => {
-      const isCompleted = idx < c.currentStageIndex;
-      const isActive = idx === c.currentStageIndex;
-      const statusClass = isActive ? 'active' : isCompleted ? 'completed' : '';
-
-      return `
-        <div class="stepper-item ${statusClass}">
-          <div class="stepper-node">
-            ${isCompleted ? '<i class="fa-solid fa-check"></i>' : (idx + 1)}
+    if (c.cropName && c.cropName.toLowerCase().includes('cocoa')) {
+      stepperContainer.innerHTML = `
+        <div class="cocoa-perennial-banner" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 0.85rem 1rem; color: #166534;">
+          <div style="font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-tree"></i> 🌳 Cocoa • Long-term tree crop
           </div>
-          <span class="stepper-label">${stage}</span>
+          <div style="font-size: 0.82rem; color: #4b5563; margin-top: 0.25rem;">
+            Your cocoa is monitored using weather and crop-care conditions rather than a yearly harvest countdown.
+          </div>
         </div>
       `;
-    }).join('<div class="stepper-line"></div>');
+    } else {
+      stepperContainer.innerHTML = c.stages.map((stage, idx) => {
+        const isCompleted = idx < c.currentStageIndex;
+        const isActive = idx === c.currentStageIndex;
+        const statusClass = isActive ? 'active' : isCompleted ? 'completed' : '';
+
+        return `
+          <div class="stepper-item ${statusClass}">
+            <div class="stepper-node">
+              ${isCompleted ? '<i class="fa-solid fa-check"></i>' : (idx + 1)}
+            </div>
+            <span class="stepper-label">${stage}</span>
+          </div>
+        `;
+      }).join('<div class="stepper-line"></div>');
+    }
   }
 }
 
@@ -1701,20 +1714,36 @@ function renderAiInsight(ai) {
   const factorsList = document.getElementById('dashAiFactors');
   const notConsideredEl = document.getElementById('dashAiNotConsidered');
   const confidenceEl = document.getElementById('dashAiConfidence');
-  const sourceEl = document.getElementById('dashAiSource');
+  const viewBtn = document.getElementById('viewFullInsightBtn');
 
   if (quoteEl) quoteEl.textContent = `"${ai.quote}"`;
   if (reasonEl) reasonEl.textContent = ai.why || ai.reason;
   if (notConsideredEl) notConsideredEl.textContent = ai.notConsidered;
-  if (confidenceEl) confidenceEl.textContent = ai.confidence;
-  if (sourceEl) sourceEl.textContent = ai.source;
+  if (confidenceEl) confidenceEl.textContent = "Based on Ghana agricultural guidance";
 
-  if (factorsList && ai.basedOn) {
-    factorsList.innerHTML = ai.basedOn.map(factor => `
+  if (factorsList) {
+    const factors = [
+      `Your ${ai.cropName || 'crop'}`,
+      `Your planting date`,
+      `Current weather`,
+      `Rain forecast`
+    ];
+    factorsList.innerHTML = factors.map(factor => `
       <li>
         <i class="fa-solid fa-check-circle" style="color: #16a34a;"></i>
         <span>${factor}</span>
       </li>
     `).join('');
+  }
+
+  if (viewBtn) {
+    viewBtn.onclick = () => {
+      const modal = document.getElementById('insightModal');
+      const modalSummary = document.getElementById('modalSummaryText');
+      if (modalSummary) {
+        modalSummary.textContent = `Cropie checks your ${ai.cropName || 'crop'}, planting date and local weather forecast to give you clear farm advice. ${ai.why || ''}`;
+      }
+      if (modal) modal.classList.add('open');
+    };
   }
 }

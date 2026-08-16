@@ -462,19 +462,19 @@ export class CropieDataService {
         if (curWeather && curWeather.precipitation > 0) {
           weatherConditionLabel = "Active Rainfall";
           riskLevel = "high";
-          riskSummaryText = "🌧️ Active Rainfall";
+          riskSummaryText = "🌧️ Heavy rain needs attention";
           primaryAction = "Hold on with farm work and chemical spraying for now.";
           whyReason = "It is currently raining. Wait for the rain to stop before putting fertilizer or chemicals on your farm.";
         } else if (rainProb >= 50 || rainMm > 5) {
           weatherConditionLabel = "Rainfall Risk";
           riskLevel = "medium";
-          riskSummaryText = "🟡 Rainfall Risk";
+          riskSummaryText = "🟡 Weather needs attention";
           primaryAction = "Wait before applying fertilizer.";
-          whyReason = "Rain is coming soon. Applying fertilizer now may wash some of it away before your crops can use it.";
+          whyReason = "Rain is expected soon. Applying fertilizer now may wash some of it away before your crops can use it.";
         } else if (temp > 32) {
           weatherConditionLabel = "Heat Stress Risk";
           riskLevel = "medium";
-          riskSummaryText = "🟠 Heat Stress Risk";
+          riskSummaryText = "🟠 Hot weather needs attention";
           primaryAction = "Keep an eye on field moisture and shade young plants if needed.";
           whyReason = "The sun is very hot today (over 32°C). High heat can dry out soil quickly and make your crop thirsty.";
         } else {
@@ -489,7 +489,7 @@ export class CropieDataService {
         if (rainMm > 15 || (todayForecast.precipitation > 15)) {
           weatherConditionLabel = "Waterlogging Risk";
           riskLevel = "high";
-          riskSummaryText = "🌧️ Heavy Rain / Waterlogging Risk";
+          riskSummaryText = "🌧️ Heavy rain needs attention";
           primaryAction = "Clear water pathways so rain can flow away from your cassava roots.";
           whyReason = "Heavy rain can flood low areas and cause cassava roots to rot.";
         } else {
@@ -504,13 +504,13 @@ export class CropieDataService {
         if (rainProb >= 60) {
           weatherConditionLabel = "Water Replenishment Opportunity";
           riskLevel = "low";
-          riskSummaryText = "🌧️ Rainfall Expected (Paddock Water Benefit)";
+          riskSummaryText = "🌧️ Rain expected soon";
           primaryAction = "Fix your field banks to catch and hold the rainwater.";
           whyReason = "Rain is coming to fill your rice field. Adjust your field edges to hold the water.";
         } else if (temp > 35) {
           weatherConditionLabel = "Heat Stress Risk";
           riskLevel = "medium";
-          riskSummaryText = "🟠 Extreme Heat Risk";
+          riskSummaryText = "🟠 Hot weather needs attention";
           primaryAction = "Keep enough water in your rice field to protect crops from the hot sun.";
           whyReason = "Very high heat can dry up water in your rice field quickly and affect grain growth.";
         } else {
@@ -525,7 +525,7 @@ export class CropieDataService {
         if (humidity > 80) {
           weatherConditionLabel = "High Humidity / Fungal Risk";
           riskLevel = "medium";
-          riskSummaryText = "💧 Fungal Disease Risk (Black Pod)";
+          riskSummaryText = "💧 High humidity needs attention";
           primaryAction = "Check your cocoa pods for dark spots and trim extra branches so air can pass through.";
           whyReason = "The air is very damp (over 80% humidity). High dampness helps black pod disease spread on cocoa.";
         } else {
@@ -540,7 +540,7 @@ export class CropieDataService {
         if (rainProb >= 60) {
           weatherConditionLabel = "Rainfall Risk";
           riskLevel = "medium";
-          riskSummaryText = "🟡 Rainfall Risk";
+          riskSummaryText = "🟡 Weather needs attention";
           primaryAction = `Check your work plan for ${cName}.`;
           whyReason = "Expected rain may interfere with chemical spraying or soil work.";
         } else {

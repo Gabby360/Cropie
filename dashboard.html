@@ -352,9 +352,9 @@
 
           <div class="ai-card-footer">
             <button class="btn btn-primary btn-insight-action" id="viewFullInsightBtn">
-              <span>View Full Insight →</span>
+              <span>Why am I seeing this advice? →</span>
             </button>
-            <span class="ai-disclaimer-note"><i class="fa-solid fa-shield-halved"></i> Built with Ghana Ministry of Agriculture guidance</span>
+            <span class="ai-disclaimer-note"><i class="fa-solid fa-shield-halved"></i> Based on Ghana agricultural guidance</span>
           </div>
         </div>
       </section>
@@ -379,7 +379,7 @@
     </div>
   </main>
 
-  <!-- AGRONOMIC INSIGHT BREAKDOWN MODAL -->
+  <!-- FARM ADVICE BREAKDOWN MODAL -->
   <div class="modal-backdrop" id="insightModal">
     <div class="modal-overlay" id="modalOverlay"></div>
     <div class="modal-window">
@@ -387,40 +387,39 @@
 
       <div class="modal-header-block">
         <div class="ai-badge-pill">
-          <i class="fa-solid fa-brain"></i>
-          <span>CROPIE INSIGHT DETAILS</span>
+          <i class="fa-solid fa-circle-question"></i>
+          <span>WHY AM I SEEING THIS ADVICE?</span>
         </div>
-        <h2 class="modal-title">Agronomic Recommendation Breakdown</h2>
-        <p class="modal-subtitle">Ejura Field • Maize (Day 62 Estimated Flowering Stage)</p>
+        <h2 class="modal-title" id="modalAdviceTitle">Why am I seeing this advice?</h2>
+        <p class="modal-subtitle" id="modalAdviceSubtitle">Based on your crop, planting date, and local weather forecast.</p>
       </div>
 
       <div class="modal-body-content">
         <div class="modal-summary-box">
           <i class="fa-solid fa-circle-info" style="color: #16a34a; font-size: 1.2rem;"></i>
-          <p>Cropie combined weather forecast data (68% rain chance) with your planting date calculation (Day 62 flowering stage) to guide your daily farm decision.</p>
+          <p id="modalSummaryText">Cropie checks your crop type, planting date, and local weather to generate personalized farm advice.</p>
         </div>
 
-        <ul class="modal-reasoning-list">
+        <ul class="modal-reasoning-list" id="modalReasoningList">
           <li class="reasoning-card">
             <div class="reasoning-icon recommended">
-              <i class="fa-solid fa-droplet-slash"></i>
+              <i class="fa-solid fa-seedling"></i>
             </div>
             <div class="reasoning-content">
-              <strong>Irrigation Action: Review Plan</strong>
-              <p>Natural rain is expected within the next 4 hours. Supplemental irrigation today is unnecessary and risks root waterlogging.</p>
+              <strong>Crop & Planting Date</strong>
+              <p>Your crop growth stage is estimated from your planting date and normal crop growth periods.</p>
             </div>
           </li>
 
           <li class="reasoning-card">
             <div class="reasoning-icon warning">
-              <i class="fa-solid fa-ban"></i>
+              <i class="fa-solid fa-cloud-showers-heavy"></i>
             </div>
             <div class="reasoning-content">
-              <strong>Input Protection: Postpone Fertilizer</strong>
-              <p>Delay granular Nitrogen top-dressing until heavy rain subsides to prevent fertilizer washout into field runoff.</p>
+              <strong>Weather Conditions</strong>
+              <p>Live weather forecast data indicates expected rain or temperature conditions for your farm location.</p>
             </div>
           </li>
-
         </ul>
       </div>
 

@@ -96,7 +96,7 @@ export class CropieAssistantService {
 
     switch (category) {
       case 'identity':
-        responseText = `I'm Cropie, your AI agricultural assistant tailored for farming in Ghana! I combine live satellite weather telemetry with agronomic guidelines to provide real-time recommendations on crop health, fertilizer timing, rain sensitivity, and pest management. How can I assist your farm today?`;
+        responseText = `I'm Cropie, your AI farm assistant for Ghana! I combine live weather forecasts with Ministry of Agriculture guidelines to provide real-time recommendations on crop care, fertilizer timing, rain alerts, and pest management. How can I assist your farm today?`;
         break;
 
       case 'help':
