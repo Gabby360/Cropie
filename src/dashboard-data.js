@@ -257,12 +257,12 @@ export class CropieDataService {
     let locationName = null;
     let source = "unresolved";
 
-    // Tier 1: Active farm object passed directly
+    // Tier 1: Active farm object passed directly (with valid numeric latitude & longitude)
     if (customFarm) {
-      if (customFarm.latitude !== undefined && customFarm.latitude !== null && !isNaN(parseFloat(customFarm.latitude))) {
+      if (customFarm.latitude !== undefined && customFarm.latitude !== null && Number.isFinite(parseFloat(customFarm.latitude))) {
         lat = parseFloat(customFarm.latitude);
       }
-      if (customFarm.longitude !== undefined && customFarm.longitude !== null && !isNaN(parseFloat(customFarm.longitude))) {
+      if (customFarm.longitude !== undefined && customFarm.longitude !== null && Number.isFinite(parseFloat(customFarm.longitude))) {
         lng = parseFloat(customFarm.longitude);
       }
       if (customFarm.locationName || customFarm.location) {
@@ -275,7 +275,7 @@ export class CropieDataService {
     if ((lat === null || lng === null) && this.data.headerInfo) {
       const hLat = this.data.headerInfo.latitude;
       const hLng = this.data.headerInfo.longitude;
-      if (hLat !== undefined && hLat !== null && !isNaN(parseFloat(hLat)) && hLng !== undefined && hLng !== null && !isNaN(parseFloat(hLng))) {
+      if (hLat !== undefined && hLat !== null && Number.isFinite(parseFloat(hLat)) && hLng !== undefined && hLng !== null && Number.isFinite(parseFloat(hLng))) {
         lat = parseFloat(hLat);
         lng = parseFloat(hLng);
         source = "header_info_gps";
@@ -291,7 +291,7 @@ export class CropieDataService {
         const savedStr = localStorage.getItem('cropie_active_farm');
         if (savedStr) {
           const parsed = JSON.parse(savedStr);
-          if (parsed && parsed.latitude !== undefined && parsed.latitude !== null && !isNaN(parseFloat(parsed.latitude)) && parsed.longitude !== undefined && parsed.longitude !== null && !isNaN(parseFloat(parsed.longitude))) {
+          if (parsed && parsed.latitude !== undefined && parsed.latitude !== null && Number.isFinite(parseFloat(parsed.latitude)) && parsed.longitude !== undefined && parsed.longitude !== null && Number.isFinite(parseFloat(parsed.longitude))) {
             lat = parseFloat(parsed.latitude);
             lng = parseFloat(parsed.longitude);
             source = "local_active_farm_gps";
@@ -311,7 +311,7 @@ export class CropieDataService {
           const farms = JSON.parse(savedFarmsStr);
           if (Array.isArray(farms) && farms.length > 0) {
             const f0 = farms[0];
-            if (f0 && f0.latitude !== undefined && f0.latitude !== null && !isNaN(parseFloat(f0.latitude)) && f0.longitude !== undefined && f0.longitude !== null && !isNaN(parseFloat(f0.longitude))) {
+            if (f0 && f0.latitude !== undefined && f0.latitude !== null && Number.isFinite(parseFloat(f0.latitude)) && f0.longitude !== undefined && f0.longitude !== null && Number.isFinite(parseFloat(f0.longitude))) {
               lat = parseFloat(f0.latitude);
               lng = parseFloat(f0.longitude);
               source = "local_farms_list_gps";
@@ -328,22 +328,22 @@ export class CropieDataService {
     if ((lat === null || lng === null) && locationName && this.weatherService && typeof this.weatherService.geocodeLocation === 'function') {
       try {
         const geoRes = await this.weatherService.geocodeLocation(locationName);
-        if (geoRes && geoRes.lat !== undefined && geoRes.lon !== undefined) {
+        if (geoRes && geoRes.lat !== undefined && geoRes.lon !== undefined && Number.isFinite(parseFloat(geoRes.lat)) && Number.isFinite(parseFloat(geoRes.lon))) {
           lat = parseFloat(geoRes.lat);
           lng = parseFloat(geoRes.lon);
-          source = "dynamic_geocoded_location_name";
+          source = geoRes.locationSource || "dynamic_geocoded_location_name";
         }
       } catch (gErr) {
         console.warn("[CROPIE DYNAMIC GEOCODE NOTICE]", gErr);
       }
     }
 
-    // Diagnostic Location Resolution Log
-    console.log("[CROPIE LOCATION RESOLUTION]", {
-      source: source,
+    // Mandatory Diagnostic Location Resolution Log
+    console.log("[CROPIE WEATHER LOCATION]", {
       latitude: lat,
       longitude: lng,
-      locationName: locationName
+      locationName: locationName,
+      source: source
     });
 
     return {
@@ -356,18 +356,13 @@ export class CropieDataService {
 
   async getCanonicalWeather(customFarm = null) {
     if (this.data.weather && this.data.weather.temp && this.data.weather.temp !== 'Not available' && this.data.weather.isAvailable) {
-      console.log("[CROPIE CANONICAL WEATHER STATE]", this.data.weather);
+      console.log("[CROPIE CANONICAL WEATHER]", this.data.weather);
       return this.data.weather;
     }
 
     const resolvedLoc = await this.resolveFarmLocation(customFarm);
 
     if (resolvedLoc.latitude !== null && resolvedLoc.longitude !== null && this.weatherService) {
-      console.log("[CROPIE CHAT WEATHER REQUEST]", {
-        latitude: resolvedLoc.latitude,
-        longitude: resolvedLoc.longitude
-      });
-
       try {
         const weatherData = await this.weatherService.getWeatherForFarm({
           latitude: resolvedLoc.latitude,
@@ -375,21 +370,27 @@ export class CropieDataService {
           locationName: resolvedLoc.locationName || 'Farm Location'
         });
 
-        console.log("[CROPIE CHAT WEATHER RESPONSE]", weatherData);
-
         this.applyOpenMeteoWeather(weatherData);
 
-        console.log("[CROPIE CANONICAL WEATHER STATE]", this.data.weather);
+        console.log("[CROPIE CANONICAL WEATHER]", this.data.weather);
 
         return this.data.weather;
       } catch (wErr) {
-        console.error("[CROPIE CHAT WEATHER ERROR]", wErr);
+        console.error("[CROPIE WEATHER ERROR]", {
+          stage: "canonical_weather_fetch",
+          message: wErr.message,
+          coordinates: { latitude: resolvedLoc.latitude, longitude: resolvedLoc.longitude }
+        });
       }
     } else {
-      console.error("[CROPIE CHAT WEATHER ERROR]", new Error("No valid coordinates or location name found to request Open-Meteo weather."));
+      console.error("[CROPIE WEATHER ERROR]", {
+        stage: "location_resolution",
+        message: "No valid GPS coordinates or geocodable location name found.",
+        coordinates: null
+      });
     }
 
-    console.log("[CROPIE CANONICAL WEATHER STATE]", this.data.weather);
+    console.log("[CROPIE CANONICAL WEATHER]", this.data.weather);
     return this.data.weather;
   }
 

@@ -56,26 +56,30 @@ export class CropieWeatherService {
     const q = locationQuery.toLowerCase().trim();
 
     const ghanaPresetMap = {
-      'laterbiokorshie': { name: 'Laterbiokorshie, Accra, Ghana', lat: 5.5492, lon: -0.2315 },
-      'laterbiokershie': { name: 'Laterbiokorshie, Accra, Ghana', lat: 5.5492, lon: -0.2315 },
-      'accra': { name: 'Accra, Greater Accra, Ghana', lat: 5.5593, lon: -0.1974 },
-      'dansoman': { name: 'Dansoman, Accra, Ghana', lat: 5.5526, lon: -0.2524 },
-      'madina': { name: 'Madina, Accra, Ghana', lat: 5.6681, lon: -0.1663 },
-      'east legon': { name: 'East Legon, Accra, Ghana', lat: 5.6358, lon: -0.1601 },
-      'spintex': { name: 'Spintex, Accra, Ghana', lat: 5.6268, lon: -0.1147 },
-      'kasoa': { name: 'Kasoa, Central Region, Ghana', lat: 5.5344, lon: -0.4168 },
-      'kumasi': { name: 'Kumasi, Ashanti Region, Ghana', lat: 6.6885, lon: -1.6244 },
-      'ejura': { name: 'Ejura, Ashanti Region, Ghana', lat: 7.3824, lon: -1.3621 },
-      'tamale': { name: 'Tamale, Northern Region, Ghana', lat: 9.4008, lon: -0.8393 },
-      'koforidua': { name: 'Koforidua, Eastern Region, Ghana', lat: 6.0941, lon: -0.2591 },
-      'sunyani': { name: 'Sunyani, Bono Region, Ghana', lat: 7.3349, lon: -2.3123 },
-      'cape coast': { name: 'Cape Coast, Central Region, Ghana', lat: 5.1053, lon: -1.2466 },
-      'ho': { name: 'Ho, Volta Region, Ghana', lat: 6.6008, lon: 0.4713 },
-      'takoradi': { name: 'Takoradi, Western Region, Ghana', lat: 4.9016, lon: -1.7831 },
-      'tema': { name: 'Tema, Greater Accra, Ghana', lat: 5.6698, lon: -0.0166 },
-      'wa': { name: 'Wa, Upper West Region, Ghana', lat: 10.0601, lon: -2.5099 },
-      'bolgatanga': { name: 'Bolgatanga, Upper East Region, Ghana', lat: 10.7856, lon: -0.8514 },
-      'techiman': { name: 'Techiman, Bono East Region, Ghana', lat: 7.5828, lon: -1.9395 }
+      'lartebiokoshie': { name: 'Lartebiokoshie, Accra, Ghana', lat: 5.5492, lon: -0.2315, locationSource: 'verified_preset' },
+      'lartebiokorshie': { name: 'Lartebiokoshie, Accra, Ghana', lat: 5.5492, lon: -0.2315, locationSource: 'verified_preset' },
+      'laterbiokorshie': { name: 'Laterbiokorshie, Accra, Ghana', lat: 5.5492, lon: -0.2315, locationSource: 'verified_preset' },
+      'laterbiokershie': { name: 'Laterbiokorshie, Accra, Ghana', lat: 5.5492, lon: -0.2315, locationSource: 'verified_preset' },
+      'larterbiokorshie': { name: 'Lartebiokoshie, Accra, Ghana', lat: 5.5492, lon: -0.2315, locationSource: 'verified_preset' },
+      'lartebiokorcie': { name: 'Lartebiokoshie, Accra, Ghana', lat: 5.5492, lon: -0.2315, locationSource: 'verified_preset' },
+      'accra': { name: 'Accra, Greater Accra, Ghana', lat: 5.5593, lon: -0.1974, locationSource: 'verified_preset' },
+      'dansoman': { name: 'Dansoman, Accra, Ghana', lat: 5.5526, lon: -0.2524, locationSource: 'verified_preset' },
+      'madina': { name: 'Madina, Accra, Ghana', lat: 5.6681, lon: -0.1663, locationSource: 'verified_preset' },
+      'east legon': { name: 'East Legon, Accra, Ghana', lat: 5.6358, lon: -0.1601, locationSource: 'verified_preset' },
+      'spintex': { name: 'Spintex, Accra, Ghana', lat: 5.6268, lon: -0.1147, locationSource: 'verified_preset' },
+      'kasoa': { name: 'Kasoa, Central Region, Ghana', lat: 5.5344, lon: -0.4168, locationSource: 'verified_preset' },
+      'kumasi': { name: 'Kumasi, Ashanti Region, Ghana', lat: 6.6885, lon: -1.6244, locationSource: 'verified_preset' },
+      'ejura': { name: 'Ejura, Ashanti Region, Ghana', lat: 7.3824, lon: -1.3621, locationSource: 'verified_preset' },
+      'tamale': { name: 'Tamale, Northern Region, Ghana', lat: 9.4008, lon: -0.8393, locationSource: 'verified_preset' },
+      'koforidua': { name: 'Koforidua, Eastern Region, Ghana', lat: 6.0941, lon: -0.2591, locationSource: 'verified_preset' },
+      'sunyani': { name: 'Sunyani, Bono Region, Ghana', lat: 7.3349, lon: -2.3123, locationSource: 'verified_preset' },
+      'cape coast': { name: 'Cape Coast, Central Region, Ghana', lat: 5.1053, lon: -1.2466, locationSource: 'verified_preset' },
+      'ho': { name: 'Ho, Volta Region, Ghana', lat: 6.6008, lon: 0.4713, locationSource: 'verified_preset' },
+      'takoradi': { name: 'Takoradi, Western Region, Ghana', lat: 4.9016, lon: -1.7831, locationSource: 'verified_preset' },
+      'tema': { name: 'Tema, Greater Accra, Ghana', lat: 5.6698, lon: -0.0166, locationSource: 'verified_preset' },
+      'wa': { name: 'Wa, Upper West Region, Ghana', lat: 10.0601, lon: -2.5099, locationSource: 'verified_preset' },
+      'bolgatanga': { name: 'Bolgatanga, Upper East Region, Ghana', lat: 10.7856, lon: -0.8514, locationSource: 'verified_preset' },
+      'techiman': { name: 'Techiman, Bono East Region, Ghana', lat: 7.5828, lon: -1.9395, locationSource: 'verified_preset' }
     };
 
     // Strict word boundary matching so 'ho' doesn't match 'who' or 'wa' match 'swap'
@@ -98,7 +102,8 @@ export class CropieWeatherService {
           return {
             name: `${gh.name}, ${region}${country}`,
             lat: parseFloat(gh.latitude),
-            lon: parseFloat(gh.longitude)
+            lon: parseFloat(gh.longitude),
+            locationSource: 'open_meteo_geocoding_api'
           };
         }
       }
@@ -154,13 +159,41 @@ export class CropieWeatherService {
     });
 
     const url = `${this.BASE_URL}?${params.toString()}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Open-Meteo API HTTP error ${response.status}`);
-    }
 
-    const data = await response.json();
-    return this.normalizeWeatherData(data, latitude, longitude, farmLocationName);
+    // Mandatory Diagnostic Open-Meteo Request Log
+    console.log("[CROPIE OPEN METEO REQUEST]", {
+      url: url,
+      latitude: latitude,
+      longitude: longitude,
+      locationName: farmLocationName
+    });
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Open-Meteo API HTTP error ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Mandatory Diagnostic Open-Meteo Raw Response Log
+      console.log("[CROPIE OPEN METEO RESPONSE]", {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        current: data.current,
+        daily: data.daily ? { maxTemp: data.daily.temperature_2m_max, minTemp: data.daily.temperature_2m_min, rainProb: data.daily.precipitation_probability_max } : null
+      });
+
+      return this.normalizeWeatherData(data, latitude, longitude, farmLocationName);
+
+    } catch (err) {
+      console.error("[CROPIE WEATHER ERROR]", {
+        stage: "open_meteo_http_fetch",
+        message: err.message,
+        coordinates: { latitude, longitude }
+      });
+      throw err;
+    }
   }
 
   // Normalize Open-Meteo raw JSON into Cropie standard weather object
@@ -239,7 +272,7 @@ export class CropieWeatherService {
 
     const latNum = parseFloat(farm.latitude);
     const lngNum = parseFloat(farm.longitude);
-    if (isNaN(latNum) || isNaN(lngNum)) {
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
       throw new Error('Invalid farm location coordinates.');
     }
 
