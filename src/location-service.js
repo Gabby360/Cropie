@@ -249,13 +249,40 @@ export class CropieLocationService {
         this.mapInstance = new maps.Map(containerEl, mapOptions);
         this.mapType = 'google';
 
+        // Create Custom Cropie Green Pin SVG Icon for Google Maps
+        const cropieGreenSvgIcon = {
+          url: `data:image/svg+xml;utf8,${encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="58" viewBox="0 0 48 58">
+              <filter id="sdw" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.4"/>
+              </filter>
+              <g filter="url(#sdw)">
+                <path d="M24 0C10.748 0 0 10.748 0 24c0 18 24 34 24 34s24-16 24-34C48 10.748 37.252 0 24 0z" fill="#16a34a"/>
+                <path d="M24 3C12.402 3 3 12.402 3 24c0 15.5 21 30 21 30s21-14.5 21-30C45 12.402 35.598 3 24 3z" fill="#15803d"/>
+                <circle cx="24" cy="22" r="11" fill="#ffffff"/>
+                <path d="M24 15c-3.866 0-7 3.134-7 7 0 5.25 7 12 7 12s7-6.75 7-12c0-3.866-3.134-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#15803d"/>
+              </g>
+            </svg>
+          `)}`,
+          scaledSize: new maps.Size(48, 58),
+          anchor: new maps.Point(24, 58)
+        };
+
         this.markerInstance = new maps.Marker({
           position: { lat: initialLat, lng: initialLng },
           map: this.mapInstance,
+          icon: cropieGreenSvgIcon,
           draggable: true,
           animation: maps.Animation.DROP,
-          title: 'Your Farm Location (Drag pin to adjust)'
+          title: '📍 Your Farm Location (Drag pin to adjust)'
         });
+
+        // Add Marker Info Label Badge
+        const infoWindow = new maps.InfoWindow({
+          content: `<div style="font-weight: 800; font-family: sans-serif; font-size: 13px; color: #166534; padding: 2px 4px;">📍 Your Farm Location</div>`,
+          disableAutoPan: true
+        });
+        infoWindow.open(this.mapInstance, this.markerInstance);
 
         maps.event.addListener(this.markerInstance, 'dragend', () => {
           const pos = this.markerInstance.getPosition();
@@ -301,9 +328,25 @@ export class CropieLocationService {
         attribution: '© OpenStreetMap contributors | Cropie Farm Maps'
       }).addTo(map);
 
+      // Custom Cropie Green Pin DivIcon for Leaflet
+      const cropieDivIcon = L.divIcon({
+        className: 'cropie-leaflet-custom-pin',
+        html: `
+          <div class="cropie-pin-wrapper">
+            <div class="cropie-pin-badge">📍 Your Farm Location</div>
+            <div class="cropie-pin-circle">
+              <i class="fa-solid fa-location-dot"></i>
+            </div>
+          </div>
+        `,
+        iconSize: [120, 75],
+        iconAnchor: [60, 75]
+      });
+
       const marker = L.marker([initialLat, initialLng], {
+        icon: cropieDivIcon,
         draggable: true,
-        title: 'Your Farm Location (Drag pin to adjust)'
+        title: '📍 Your Farm Location (Drag pin to adjust)'
       }).addTo(map);
 
       marker.on('dragend', () => {

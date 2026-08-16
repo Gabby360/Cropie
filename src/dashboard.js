@@ -885,7 +885,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     dashLocationCardWrapper.innerHTML = `
       <div class="location-status-card">
         <div class="location-card-header">
-          <span>📍 Farm Location</span>
+          <span>📍 Selected Farm Location</span>
         </div>
         <div class="location-name-title">${escapeHtml(locationName)}</div>
         ${accHTML}
@@ -901,17 +901,17 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
           </div>
         </div>
 
-        <p style="font-size: 0.85rem; color: #4b5563; margin-bottom: 0.85rem;">
-          <i class="fa-solid fa-hand-pointer" style="color: #16a34a; margin-right: 0.35rem;"></i>
-          Click or drag the marker on the map to adjust your farm's exact location.
-        </p>
+        <div class="map-instruction-tag">
+          <i class="fa-solid fa-hand-pointer" style="color: #16a34a;"></i>
+          <span>📍 Move the pin to your farm's exact location</span>
+        </div>
 
         <div class="location-card-actions">
           <button type="button" class="btn btn-primary btn-sm" id="dashConfirmFarmLocBtn">
             <i class="fa-solid fa-check" style="margin-right: 0.3rem;"></i> Confirm Farm Location
           </button>
           <button type="button" class="btn btn-outline-hero btn-sm" id="dashMovePinBtn">
-            <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Move Pin
+            <i class="fa-solid fa-arrows-up-down-left-right" style="margin-right: 0.3rem;"></i> Adjust Pin Position
           </button>
         </div>
       </div>

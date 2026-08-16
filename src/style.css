@@ -5505,16 +5505,16 @@ html, body {
 
 .google-map-canvas {
   width: 100%;
-  height: 380px;
-  min-height: 320px;
+  height: 460px;
+  min-height: 380px;
   border-radius: var(--radius-xl, 16px);
   background: #e2e8f0;
 }
 
 @media (max-width: 640px) {
   .google-map-canvas {
-    height: 320px;
-    min-height: 280px;
+    height: 400px;
+    min-height: 340px;
   }
 }
 
@@ -5579,6 +5579,7 @@ html, body {
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 700;
+  margin-top: 0.75rem;
   margin-bottom: 0.85rem;
 }
 
@@ -5626,5 +5627,63 @@ html, body {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* ==========================================================================
+   CUSTOM CROPIE MAP FARM MARKER PIN
+   ========================================================================== */
+
+.cropie-leaflet-custom-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.cropie-pin-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  width: max-content;
+  transform: translate(-50%, -100%);
+  cursor: grab;
+}
+
+.cropie-pin-wrapper:active {
+  cursor: grabbing;
+}
+
+.cropie-pin-badge {
+  background: #15803d;
+  color: #ffffff;
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  border: 2px solid #ffffff;
+  margin-bottom: 3px;
+  letter-spacing: 0.02em;
+}
+
+.cropie-pin-circle {
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(135deg, #22c55e, #15803d);
+  border: 3px solid #ffffff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(6, 78, 59, 0.4);
+}
+
+.cropie-pin-circle i {
+  transform: rotate(45deg);
+  color: #ffffff;
+  font-size: 1.3rem;
+}
+
 
 
