@@ -86,7 +86,9 @@ export class CropieAssistantService {
       .replace(/\brhsi\b|\bthsi\b|\btish\b/gi, 'this')
       .replace(/\bwether\b|\bwather\b|\bweathr\b/gi, 'weather')
       .replace(/\bfertlizer\b|\bfert\b|\bfertilzer\b/gi, 'fertilizer')
-      .replace(/\bpeste\b|\bpesticid\b|\bpsts\b/gi, 'pest');
+      .replace(/\bpeste\b|\bpesticid\b|\bpsts\b/gi, 'pest')
+      .replace(/\bchck\b|\bchek\b/gi, 'check')
+      .replace(/\bthst\b|\btht\b/gi, 'that');
 
     const qLower = qRaw;
     const langCode = (selectedLanguage || 'eng').toLowerCase();
@@ -128,9 +130,9 @@ export class CropieAssistantService {
     // 3. Classify intent using distinct category patterns and conversation memory
     let category = 'unknown';
 
-    const isFollowupTrigger = /\b(more|tell me more|explain more|expand|detail|details|how|oh how|how so|how to do it|how do i apply|how to apply|how to treat|why|why is that|why wait|why so|when|when can i apply|what next|then what|really|really\?|are you sure|seriously|for real|is that true|what about tomorrow\??|what about tomorrow|and tomorrow\??|tomorrow\??|next week|recommend|recommendation|what do you recommend|what should i do|at what time|what time|hmm|oh|oh okay|okay|ok|alright|i see|and\?|then\?|what do you mean\??)\b/i.test(qLower);
+    const isFollowupTrigger = /\b(more|tell me more|explain more|expand|detail|details|how|oh how|how so|how to do it|how do i apply|how to apply|how to treat|why|why is that|why wait|why so|when|when can i apply|what next|then what|really|really\?|are you sure|seriously|for real|is that true|are you serious|are u serious|what about tomorrow\??|what about tomorrow|and tomorrow\??|tomorrow\??|next week|recommend|recommendation|what do you recommend|what should i do|at what time|what time|hmm|oh|oh okay|okay|ok|alright|i see|and\?|then\?|what do you mean\??)\b/i.test(qLower);
 
-    const isFarmOverviewPattern = /\b(what is happening|what's happening|what is going on|what's going on|how is my farm|how is my maize|how is my cassava|how is my crop|current state|state of my farm|check my farm|farm update|farm report|farm summary|tell me about my farm|give me an update|give me my farm update|use the data on the site|use my farm data|use the information on my dashboard|based on my farm|look at my farm|site data|what is happening today|what is happening now|what's happening today|what is happening with my crops)\b/i.test(qLower);
+    const isFarmOverviewPattern = /\b(what is happening|what's happening|what is going on|what's going on|how is my farm|how is my maize|how is my cassava|how is my crop|current state|state of my farm|check my farm|farm update|farm report|farm summary|tell me about my farm|give me an update|give me my farm update|use the data on the site|use my farm data|use the information on my dashboard|based on my farm|look at my farm|site data|what is happening today|what is happening now|what's happening today|what is happening with my crops|check the system|check system|read the info from the site|read info from the site|read the info|read info|read site data|check site data)\b/i.test(qLower);
 
     const isTodayActionPattern = /\b(advise me on my farm|advice me on my farm|give me advice|give me farm advice|what advice do you have|what should i do|what should i do today|what should i do on my farm|what should i do on the farm|what do you advise|what do you recommend|recommend something for my farm|recommend|help me with my farm|what should i work on today|what do i need to do today|what should i watch|anything i should know|what should i do now|today's advice|advice for today)\b/i.test(qLower);
 
@@ -331,8 +333,8 @@ export class CropieAssistantService {
       return `Alright 👍. I'm ready whenever you want to check your crops, weather, or farm advice.`;
     }
 
-    // Really / Are you sure
-    if (/\b(really|really\?|are you sure|seriously|for real|is that true)\b/i.test(qLower)) {
+    // Really / Are you sure / Are you serious
+    if (/\b(really|really\?|are you sure|seriously|for real|is that true|are you serious|are u serious)\b/i.test(qLower)) {
       if (lastA.includes('not provided') || lastA.includes('missing') || lastA.includes('not set') || lastA.includes('don\'t have')) {
         return `Yes. That's based on the information currently available on your Cropie account. I don't want to guess about information that hasn't been provided.`;
       }
