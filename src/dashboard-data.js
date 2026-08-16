@@ -239,7 +239,7 @@ export const AGRICULTURAL_RULE_LIBRARY = [
 export const initialDashboardData = {
   headerInfo: {
     farmName: "My Farm",
-    location: "Set your farm location to see local weather",
+    location: null,
     gps: "",
     statusLabel: "Open-Meteo Live API",
     lastUpdatedText: "Pending farm location",
