@@ -1243,35 +1243,54 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       if (vlcSendBtn) vlcSendBtn.style.display = 'inline-flex';
     };
 
-    if (vlcClearBtn && vlcEditableCaption) {
-      vlcClearBtn.addEventListener('click', () => {
+    // Global Window Controls for voice overlay buttons (ensuring HTML onclick always works!)
+    window.stopCropieVoiceRecording = function(shouldSubmit = true) {
+      if (currentRecognition) { try { currentRecognition.stop(); } catch {} }
+      if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') { try { currentMediaRecorder.stop(); } catch {} }
+      if (globalMediaRecorder) { try { if (typeof globalMediaRecorder.stop === 'function') globalMediaRecorder.stop(); } catch {} }
+      const textCaptured = vlcEditableCaption ? vlcEditableCaption.value.trim() : '';
+      const selectedCode = langSelect ? langSelect.value : 'eng';
+      setVoiceStateReview(textCaptured || 'Should I apply fertilizer to my maize today?', selectedCode);
+    };
+
+    window.cancelCropieVoiceRecording = function() {
+      if (currentRecognition) { try { if (typeof currentRecognition.abort === 'function') currentRecognition.abort(); else currentRecognition.stop(); } catch {} }
+      if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') { try { currentMediaRecorder.stop(); } catch {} }
+      if (globalMediaRecorder) { try { if (typeof globalMediaRecorder.abort === 'function') globalMediaRecorder.abort(); else globalMediaRecorder.stop(); } catch {} }
+      if (vlcCard) vlcCard.style.display = 'none';
+      setAssistantMode('type');
+    };
+
+    window.submitCropieVoiceCaption = function() {
+      const textToSend = vlcEditableCaption ? vlcEditableCaption.value.trim() : '';
+      const selectedCode = langSelect ? langSelect.value : 'eng';
+      if (!textToSend) {
+        if (vlcStatusText) vlcStatusText.textContent = activeAssistant.getNoSpeechMessage(selectedCode);
+        return;
+      }
+      if (vlcCard) vlcCard.style.display = 'none';
+      setAssistantMode('type');
+      handleUserQuestion(textToSend);
+    };
+
+    window.clearCropieVoiceCaption = function() {
+      if (vlcEditableCaption) {
         vlcEditableCaption.value = '';
         vlcEditableCaption.focus();
-      });
-    }
+      }
+    };
 
-    if (vlcCancelBtn) {
-      vlcCancelBtn.addEventListener('click', () => {
-        if (currentRecognition) { try { currentRecognition.stop(); } catch {} }
-        if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') { try { currentMediaRecorder.stop(); } catch {} }
-        if (vlcCard) vlcCard.style.display = 'none';
-        setAssistantMode('type');
-      });
-    }
+    window.reRecordCropieVoice = function() {
+      resetVoiceCardUI();
+      if (vlcStatusText) vlcStatusText.textContent = `🔴 Listening...`;
+      if (micBtn) micBtn.click();
+    };
 
-    if (vlcSendBtn && vlcEditableCaption) {
-      vlcSendBtn.addEventListener('click', () => {
-        const textToSend = vlcEditableCaption.value.trim();
-        const selectedCode = langSelect ? langSelect.value : 'eng';
-        if (!textToSend) {
-          if (vlcStatusText) vlcStatusText.textContent = activeAssistant.getNoSpeechMessage(selectedCode);
-          return;
-        }
-        if (vlcCard) vlcCard.style.display = 'none';
-        setAssistantMode('type');
-        handleUserQuestion(textToSend);
-      });
-    }
+    if (vlcClearBtn) vlcClearBtn.addEventListener('click', window.clearCropieVoiceCaption);
+    if (vlcCancelBtn) vlcCancelBtn.addEventListener('click', window.cancelCropieVoiceRecording);
+    if (vlcSendBtn) vlcSendBtn.addEventListener('click', window.submitCropieVoiceCaption);
+    if (vlcStopBtn) vlcStopBtn.addEventListener('click', () => window.stopCropieVoiceRecording(true));
+    if (vlcSpeakAgainBtn) vlcSpeakAgainBtn.addEventListener('click', window.reRecordCropieVoice);
 
     if (micBtn) {
       micBtn.addEventListener('click', async (e) => {
@@ -1310,6 +1329,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         if (selectedCode === 'eng' && SpeechRecognition) {
           try {
             currentRecognition = new SpeechRecognition();
+            globalMediaRecorder = currentRecognition;
             currentRecognition.lang = 'en-US';
             currentRecognition.interimResults = true;
             currentRecognition.maxAlternatives = 1;
@@ -1340,20 +1360,6 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
               setVoiceStateReview(textCaptured || 'Should I apply fertilizer to my maize today?', selectedCode);
             };
 
-            if (vlcStopBtn) {
-              vlcStopBtn.onclick = () => {
-                try { currentRecognition.stop(); } catch {}
-              };
-            }
-
-            if (vlcSpeakAgainBtn) {
-              vlcSpeakAgainBtn.onclick = () => {
-                resetVoiceCardUI();
-                if (vlcStatusText) vlcStatusText.textContent = `🔴 Listening...`;
-                try { currentRecognition.start(); } catch {}
-              };
-            }
-
             currentRecognition.start();
             return;
           } catch (srErr) {
@@ -1369,6 +1375,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           currentMediaRecorder = new MediaRecorder(stream);
+          globalMediaRecorder = currentMediaRecorder;
           audioChunks = [];
 
           currentMediaRecorder.ondataavailable = (event) => {
@@ -1383,7 +1390,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
             try {
               let transcribedText = await khaya.speechToText(audioBlob, selectedCode);
-              if (!transcribedText || transcribedText.trim() === '') {
+              if (!transcribedText || !transcribedText.trim()) {
                 transcribedText = activeAssistant.getNoSpeechMessage(selectedCode);
               }
               setVoiceStateReview(transcribedText, selectedCode);
@@ -1392,22 +1399,6 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
               setVoiceStateReview(activeAssistant.getNoSpeechMessage(selectedCode), selectedCode);
             }
           };
-
-          if (vlcStopBtn) {
-            vlcStopBtn.onclick = () => {
-              if (currentMediaRecorder && currentMediaRecorder.state !== 'inactive') {
-                try { currentMediaRecorder.stop(); } catch {}
-              }
-            };
-          }
-
-          if (vlcSpeakAgainBtn) {
-            vlcSpeakAgainBtn.onclick = () => {
-              resetVoiceCardUI();
-              if (vlcStatusText) vlcStatusText.textContent = `🔴 Listening...`;
-              try { currentMediaRecorder.start(); } catch {}
-            };
-          }
 
           currentMediaRecorder.start();
 

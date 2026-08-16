@@ -603,23 +603,23 @@
 
     <!-- Action buttons for recording & confirmation -->
     <div class="vlc-actions" id="vlcActionControls">
-      <button type="button" class="vlc-btn vlc-btn-stop" id="vlcStopBtn">
+      <button type="button" class="vlc-btn vlc-btn-stop" id="vlcStopBtn" onclick="window.stopCropieVoiceRecording &amp;&amp; window.stopCropieVoiceRecording(true)">
         <i class="fa-solid fa-square"></i>
         <span>Done Speaking</span>
       </button>
-      <button type="button" class="vlc-btn vlc-btn-speak-again" id="vlcSpeakAgainBtn" style="display: none;">
+      <button type="button" class="vlc-btn vlc-btn-speak-again" id="vlcSpeakAgainBtn" style="display: none;" onclick="window.reRecordCropieVoice &amp;&amp; window.reRecordCropieVoice()">
         <i class="fa-solid fa-rotate-right"></i>
         <span>Speak Again</span>
       </button>
-      <button type="button" class="vlc-btn vlc-btn-clear" id="vlcClearBtn" style="display: none;">
+      <button type="button" class="vlc-btn vlc-btn-clear" id="vlcClearBtn" style="display: none;" onclick="window.clearCropieVoiceCaption &amp;&amp; window.clearCropieVoiceCaption()">
         <i class="fa-solid fa-trash"></i>
         <span>Clear</span>
       </button>
-      <button type="button" class="vlc-btn vlc-btn-send" id="vlcSendBtn" style="display: none;">
+      <button type="button" class="vlc-btn vlc-btn-send" id="vlcSendBtn" style="display: none;" onclick="window.submitCropieVoiceCaption &amp;&amp; window.submitCropieVoiceCaption()">
         <i class="fa-solid fa-paper-plane"></i>
         <span>Send Question</span>
       </button>
-      <button type="button" class="vlc-btn vlc-btn-cancel" id="vlcCancelBtn">
+      <button type="button" class="vlc-btn vlc-btn-cancel" id="vlcCancelBtn" onclick="window.cancelCropieVoiceRecording &amp;&amp; window.cancelCropieVoiceRecording()">
         <i class="fa-solid fa-xmark"></i>
         <span>Cancel</span>
       </button>
