@@ -1603,17 +1603,20 @@ function renderWeather(w) {
   const rainNoticeEl = document.getElementById('dashRainNotice');
   if (rainNoticeEl && w.rainNotice) {
     if (w.rainNoticeType === 'alert' || w.rainNoticeType === 'warning') {
-      rainNoticeEl.style.background = '#fef2f2';
+      rainNoticeEl.style.background = '#ffffff';
       rainNoticeEl.style.color = '#991b1b';
-      rainNoticeEl.style.borderColor = '#fecaca';
+      rainNoticeEl.style.border = '1px solid #fecaca';
+      rainNoticeEl.style.borderLeft = '4px solid #dc2626';
     } else if (w.rainNoticeType === 'clear') {
-      rainNoticeEl.style.background = '#f0fdf4';
+      rainNoticeEl.style.background = '#ffffff';
       rainNoticeEl.style.color = '#166534';
-      rainNoticeEl.style.borderColor = '#bbf7d0';
+      rainNoticeEl.style.border = '1px solid #bbf7d0';
+      rainNoticeEl.style.borderLeft = '4px solid #16a34a';
     } else {
-      rainNoticeEl.style.background = '#e0f2fe';
+      rainNoticeEl.style.background = '#ffffff';
       rainNoticeEl.style.color = '#0369a1';
-      rainNoticeEl.style.borderColor = '#bae6fd';
+      rainNoticeEl.style.border = '1px solid #bae6fd';
+      rainNoticeEl.style.borderLeft = '4px solid #0284c7';
     }
   }
 }

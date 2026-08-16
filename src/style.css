@@ -2354,10 +2354,10 @@ a {
 
 .weather-card-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .weather-card-label {
@@ -2402,14 +2402,19 @@ a {
 }
 
 .rain-forecast-badge {
-  background: #ffffff;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.85rem 1.15rem;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   border: 1px solid #ffffff;
-  color: #064e3b;
-  padding: 0.65rem 1.35rem;
-  border-radius: var(--radius-full);
-  font-size: 0.95rem;
-  font-weight: 800;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  border-left: 4px solid #16a34a;
 }
 
 .weather-metrics-subgrid {
@@ -5753,6 +5758,73 @@ html, body {
   display: flex;
   justify-content: space-between;
 }
+
+/* ==========================================================================
+   WEATHER CARD RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .weather-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .weather-hero-block .weather-main-card {
+    padding: 1.35rem 1.15rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .temp-display-row {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .temp-big-value {
+    font-size: 3.2rem;
+  }
+
+  .weather-hero-icon {
+    font-size: 2rem;
+  }
+
+  .condition-text {
+    font-size: 1.15rem;
+  }
+
+  .rain-forecast-badge {
+    padding: 0.75rem 0.95rem;
+    font-size: 0.88rem;
+    border-radius: 10px;
+    margin-top: 0.75rem;
+  }
+
+  .weather-metrics-subgrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+    margin-top: 1.25rem;
+    padding-top: 1.15rem;
+  }
+
+  .weather-subitem {
+    padding: 0.65rem 0.8rem;
+    gap: 0.6rem;
+  }
+
+  .subitem-icon {
+    font-size: 1.1rem;
+  }
+
+  .subitem-label {
+    font-size: 0.7rem;
+  }
+
+  .subitem-val {
+    font-size: 0.9rem;
+  }
+}
+
 
 
 
