@@ -1121,6 +1121,144 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     const SAVED_LANG_KEY = 'cropie_assistant_language';
     const savedLanguage = localStorage.getItem(SAVED_LANG_KEY) || 'eng';
 
+    const CHAT_UI_TRANSLATIONS = {
+      eng: {
+        cardTitle: "Ask Cropie",
+        cardSub: "Have a question about your farm?",
+        langLabel: "Language:",
+        speakBtn: "Speak",
+        typeBtn: "Type",
+        inputPlaceholder: "Ask Cropie e.g. Should I apply fertilizer today?",
+        welcomeMsg: "Hello! I'm <strong>Cropie</strong>, your AI farm assistant. Tap <strong>Speak</strong> or type any question below to check recommendations for your farm!",
+        listeningStatus: "🔴 Listening to your question...",
+        reviewStatus: "Check what I heard",
+        understandingStatus: "⏳ Understanding what you said...",
+        captionPlaceholder: "Your speech will appear here. You can edit before sending...",
+        doneSpeaking: "Done Speaking",
+        speakAgain: "Speak Again",
+        clear: "Clear",
+        sendQuestion: "Send Question",
+        cancel: "Cancel",
+        thinkingMsg: "Thinking & checking farm information...",
+        noSpeechMsg: "I couldn't hear anything. Please try again.",
+        unsupportedVoice: "Voice recognition is not currently available for this language. Text chat is active.",
+        prompts: [
+          "🌧️ Will rain affect my farm today?",
+          "🌱 How is my crop doing in its growth stage?",
+          "🌾 What should I do for my farm today?",
+          "☔ Should I apply fertilizer to my farm today?"
+        ]
+      },
+      twi: {
+        cardTitle: "Bisa Cropie",
+        cardSub: "Wɔ nsɛmmisa bi fa wo afuo ho?",
+        langLabel: "Kasa:",
+        speakBtn: "Kasa",
+        typeBtn: "Twerɛ",
+        inputPlaceholder: "Bisa Cropie e.g. Mɛgu fertilizer nnɛ?",
+        welcomeMsg: "Akwaaba! Me yɛ <strong>Cropie</strong>, wo afuo AI boafoɔ. Mia <strong>Kasa</strong> anaa twerɛ wo nsɛmmisa wɔ aseɛ ha!",
+        listeningStatus: "🔴 Me retie wo nsɛmmisa...",
+        reviewStatus: "Sɔ hwɛ deɛ meteewɛ",
+        understandingStatus: "⏳ Me rete deɛ wokaaeɛ aseɛ...",
+        captionPlaceholder: "Wo kasa bɛda ha. Wotumi siesie ansa wamane...",
+        doneSpeaking: "Mewie Kasa",
+        speakAgain: "Kasa Bio",
+        clear: "Popa",
+        sendQuestion: "Mane Nsɛmmisa",
+        cancel: "Twagya",
+        thinkingMsg: "Me redwen ne me resɔ afuo nsɛm hwɛ...",
+        noSpeechMsg: "Mante hwee. Mepɛ sɛ wosɔ anomu bio.",
+        unsupportedVoice: "Kasa nne nni ha ma kasa yi. Wotumi twerɛ wo nsɛmmisa.",
+        prompts: [
+          "🌧️ Nsuo bɛtɔ wɔ me afuo so nnɛ?",
+          "🌱 Me nnɔbaeɛ mpuntuo tebea te sɛn?",
+          "🌾 Mɛni na ɛsɛ sɛ meye wɔ me afuo so nnɛ?",
+          "☔ Mɛgu fertilizer wɔ me afuo so nnɛ?"
+        ]
+      },
+      ewe: {
+        cardTitle: "Bia Cropie",
+        cardSub: "Èdi be yeabia nu le wò agble ŋu?",
+        langLabel: "Gbe:",
+        speakBtn: "Fo nu",
+        typeBtn: "Ŋlɔ nu",
+        inputPlaceholder: "Bia Cropie e.g. Maɖo duu egbea?",
+        welcomeMsg: "Woezɔ! Nye wnye <strong>Cropie</strong>, wò agble AI kpekpedenuwola. Zi <strong>Fo nu</strong> alo ŋlɔ wò biabia ɖe ete!",
+        listeningStatus: "🔴 Mele to ɖom wò biabia...",
+        reviewStatus: "Kpɔ nu si mese",
+        understandingStatus: "⏳ Mele egme se m...",
+        captionPlaceholder: "Wò nyawo adze afi. Ètẽ ŋu aɖɔe ɖo hafi aɖoe...",
+        doneSpeaking: "Mewu nu fo",
+        speakAgain: "Gba fo nu",
+        clear: "Tutu",
+        sendQuestion: "Ɖo biabia",
+        cancel: "Tutu eɖo",
+        thinkingMsg: "Mele nu bu m kple agble nyãwo kpɔ m...",
+        noSpeechMsg: "Mese naneke o. Miagba ase.",
+        unsupportedVoice: "Gbe fofo mele gbe sia dzi o. Ètẽ ŋu aŋlɔ nu.",
+        prompts: [
+          "🌧️ Tsidza agbe me agble egbea?",
+          "🌱 Aleke nye nuku le tsitsim?",
+          "🌾 Nu ka wòle be mawɔ le agble dzi egbea?",
+          "☔ Maɖo duu egbea?"
+        ]
+      },
+      gaa: {
+        cardTitle: "Biam Cropie",
+        cardSub: "O-yɛ sane faa o-ŋmɔɔ he?",
+        langLabel: "Gbei:",
+        speakBtn: "Wiee",
+        typeBtn: "Ŋmaa",
+        inputPlaceholder: "Biam Cropie e.g. Ma-fã nsoo ŋmɛnɛ?",
+        welcomeMsg: "Blema baa! Mi ji <strong>Cropie</strong>, o-ŋmɔɔ AI yelɔ. Ta <strong>Wiee</strong> alo ŋmaa sane ni o-di yɛ shi!",
+        listeningStatus: "🔴 Mi-bo o-sane toi...",
+        reviewStatus: "Kwɛ nɔ ni minuu",
+        understandingStatus: "⏳ Mi-nuo nɔ ni owiee emli...",
+        captionPlaceholder: "O-wiee baa-ba bi. Otẽŋu osa he hafi osend...",
+        doneSpeaking: "Miewie ta",
+        speakAgain: "Wiee Bio",
+        clear: "Jie",
+        sendQuestion: "Mane Sane",
+        cancel: "Kaa-fe",
+        thinkingMsg: "Mi-suɔ bii kɛ ŋmɔɔ nibii kwɛm...",
+        noSpeechMsg: "Minuu nɔvɔ. Ha biam nɔ bio.",
+        unsupportedVoice: "Gbee wiee bɛ gbei nɛɛ mli. Otẽŋu o-ŋmaa sane.",
+        prompts: [
+          "🌧️ Nu baatɔ yɛ mi-ŋmɔɔ nɔ ŋmɛnɛ?",
+          "🌱 Te mi-ŋmɔɔ nibii le yɔɔ tɛŋmɔ?",
+          "🌾 Mɛni mafa yɛ mi-ŋmɔɔ nɔ ŋmɛnɛ?",
+          "☔ Mafã nsoo yɛ mi-ŋmɔɔ nɔ ŋmɛnɛ?"
+        ]
+      },
+      hau: {
+        cardTitle: "Tambayi Cropie",
+        cardSub: "Kuna da tambaya game da gonarku?",
+        langLabel: "Harshe:",
+        speakBtn: "Yi magana",
+        typeBtn: "Rubuta",
+        inputPlaceholder: "Tambayi Cropie e.g. Zan sa taki a yau?",
+        welcomeMsg: "Sannu! Ni ne <strong>Cropie</strong>, mai taimaka maka gona na AI. Taba <strong>Yi magana</strong> ko ka rubuta tambaya a kasa!",
+        listeningStatus: "🔴 Ina sauraron tambayarku...",
+        reviewStatus: "Duba abin da na ji",
+        understandingStatus: "⏳ Ina fahimtar abin da ka fada...",
+        captionPlaceholder: "Magana taku za ta bayyana a nan. Kuna iya gyarawa kafin aika...",
+        doneSpeaking: "Na gama magana",
+        speakAgain: "Sake magana",
+        clear: "Goge",
+        sendQuestion: "Aika Tambaya",
+        cancel: "Soke",
+        thinkingMsg: "Ina tunani da bincika bayanan gona...",
+        noSpeechMsg: "Ban ji komai ba. Da fatan za a sake gwadawa.",
+        unsupportedVoice: "Magana ta murya ba ta samuwa ga wannan harshen ba. Kuna iya rubuta tambayarku.",
+        prompts: [
+          "🌧️ Shin ruwa zai shafi gonata a yau?",
+          "🌱 Yaya girman shukata yake?",
+          "🌾 Me ya kamata in yi a gonata a yau?",
+          "☔ Shin in sa taki a gonata a yau?"
+        ]
+      }
+    };
+
     let languages = [
       { code: 'eng', name: 'English', speechRecognition: true, translation: true, textToSpeech: true, isDefault: true },
       { code: 'twi', name: 'Twi', speechRecognition: true, translation: true, textToSpeech: true },
@@ -1129,11 +1267,78 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       { code: 'hau', name: 'Hausa', speechRecognition: true, translation: true, textToSpeech: true }
     ];
 
+    const applyLanguageToUI = (langCode) => {
+      const t = CHAT_UI_TRANSLATIONS[langCode] || CHAT_UI_TRANSLATIONS.eng;
+
+      // 1. Update active state & memory
+      localStorage.setItem(SAVED_LANG_KEY, langCode);
+      if (activeAssistant) activeAssistant.conversationHistory = [];
+
+      // 2. Stop any active recording or playback
+      if (window.cancelCropieVoiceRecording) window.cancelCropieVoiceRecording();
+      if (activeAudioPlayer) {
+        try { activeAudioPlayer.pause(); } catch {}
+        activeAudioPlayer = null;
+      }
+
+      // 3. Clear Chat Window & Start Fresh Session in Selected Language
+      if (chatList) {
+        chatList.innerHTML = `
+          <div class="chat-message-item cropie-msg">
+            <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+            <div class="msg-bubble-wrapper">
+              <div class="msg-bubble">
+                <p>${t.welcomeMsg}</p>
+              </div>
+              <span class="msg-time">Just now</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // 4. Update Header & Mode Buttons
+      const cardTitle = document.querySelector('.assistant-card-title');
+      const cardSub = document.querySelector('.assistant-card-sub');
+      const langLabel = document.querySelector('.lang-select-label');
+      const micSpan = micBtn ? micBtn.querySelector('span') : null;
+      const typeSpan = typeBtn ? typeBtn.querySelector('span') : null;
+
+      if (cardTitle) cardTitle.textContent = t.cardTitle;
+      if (cardSub) cardSub.textContent = t.cardSub;
+      if (langLabel) langLabel.textContent = t.langLabel;
+      if (micSpan) micSpan.textContent = t.speakBtn;
+      if (typeSpan) typeSpan.textContent = t.typeBtn;
+
+      // 5. Update Input Field & Caption Field Placeholders
+      if (textInput) textInput.placeholder = t.inputPlaceholder;
+      const vlcCaptionEl = document.getElementById('vlcEditableCaption');
+      if (vlcCaptionEl) vlcCaptionEl.placeholder = t.captionPlaceholder;
+
+      // 6. Update Voice Card Button Texts
+      const vlcStopEl = document.getElementById('vlcStopBtn');
+      const vlcSpeakAgainEl = document.getElementById('vlcSpeakAgainBtn');
+      const vlcClearEl = document.getElementById('vlcClearBtn');
+      const vlcSendEl = document.getElementById('vlcSendBtn');
+      const vlcCancelEl = document.getElementById('vlcCancelBtn');
+
+      if (vlcStopEl && vlcStopEl.querySelector('span')) vlcStopEl.querySelector('span').textContent = t.doneSpeaking;
+      if (vlcSpeakAgainEl && vlcSpeakAgainEl.querySelector('span')) vlcSpeakAgainEl.querySelector('span').textContent = t.speakAgain;
+      if (vlcClearEl && vlcClearEl.querySelector('span')) vlcClearEl.querySelector('span').textContent = t.clear;
+      if (vlcSendEl && vlcSendEl.querySelector('span')) vlcSendEl.querySelector('span').textContent = t.sendQuestion;
+      if (vlcCancelEl && vlcCancelEl.querySelector('span')) vlcCancelEl.querySelector('span').textContent = t.cancel;
+
+      // 7. Render Suggested Prompts in Selected Language
+      renderPrompts(t.prompts);
+
+      // 8. Hide Capability Alert
+      if (capabilityAlert) capabilityAlert.style.display = 'none';
+    };
+
     if (langSelect) {
       langSelect.value = savedLanguage;
       langSelect.addEventListener('change', () => {
         const newCode = langSelect.value;
-        localStorage.setItem(SAVED_LANG_KEY, newCode);
+        applyLanguageToUI(newCode);
       });
     }
 
@@ -1235,7 +1440,8 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     };
 
     const setVoiceStateReview = (text, langCode) => {
-      if (vlcStatusText) vlcStatusText.textContent = 'Check what I heard';
+      const t = CHAT_UI_TRANSLATIONS[langCode] || CHAT_UI_TRANSLATIONS.eng;
+      if (vlcStatusText) vlcStatusText.textContent = t.reviewStatus;
       if (vlcEditableCaption) vlcEditableCaption.value = text;
       if (vlcStopBtn) vlcStopBtn.style.display = 'none';
       if (vlcSpeakAgainBtn) vlcSpeakAgainBtn.style.display = 'inline-flex';
@@ -1480,12 +1686,13 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     async function handleUserQuestion(questionText) {
       const selectedCode = langSelect ? langSelect.value : (localStorage.getItem(SAVED_LANG_KEY) || 'eng');
       const langConfig = languages.find(l => l.code === selectedCode) || { translation: true, textToSpeech: true };
+      const t = CHAT_UI_TRANSLATIONS[selectedCode] || CHAT_UI_TRANSLATIONS.eng;
 
       // 6a. Display User Question
       appendChatMessage('user', questionText);
 
       // 6b. Loading Bubble
-      const loadingMsgId = appendChatMessage('cropie', 'Thinking & checking farm information...');
+      const loadingMsgId = appendChatMessage('cropie', t.thinkingMsg);
 
       try {
         // 6c. Translate question to English if in Ghanaian language
