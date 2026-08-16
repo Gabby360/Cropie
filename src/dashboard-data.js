@@ -262,14 +262,14 @@ export const initialDashboardData = {
     cropVariety: "Not specified",
     soilType: "Not specified",
     irrigationType: "Not specified",
-    estimatedGrowthStage: "Flowering / Tasseling",
-    stageCalculationNote: "Calendar-based estimate",
-    daysAfterPlanting: "62 days after planting",
+    estimatedGrowthStage: "Stage unestimated",
+    stageCalculationNote: "Add your planting date to estimate your crop's growth stage.",
+    daysAfterPlanting: "Planting date not provided",
     plantingDate: null,
-    calendarProgress: 56,
-    calendarProgressText: "Estimated Season Progress: 56%",
+    calendarProgress: null,
+    calendarProgressText: "Not available",
     stages: ["Emergence", "Seedling", "Vegetative", "Flowering", "Maturity", "Harvest"],
-    currentStageIndex: 3,
+    currentStageIndex: 0,
     weatherCondition: "Generally favorable",
     overallStatusText: "🟢 No major weather risk detected"
   },
@@ -663,10 +663,13 @@ export class CropieDataService {
     this.data.cropStatus.soilType = userFarm.soilType || 'Not specified';
     this.data.cropStatus.irrigationType = userFarm.irrigationType || 'Not specified';
 
-    if (userFarm.plantingDate) {
-      this.data.cropStatus.plantingDate = userFarm.plantingDate;
+    const validPlantingDate = userFarm.plantingDate ||
+      (userFarm.cropsDetails && userFarm.cropsDetails[0] && userFarm.cropsDetails[0].plantingDate) || null;
+
+    if (validPlantingDate) {
+      this.data.cropStatus.plantingDate = validPlantingDate;
       const primaryCrop = (this.data.cropStatus.cropsList && this.data.cropStatus.cropsList[0]) || 'Maize';
-      const phenology = calculateCropStage(primaryCrop, userFarm.plantingDate);
+      const phenology = calculateCropStage(primaryCrop, validPlantingDate);
       
       this.data.cropStatus.daysAfterPlanting = phenology.daysAfterPlantingText;
       this.data.cropStatus.estimatedGrowthStage = phenology.estimatedGrowthStage;

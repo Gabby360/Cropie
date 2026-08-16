@@ -19,7 +19,9 @@ export class CropieAssistantService {
       ? cropStatus.cropsList
       : [cropStatus.cropName || 'Maize'];
     
-    const plantingDate = cropStatus.plantingDate || null;
+    const resolvedPlantingDate = cropStatus.plantingDate ||
+      (cropStatus.cropsDetails && cropStatus.cropsDetails[0] && cropStatus.cropsDetails[0].plantingDate) ||
+      farmInfo.plantingDate || null;
 
     let locationStr = farmInfo.location || farmInfo.locationName || weather.locationName || null;
     if (locationStr && (
@@ -42,13 +44,13 @@ export class CropieAssistantService {
       ? cropStatus.cropsDetails
       : cropsList.map(cName => ({
           cropName: cName,
-          plantingDate: plantingDate
+          plantingDate: resolvedPlantingDate
         }));
 
     // Independent multi-crop context list using calculateCropStage
     const cropContextMap = cropsDetails.map(cd => {
       const cName = cd.cropName || 'Crop';
-      const pDate = cd.plantingDate || plantingDate || null;
+      const pDate = cd.plantingDate || resolvedPlantingDate || null;
       const stageInfo = calculateCropStage(cName, pDate);
       return {
         cropId: cd.cropId || null,
