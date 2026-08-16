@@ -92,6 +92,11 @@ export class CropieAuthService {
           latitude: farm.latitude || 7.3824,
           longitude: farm.longitude || -1.3621,
           locationSource: farm.location_source || 'GPS',
+          locationAccuracy: farm.location_accuracy || null,
+          country: farm.country || 'Ghana',
+          region: farm.region || '',
+          district: farm.district || '',
+          community: farm.community || '',
           farmSize: farm.farm_size || 2,
           farmSizeUnit: farm.farm_size_unit || 'Acres',
           soilType: farm.soil_type || 'Loam',
@@ -298,7 +303,7 @@ export class CropieAuthService {
   }
 
   // Save Farm & Crops to Supabase public.farms and public.crops
-  async saveFarmProfile({ userId, farmName, locationName, latitude, longitude, locationSource, crop, crops, plantingDate, farmSize, farmSizeUnit }) {
+  async saveFarmProfile({ userId, farmName, locationName, latitude, longitude, locationSource, locationAccuracy, country, region, district, community, crop, crops, plantingDate, farmSize, farmSizeUnit }) {
     if (!userId) {
       const current = await this.getCurrentUser();
       if (current) userId = current.id;
@@ -333,6 +338,11 @@ export class CropieAuthService {
         latitude: parsedLat,
         longitude: parsedLng,
         location_source: locationSource || 'GPS',
+        location_accuracy: locationAccuracy ? parseFloat(locationAccuracy) : null,
+        country: country || 'Ghana',
+        region: region || '',
+        district: district || '',
+        community: community || '',
         farm_size: numSize,
         farm_size_unit: farmSizeUnit || 'Acres',
         soil_type: 'Loam',
@@ -395,6 +405,11 @@ export class CropieAuthService {
         latitude: parsedLat,
         longitude: parsedLng,
         locationSource: locationSource || 'GPS',
+        locationAccuracy: locationAccuracy || null,
+        country: country || 'Ghana',
+        region: region || '',
+        district: district || '',
+        community: community || '',
         crop: cropList[0].toLowerCase(),
         crops: cropList,
         plantingDate,
