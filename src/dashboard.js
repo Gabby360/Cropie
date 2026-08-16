@@ -802,12 +802,13 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
         await initDashGoogleMap(dashPendingLat, dashPendingLng);
         locationService.updateMapPosition(dashPendingLat, dashPendingLng, 16);
+        locationService.drawAccuracyCircle(dashPendingLat, dashPendingLng, pos.accuracy);
 
         gpsBtn.disabled = false;
         if (btnSpan) btnSpan.textContent = 'Use My Current Location';
 
         const accEval = locationService.evaluateAccuracy(pos.accuracy);
-        renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, accEval);
+        renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, accEval, pos);
 
       } catch (err) {
         gpsBtn.disabled = false;
@@ -894,14 +895,77 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     });
   }
 
-  function renderDashConfirmationCard(lat, lng, locationName, accEval = null) {
+  function renderDashConfirmationCard(lat, lng, locationName, accEval = null, rawGps = null) {
     if (!dashLocationCardWrapper) return;
 
-    const accHTML = accEval ? `
-      <div class="location-accuracy-pill ${accEval.level}">
-        <i class="fa-solid fa-circle-check"></i> Accuracy: ${accEval.accuracyText}
-      </div>
-    ` : '';
+    let accHTML = '';
+    let warningBannerHTML = '';
+    let diagPanelHTML = '';
+
+    if (accEval) {
+      accHTML = `
+        <div class="location-accuracy-pill ${accEval.level}">
+          <i class="fa-solid fa-circle-check"></i> GPS Accuracy: ${accEval.accuracyText}
+        </div>
+      `;
+      if (accEval.warningMsg) {
+        warningBannerHTML = `
+          <div class="location-status-card warning-card" style="margin-top: 0.75rem; margin-bottom: 0.75rem;">
+            <div class="location-card-header">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Accuracy Notice</span>
+            </div>
+            <p class="location-card-msg">${escapeHtml(accEval.warningMsg)}</p>
+          </div>
+        `;
+      }
+    }
+
+    if (rawGps) {
+      const altStr = rawGps.altitude !== null && rawGps.altitude !== undefined ? `${rawGps.altitude.toFixed(1)} m` : 'N/A';
+      const headStr = rawGps.heading !== null && rawGps.heading !== undefined ? `${rawGps.heading.toFixed(1)}°` : 'N/A';
+      const speedStr = rawGps.speed !== null && rawGps.speed !== undefined ? `${rawGps.speed.toFixed(1)} m/s` : 'N/A';
+      const timeStr = new Date(rawGps.timestamp || Date.now()).toLocaleTimeString();
+
+      diagPanelHTML = `
+        <div class="gps-diagnostic-panel">
+          <div class="gps-panel-header">
+            <i class="fa-solid fa-satellite-dish"></i>
+            <span>CURRENT GPS DATA</span>
+          </div>
+          <div class="gps-panel-grid">
+            <div class="gps-panel-item">
+              <span class="gps-item-lbl">Latitude:</span>
+              <span class="gps-item-val">${rawGps.latitude.toFixed(6)}</span>
+            </div>
+            <div class="gps-panel-item">
+              <span class="gps-item-lbl">Longitude:</span>
+              <span class="gps-item-val">${rawGps.longitude.toFixed(6)}</span>
+            </div>
+            <div class="gps-panel-item">
+              <span class="gps-item-lbl">Accuracy:</span>
+              <span class="gps-item-val">±${Math.round(rawGps.accuracy)} metres</span>
+            </div>
+            <div class="gps-panel-item">
+              <span class="gps-item-lbl">Altitude:</span>
+              <span class="gps-item-val">${altStr}</span>
+            </div>
+            <div class="gps-panel-item">
+              <span class="gps-item-lbl">Heading:</span>
+              <span class="gps-item-val">${headStr}</span>
+            </div>
+            <div class="gps-panel-item">
+              <span class="gps-item-lbl">Speed:</span>
+              <span class="gps-item-val">${speedStr}</span>
+            </div>
+          </div>
+          <div class="gps-panel-footer">
+            <span>Timestamp: <strong>${timeStr}</strong></span>
+            <span>Source: Raw Browser GPS</span>
+          </div>
+        </div>
+      `;
+    }
 
     dashLocationCardWrapper.innerHTML = `
       <div class="location-status-card">
@@ -921,6 +985,9 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
             <span class="map-coords-val">${Math.abs(lng).toFixed(6)}° W</span>
           </div>
         </div>
+
+        ${warningBannerHTML}
+        ${diagPanelHTML}
 
         <div class="map-instruction-tag">
           <i class="fa-solid fa-hand-pointer" style="color: #16a34a;"></i>

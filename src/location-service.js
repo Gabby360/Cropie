@@ -133,7 +133,7 @@ export class CropieLocationService {
 
   /**
    * Acquire fresh, high-accuracy GPS coordinates from browser Geolocation API
-   * Options: enableHighAccuracy: true, maximumAge: 0, timeout: 15000
+   * Options: enableHighAccuracy: true, maximumAge: 0, timeout: 20000
    */
   async getCurrentPosition() {
     if (!navigator.geolocation) {
@@ -146,18 +146,34 @@ export class CropieLocationService {
       const options = {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: this.DEFAULT_TIMEOUT
+        timeout: 20000
       };
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const coords = position.coords;
+          
+          console.group("%c[Cropie GPS] Raw Geolocation Telemetry", "color: #16a34a; font-weight: bold; font-size: 14px;");
+          console.log("Latitude:", coords.latitude);
+          console.log("Longitude:", coords.longitude);
+          console.log("Accuracy:", coords.accuracy, "metres");
+          console.log("Altitude:", coords.altitude !== null ? coords.altitude : "N/A");
+          console.log("Heading:", coords.heading !== null ? coords.heading : "N/A");
+          console.log("Speed:", coords.speed !== null ? coords.speed : "N/A");
+          console.log("Timestamp:", new Date(position.timestamp).toISOString());
+          console.log("Raw GeolocationPosition Object:", position);
+          console.groupEnd();
+
           resolve({
             latitude: coords.latitude,
             longitude: coords.longitude,
             accuracy: coords.accuracy || 0,
+            altitude: coords.altitude !== null ? coords.altitude : null,
+            heading: coords.heading !== null ? coords.heading : null,
+            speed: coords.speed !== null ? coords.speed : null,
             timestamp: position.timestamp || Date.now(),
-            permissionStatus: 'granted'
+            permissionStatus: 'granted',
+            rawPosition: position
           });
         },
         (error) => {
@@ -184,29 +200,68 @@ export class CropieLocationService {
   }
 
   /**
-   * Evaluate location accuracy and return human-readable level and text
+   * Draw an accuracy circle on Leaflet or Google Maps centered at the reported coordinates
+   */
+  drawAccuracyCircle(lat, lng, accuracyMeters) {
+    if (!accuracyMeters || accuracyMeters <= 0) return;
+
+    if (this.mapType === 'leaflet' && this.mapInstance && window.L) {
+      if (this.accuracyCircleInstance) {
+        this.mapInstance.removeLayer(this.accuracyCircleInstance);
+      }
+      this.accuracyCircleInstance = window.L.circle([lat, lng], {
+        radius: accuracyMeters,
+        color: '#16a34a',
+        fillColor: '#22c55e',
+        fillOpacity: 0.18,
+        weight: 2
+      }).addTo(this.mapInstance);
+    } else if (this.mapType === 'google' && this.mapInstance && window.google && window.google.maps) {
+      if (this.accuracyCircleInstance) {
+        this.accuracyCircleInstance.setMap(null);
+      }
+      this.accuracyCircleInstance = new window.google.maps.Circle({
+        strokeColor: '#16a34a',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#22c55e',
+        fillOpacity: 0.18,
+        map: this.mapInstance,
+        center: { lat, lng },
+        radius: accuracyMeters
+      });
+    }
+  }
+
+  /**
+   * Evaluate location accuracy and return human-readable level, warning, and text
    */
   evaluateAccuracy(accuracyMeters) {
     const acc = Math.round(accuracyMeters);
     const isAccurate = acc <= 1000;
     
     let accuracyText = '';
+    let warningMsg = '';
+
     if (acc < 1000) {
-      accuracyText = `approximately ${acc} metres`;
+      accuracyText = `±${acc} metres`;
     } else {
-      accuracyText = `approximately ${(acc / 1000).toFixed(1)} km`;
+      accuracyText = `±${(acc / 1000).toFixed(1)} km`;
     }
 
     let level = 'high';
     if (acc > 1000) {
       level = 'poor';
+      warningMsg = `Your location accuracy is currently very low (±${acc} metres). Location is not reliable enough for precise farm mapping. Please move outdoors or adjust the marker pin manually.`;
     } else if (acc > 100) {
       level = 'moderate';
+      warningMsg = `Your location accuracy is currently low (±${acc} metres). Please move outdoors or use a phone with location services enabled.`;
     }
 
     return {
       isAccurate,
       accuracyText,
+      warningMsg,
       level,
       meters: acc
     };
