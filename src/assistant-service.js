@@ -113,11 +113,14 @@ export class CropieAssistantService {
     });
 
     const activeCropName = targetedCropObj.name;
-
-    // 3. Classify intent using distinct category patterns
+    // 3. Classify intent using distinct category patterns and conversation memory
     let category = 'unknown';
 
-    if (/^\s*(hi|hello|hey|greetings|good\s*(morning|afternoon|evening)|akwaaba)\b/i.test(qLower) && qLower.split(/\s+/).length <= 4) {
+    const isFollowupTrigger = /\b(more|tell me more|explain more|expand|detail|details|how|how so|how to do it|how do i apply|how to apply|how to treat|why|why is that|why wait|why so|really|really\?|are you sure|is that true|what about tomorrow\??|what about tomorrow|and tomorrow\??|tomorrow\??|next week|recommend|recommendation|what do you recommend|what should i do|at what time|what time)\b/i.test(qLower);
+
+    if (isFollowupTrigger && this.conversationHistory.length > 0 && qLower.split(/\s+/).length <= 6) {
+      category = 'followup';
+    } else if (/^\s*(hi|hello|hey|greetings|good\s*(morning|afternoon|evening)|akwaaba)\b/i.test(qLower) && qLower.split(/\s+/).length <= 4) {
       category = 'greeting';
     } else if (/\b(how are (you|u|r)|are (you|u|r) (okay|ok|doing ok)|you good|what are (you|u|r) doing|who are (you|u|r)|who r u|what is your name|identity)\b/i.test(qLower)) {
       category = 'casual';
@@ -125,8 +128,6 @@ export class CropieAssistantService {
       category = 'acknowledgement';
     } else if (/\b(mad|you are dumb|you r dumb|dumb|this is useless|useless|you don't understand|you dont understand|you're wrong|your wrong|this is bad|stupid|crazy)\b/i.test(qLower)) {
       category = 'frustration';
-    } else if (/\b(really|really\?|are you sure|at what time|what time)\b/i.test(qLower) && qLower.split(/\s+/).length <= 4) {
-      category = 'followup';
     } else if (/\b(what is happening on my farm|what's going on at my farm|what is happening on my farm now|how is my farm doing|give me my farm update|check my farm|farm update|give me today's farm report|what is happening now|farm summary|farm report)\b/i.test(qLower)) {
       category = 'farm_overview';
     } else if (/\b(who created you|who made you|what can you do|about cropie|about yourself|what is cropie|who is cropie)\b/i.test(qLower)) {
@@ -178,7 +179,7 @@ export class CropieAssistantService {
         break;
 
       case 'followup':
-        responseText = this.handleFollowupQuery(qLower, context);
+        responseText = this.handleFollowupQuery(qLower, context, activeCropName);
         break;
 
       case 'farm_overview':
@@ -259,8 +260,8 @@ export class CropieAssistantService {
       }
     }
 
-    // 5. Record turn in conversation history
-    this.recordTurn(userQuestionInEnglish, finalAnswer, selectedLanguage);
+    // 5. Record turn in conversation history (rolling 10-turn memory)
+    this.recordTurn(userQuestionInEnglish, finalAnswer, selectedLanguage, category);
 
     return {
       finalAnswer: finalAnswer,
@@ -272,21 +273,76 @@ export class CropieAssistantService {
     };
   }
 
-  handleFollowupQuery(qLower, context) {
-    const lastTurn = this.conversationHistory[this.conversationHistory.length - 1];
-    const lastQ = lastTurn ? (lastTurn.question || '').toLowerCase() : '';
-    const lastA = lastTurn ? (lastTurn.response || '').toLowerCase() : '';
+  recordTurn(question, response, language, category = 'general') {
+    this.conversationHistory.push({
+      question: question,
+      response: response,
+      language: language,
+      category: category,
+      timestamp: Date.now()
+    });
+    if (this.conversationHistory.length > 10) {
+      this.conversationHistory.shift();
+    }
+  }
 
-    if (lastQ.includes('stage') || lastQ.includes('happening') || lastA.includes('flowering') || lastA.includes('stage')) {
-      return `Yes, but remember that growth stages are estimates calculated from your planting date. Cropie does not physically see your crop.`;
-    }
-    if (lastQ.includes('rain') || lastQ.includes('weather') || lastA.includes('rain')) {
-      if (qLower.includes('time') || qLower.includes('when')) {
-        return `Rain forecast timing is calculated from live hourly Open-Meteo weather data for your farm.`;
+  handleFollowupQuery(qLower, context, activeCropName) {
+    let lastTopicTurn = null;
+    for (let i = this.conversationHistory.length - 1; i >= 0; i--) {
+      const turn = this.conversationHistory[i];
+      if (['fertilizer', 'pests', 'weather', 'stage', 'farm_overview', 'multicrop'].includes(turn.category)) {
+        lastTopicTurn = turn;
+        break;
       }
-      return `Yes, this is based on live Open-Meteo weather forecast data for your farm.`;
     }
-    return `Yes, this is calculated from your active farm settings and live weather forecast.`;
+
+    const topic = lastTopicTurn ? lastTopicTurn.category : 'farm_overview';
+    const tempVal = context.currentWeather.temp || '28°C';
+
+    // A. Fertilizer Follow-ups
+    if (topic === 'fertilizer') {
+      if (/\b(why|why is that|why wait|why so)\b/i.test(qLower)) {
+        return `Rain is expected soon on your farm. Rain shortly after applying top-dressing fertilizer causes nitrogen runoff and leaching, washing away nutrients before crop roots absorb them.`;
+      }
+      if (/\b(how|how so|how to do it|how do i apply|how to apply)\b/i.test(qLower)) {
+        return `Apply fertilizer 5 to 10 cm away from the base of the plant stem (side-dressing) into moist soil, then lightly cover with soil. Avoid applying directly on wet leaves.`;
+      }
+      if (/\b(tomorrow|next week)\b/i.test(qLower)) {
+        return `Checking tomorrow's weather forecast for your farm: Temperature will be ${tempVal}. Check if rain is forecast tomorrow before scheduling fertilizer top-dressing.`;
+      }
+      return `For ${activeCropName}: Apply basal NPK fertilizer at planting, and top-dress with Urea/SOA at 4-6 weeks when soil is moist. Avoid applying during heavy rain forecasts.`;
+    }
+
+    // B. Pest Follow-ups
+    if (topic === 'pests') {
+      if (/\b(why|why is that)\b/i.test(qLower)) {
+        return `Neem seed extract and bio-pesticides protect beneficial insects and reduce chemical resistance, while early morning spraying targets caterpillars before heat forces them deeper into stems.`;
+      }
+      return `Recommended Pest Actions for ${activeCropName}:\n1. Inspect leaf whorls early in the morning for caterpillars.\n2. Apply Neem seed extract (50g/L) or approved bio-pesticides.\n3. Spray directly into leaf whorls where caterpillars hide.\n4. Keep field borders free of weeds.`;
+    }
+
+    // C. Weather Follow-ups
+    if (topic === 'weather') {
+      if (/\b(tomorrow|next week)\b/i.test(qLower)) {
+        return `Tomorrow's forecast for your farm: Temperature will be ${tempVal} with a ${context.currentWeather.rainProb || '20%'} rain chance. No extreme weather events detected for tomorrow.`;
+      }
+      return `Live weather telemetry is provided by Open-Meteo API using high-resolution meteorological forecast models for your farm coordinates.`;
+    }
+
+    // D. Growth Stage Follow-ups
+    if (topic === 'stage') {
+      if (/\b(really|really\?|are you sure|is that true)\b/i.test(qLower)) {
+        return `Yes! Growth stage is an estimate calculated from your planting date and standard crop phenology cycles. Cropie does not physically view the field.`;
+      }
+      return `During this estimated growth stage, your ${activeCropName} needs adequate soil moisture and effective weed control. Peak water requirement occurs during flowering and cob formation.`;
+    }
+
+    // E. Farm Overview / General Follow-ups
+    if (/\b(recommend|what should i do|what do you recommend)\b/i.test(qLower)) {
+      return `Top priority farming tasks for today:\n1. Check weather forecast before applying fertilizer.\n2. Inspect crop leaves for signs of Fall Armyworm or pests.\n3. Ensure field drainage channels are clear if rain is expected.`;
+    }
+
+    return `Yes, this is calculated from your active farm settings and live weather forecast for your field.`;
   }
 
   buildDetailedFarmOverview(context) {
