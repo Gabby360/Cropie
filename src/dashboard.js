@@ -1118,6 +1118,9 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     let currentMediaRecorder = null;
     let audioChunks = [];
     let activeAudioPlayer = null;
+    const SAVED_LANG_KEY = 'cropie_assistant_language';
+    const savedLanguage = localStorage.getItem(SAVED_LANG_KEY) || 'eng';
+
     let languages = [
       { code: 'eng', name: 'English', speechRecognition: true, translation: true, textToSpeech: true, isDefault: true },
       { code: 'twi', name: 'Twi', speechRecognition: true, translation: true, textToSpeech: true },
@@ -1125,6 +1128,14 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       { code: 'gaa', name: 'Ga', speechRecognition: false, translation: true, textToSpeech: false },
       { code: 'hau', name: 'Hausa', speechRecognition: true, translation: true, textToSpeech: true }
     ];
+
+    if (langSelect) {
+      langSelect.value = savedLanguage;
+      langSelect.addEventListener('change', () => {
+        const newCode = langSelect.value;
+        localStorage.setItem(SAVED_LANG_KEY, newCode);
+      });
+    }
 
     // 0. Floating Trigger Modal Controls (Synchronous!)
     if (floatingBtn && modalOverlay) {
@@ -1202,7 +1213,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       });
     }
 
-    // 3. Voice Input Handler (Speak Mode)
+    // 3. Real Voice Input Handler (Web Speech API + Khaya ASR)
     if (micBtn) {
       micBtn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -1216,7 +1227,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         if (!langConfig.speechRecognition && selectedCode !== 'eng') {
           if (capabilityAlert) {
             capabilityAlert.style.display = 'block';
-            capabilityAlert.textContent = `Voice is not currently available for ${langConfig.name}. Please type your question.`;
+            capabilityAlert.textContent = `Voice recognition is not currently available for ${langConfig.name}. Please type your question.`;
           }
           setAssistantMode('type');
           return;
@@ -1224,6 +1235,44 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
         if (recStatusLbl) recStatusLbl.textContent = `Listening in ${langConfig.name}... Speak your question now.`;
 
+        // English Web Speech API Support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (selectedCode === 'eng' && SpeechRecognition) {
+          try {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = (event) => {
+              const speechResult = event.results[0][0].transcript;
+              setAssistantMode('type');
+              if (speechResult && speechResult.trim()) {
+                handleUserQuestion(speechResult.trim());
+              }
+            };
+
+            recognition.onerror = (event) => {
+              console.warn('SpeechRecognition notice:', event.error);
+              setAssistantMode('type');
+              const fallbackText = prompt('Could not understand voice clearly. Type your question below:', 'Will rain affect my farm today?');
+              if (fallbackText && fallbackText.trim()) {
+                handleUserQuestion(fallbackText.trim());
+              }
+            };
+
+            recognition.onend = () => {
+              setAssistantMode('type');
+            };
+
+            recognition.start();
+            return;
+          } catch (srErr) {
+            console.warn('Web Speech API error, falling back to audio recording:', srErr);
+          }
+        }
+
+        // MediaRecorder Fallback for Ghanaian languages & secondary fallback
         try {
           if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             throw new Error('MediaDevices API not supported in browser environment');
@@ -1245,21 +1294,14 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
             appendChatMessage('user', '🎙️ [Voice Question Recorded]');
 
             try {
-              let transcribedText = '';
-              if (selectedCode === 'eng') {
-                transcribedText = 'Should I apply fertilizer to my maize today?';
-              } else {
-                transcribedText = await khaya.speechToText(audioBlob, selectedCode);
-              }
-
-              if (!transcribedText) {
+              let transcribedText = await khaya.speechToText(audioBlob, selectedCode);
+              if (!transcribedText || transcribedText.trim() === '') {
                 transcribedText = 'What should I do for my farm today?';
               }
-
               handleUserQuestion(transcribedText);
             } catch (vErr) {
               console.warn('ASR notice:', vErr);
-              handleUserQuestion('Should I apply fertilizer today?');
+              handleUserQuestion('What should I do for my farm today?');
             }
           };
 
@@ -1269,7 +1311,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
           console.warn('Microphone access notice:', mErr);
           setAssistantMode('type');
           
-          const promptQuestion = prompt('Microphone access denied or permission required. Type your question below:', 'Should I apply fertilizer today?');
+          const promptQuestion = prompt('Microphone access denied. Type your question below:', 'What should I do for my farm today?');
           if (promptQuestion && promptQuestion.trim()) {
             handleUserQuestion(promptQuestion.trim());
           }
@@ -1339,8 +1381,9 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       if (remoteLangs && Array.isArray(remoteLangs) && remoteLangs.length > 0) {
         languages = remoteLangs;
         if (langSelect) {
+          const stored = localStorage.getItem(SAVED_LANG_KEY) || 'eng';
           langSelect.innerHTML = languages.map(l => `
-            <option value="${l.code}" ${l.isDefault ? 'selected' : ''}>${l.name} ${l.code !== 'eng' ? '(Ghanaian)' : ''}</option>
+            <option value="${l.code}" ${l.code === stored ? 'selected' : ''}>${l.name} ${l.code !== 'eng' ? '(Ghanaian)' : ''}</option>
           `).join('');
         }
       }
@@ -1355,7 +1398,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     // 6. Central Message Processor & Language Translation Pipeline
     window.processAskCropieUserQuestion = handleUserQuestion;
     async function handleUserQuestion(questionText) {
-      const selectedCode = langSelect ? langSelect.value : 'eng';
+      const selectedCode = langSelect ? langSelect.value : (localStorage.getItem(SAVED_LANG_KEY) || 'eng');
       const langConfig = languages.find(l => l.code === selectedCode) || { translation: true, textToSpeech: true };
 
       // 6a. Display User Question
@@ -1373,23 +1416,16 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
           } catch {}
         }
 
-        // 6d. Process through Cropie Intelligence Engine
+        // 6d. Process through Cropie Intelligence Engine (which returns finalAnswer already translated!)
         const result = await activeAssistant.processQuestion(englishQuery, selectedCode);
-        let finalResponse = result.englishAnswer;
+        const finalResponse = result.finalAnswer || result.rawEnglish || "I'm having trouble updating your farm advice right now. Please check your internet connection and try again.";
 
-        // 6e. Translate English response to Ghanaian language if needed
-        if (selectedCode !== 'eng' && langConfig.translation) {
-          try {
-            finalResponse = await activeKhaya.translateText(result.englishAnswer, 'eng', selectedCode);
-          } catch {}
-        }
-
-        // 6f. Update Chat Bubble with final translated answer
+        // 6e. Update Chat Bubble with final answer
         updateChatMessage(loadingMsgId, finalResponse, selectedCode, langConfig.textToSpeech);
 
       } catch (err) {
         console.warn('Assistant error:', err);
-        updateChatMessage(loadingMsgId, 'I am currently having trouble processing telemetry. Please check your farm connection.');
+        updateChatMessage(loadingMsgId, "I'm having trouble updating your farm advice right now. Please check your internet connection and try again.");
       }
     }
 
