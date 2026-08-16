@@ -1,15 +1,18 @@
-// CROPIE — Pure Google Maps Farm Geolocation Service Module
-// Handles Google Maps JavaScript API loading, interactive map initialization, Places Autocomplete,
-// single draggable custom green farm marker pin, Google Geocoder reverse-geocoding, browser GPS telemetry, and accuracy evaluation.
+// CROPIE — Dual Engine Farm Geolocation Service Module
+// Provides Google Maps JS API integration when an API key is configured,
+// plus a 100% FREE OpenStreetMap (Leaflet) interactive map engine that works automatically
+// with zero API keys, zero credit cards, and zero popups!
 
 export class CropieLocationService {
   constructor() {
     this.DEFAULT_TIMEOUT = 15000; // 15 seconds
     this.googleMapsPromise = null;
+    this.leafletPromise = null;
     this.mapInstance = null;
     this.markerInstance = null;
     this.infoWindowInstance = null;
     this.geocoderInstance = null;
+    this.mapType = null; // 'google' or 'leaflet'
   }
 
   /**
@@ -34,6 +37,11 @@ export class CropieLocationService {
    * Dynamically load official Google Maps JavaScript API (places, geometry libraries)
    */
   async loadGoogleMapsScript() {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error("No Google Maps API Key configured.");
+    }
+
     if (typeof window !== 'undefined' && window.google && window.google.maps) {
       return window.google.maps;
     }
@@ -42,19 +50,13 @@ export class CropieLocationService {
       return this.googleMapsPromise;
     }
 
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error("Google Maps API Key is missing. Please add VITE_GOOGLE_MAPS_API_KEY to your Vercel Environment Variables.");
-    }
-
     this.googleMapsPromise = new Promise((resolve, reject) => {
       const callbackName = `__initCropieGoogleMaps_${Date.now()}`;
       
-      // Register global authentication failure handler
       window.gm_authFailure = () => {
         delete window[callbackName];
         this.googleMapsPromise = null;
-        reject(new Error("Unable to load Google Maps. Please check your API key and billing status in Google Cloud Console."));
+        reject(new Error("Google Maps API key authentication failed."));
       };
 
       window[callbackName] = () => {
@@ -70,20 +72,63 @@ export class CropieLocationService {
       script.type = 'text/javascript';
       script.async = true;
       script.defer = true;
-
-      const keyParam = apiKey ? `key=${encodeURIComponent(apiKey)}&` : '';
-      script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=places,geometry&callback=${callbackName}`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places,geometry&callback=${callbackName}`;
 
       script.onerror = () => {
         delete window[callbackName];
         this.googleMapsPromise = null;
-        reject(new Error("Unable to load Google Maps. Please check your network connection and try again."));
+        reject(new Error("Failed to load Google Maps JavaScript API."));
       };
 
       document.head.appendChild(script);
     });
 
     return this.googleMapsPromise;
+  }
+
+  /**
+   * Dynamically load Leaflet.js & Leaflet.css for 100% FREE OpenStreetMap mode
+   */
+  async loadLeafletScript() {
+    if (typeof window !== 'undefined' && window.L) {
+      return window.L;
+    }
+
+    if (this.leafletPromise) {
+      return this.leafletPromise;
+    }
+
+    this.leafletPromise = new Promise((resolve, reject) => {
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link');
+        link.id = 'leaflet-css';
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
+
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.async = true;
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+
+      script.onload = () => {
+        if (window.L) {
+          resolve(window.L);
+        } else {
+          reject(new Error("Leaflet script loaded without window.L"));
+        }
+      };
+
+      script.onerror = () => {
+        this.leafletPromise = null;
+        reject(new Error("Failed to load Leaflet library."));
+      };
+
+      document.head.appendChild(script);
+    });
+
+    return this.leafletPromise;
   }
 
   /**
@@ -168,99 +213,169 @@ export class CropieLocationService {
   }
 
   /**
-   * Create an interactive Google Map instance with a single Draggable Custom Green Cropie Farm Marker Pin
+   * Create an interactive Farm Map with single Draggable Custom Green Cropie Farm Marker Pin
+   * Uses Google Maps if API key exists; otherwise seamlessly uses OpenStreetMap (Leaflet) (100% Free)
    */
   async createFarmMap(containerEl, initialLat = 7.3824, initialLng = -1.3621, onMarkerChange = null) {
     if (!containerEl) return null;
 
+    if (containerEl._leaflet_id) {
+      containerEl._leaflet_id = null;
+    }
     containerEl.innerHTML = '';
 
+    // 1. Try Google Maps if API key is provided
+    const apiKey = this.getApiKey();
+    if (apiKey) {
+      try {
+        const maps = await this.loadGoogleMapsScript();
+
+        const mapOptions = {
+          center: { lat: initialLat, lng: initialLng },
+          zoom: 14,
+          mapTypeId: maps.MapTypeId.ROADMAP,
+          gestureHandling: 'greedy',
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+          zoomControl: true,
+          styles: [
+            { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+          ]
+        };
+
+        this.mapInstance = new maps.Map(containerEl, mapOptions);
+        this.mapType = 'google';
+
+        const cropieGreenSvgIcon = {
+          url: `data:image/svg+xml;utf8,${encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="58" viewBox="0 0 48 58">
+              <filter id="sdw" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.4"/>
+              </filter>
+              <g filter="url(#sdw)">
+                <path d="M24 0C10.748 0 0 10.748 0 24c0 18 24 34 24 34s24-16 24-34C48 10.748 37.252 0 24 0z" fill="#16a34a"/>
+                <path d="M24 3C12.402 3 3 12.402 3 24c0 15.5 21 30 21 30s21-14.5 21-30C45 12.402 35.598 3 24 3z" fill="#15803d"/>
+                <circle cx="24" cy="22" r="11" fill="#ffffff"/>
+                <path d="M24 15c-3.866 0-7 3.134-7 7 0 5.25 7 12 7 12s7-6.75 7-12c0-3.866-3.134-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#15803d"/>
+              </g>
+            </svg>
+          `)}`,
+          scaledSize: new maps.Size(48, 58),
+          anchor: new maps.Point(24, 58)
+        };
+
+        this.markerInstance = new maps.Marker({
+          position: { lat: initialLat, lng: initialLng },
+          map: this.mapInstance,
+          icon: cropieGreenSvgIcon,
+          draggable: true,
+          animation: maps.Animation.DROP,
+          title: '📍 Your Farm Location (Drag pin to adjust)'
+        });
+
+        this.infoWindowInstance = new maps.InfoWindow({
+          content: `<div style="font-weight: 800; font-family: sans-serif; font-size: 13px; color: #166534; padding: 2px 4px;">📍 Your Farm Location</div>`,
+          disableAutoPan: true
+        });
+        this.infoWindowInstance.open(this.mapInstance, this.markerInstance);
+
+        maps.event.addListener(this.markerInstance, 'dragend', () => {
+          const pos = this.markerInstance.getPosition();
+          if (typeof onMarkerChange === 'function') {
+            onMarkerChange(pos.lat(), pos.lng(), 'drag');
+          }
+        });
+
+        maps.event.addListener(this.mapInstance, 'click', (e) => {
+          const lat = e.latLng.lat();
+          const lng = e.latLng.lng();
+          this.markerInstance.setPosition(e.latLng);
+          if (typeof onMarkerChange === 'function') {
+            onMarkerChange(lat, lng, 'click');
+          }
+        });
+
+        this.addMyLocationControl(this.mapInstance, onMarkerChange, 'google');
+
+        return {
+          type: 'google',
+          map: this.mapInstance,
+          marker: this.markerInstance
+        };
+      } catch (err) {
+        console.warn("Google Maps API key notice (using OpenStreetMap Leaflet Free Engine):", err.message);
+      }
+    }
+
+    // 2. OpenStreetMap (Leaflet) Free Engine
     try {
-      const maps = await this.loadGoogleMapsScript();
+      const L = await this.loadLeafletScript();
+      this.mapType = 'leaflet';
 
-      const mapOptions = {
-        center: { lat: initialLat, lng: initialLng },
+      const map = L.map(containerEl, {
+        center: [initialLat, initialLng],
         zoom: 14,
-        mapTypeId: maps.MapTypeId.ROADMAP,
-        gestureHandling: 'greedy',
-        mapTypeControl: true,
-        streetViewControl: false,
-        fullscreenControl: true,
-        zoomControl: true,
-        styles: [
-          { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
-        ]
-      };
+        zoomControl: true
+      });
 
-      this.mapInstance = new maps.Map(containerEl, mapOptions);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors | Cropie Free Farm Maps'
+      }).addTo(map);
 
-      // Custom Cropie Green SVG Pin Icon (#16a34a / #15803d + white circle & location icon)
-      const cropieGreenSvgIcon = {
-        url: `data:image/svg+xml;utf8,${encodeURIComponent(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="58" viewBox="0 0 48 58">
-            <filter id="sdw" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.4"/>
-            </filter>
-            <g filter="url(#sdw)">
-              <path d="M24 0C10.748 0 0 10.748 0 24c0 18 24 34 24 34s24-16 24-34C48 10.748 37.252 0 24 0z" fill="#16a34a"/>
-              <path d="M24 3C12.402 3 3 12.402 3 24c0 15.5 21 30 21 30s21-14.5 21-30C45 12.402 35.598 3 24 3z" fill="#15803d"/>
-              <circle cx="24" cy="22" r="11" fill="#ffffff"/>
-              <path d="M24 15c-3.866 0-7 3.134-7 7 0 5.25 7 12 7 12s7-6.75 7-12c0-3.866-3.134-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#15803d"/>
-            </g>
-          </svg>
-        `)}`,
-        scaledSize: new maps.Size(48, 58),
-        anchor: new maps.Point(24, 58)
-      };
+      const cropieDivIcon = L.divIcon({
+        className: 'cropie-leaflet-custom-pin',
+        html: `
+          <div class="cropie-pin-wrapper">
+            <div class="cropie-pin-badge">📍 Your Farm Location</div>
+            <div class="cropie-pin-circle">
+              <i class="fa-solid fa-location-dot"></i>
+            </div>
+          </div>
+        `,
+        iconSize: [120, 75],
+        iconAnchor: [60, 75]
+      });
 
-      // Single active Draggable Marker
-      this.markerInstance = new maps.Marker({
-        position: { lat: initialLat, lng: initialLng },
-        map: this.mapInstance,
-        icon: cropieGreenSvgIcon,
+      const marker = L.marker([initialLat, initialLng], {
+        icon: cropieDivIcon,
         draggable: true,
-        animation: maps.Animation.DROP,
         title: '📍 Your Farm Location (Drag pin to adjust)'
-      });
+      }).addTo(map);
 
-      // Marker InfoWindow Badge
-      this.infoWindowInstance = new maps.InfoWindow({
-        content: `<div style="font-weight: 800; font-family: sans-serif; font-size: 13px; color: #166534; padding: 2px 4px;">📍 Your Farm Location</div>`,
-        disableAutoPan: true
-      });
-      this.infoWindowInstance.open(this.mapInstance, this.markerInstance);
-
-      // Handle Marker Drag Event
-      maps.event.addListener(this.markerInstance, 'dragend', () => {
-        const pos = this.markerInstance.getPosition();
-        const lat = pos.lat();
-        const lng = pos.lng();
+      marker.on('dragend', () => {
+        const pos = marker.getLatLng();
         if (typeof onMarkerChange === 'function') {
-          onMarkerChange(lat, lng, 'drag');
+          onMarkerChange(pos.lat, pos.lng, 'drag');
         }
       });
 
-      // Handle Map Click Event (moves single marker to clicked position)
-      maps.event.addListener(this.mapInstance, 'click', (e) => {
-        const lat = e.latLng.lat();
-        const lng = e.latLng.lng();
-        this.markerInstance.setPosition(e.latLng);
+      map.on('click', (e) => {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        marker.setLatLng([lat, lng]);
         if (typeof onMarkerChange === 'function') {
           onMarkerChange(lat, lng, 'click');
         }
       });
 
-      // Add Custom Current Location Control Button inside map
-      this.addMyLocationControl(this.mapInstance, onMarkerChange);
+      this.mapInstance = map;
+      this.markerInstance = marker;
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
 
       return {
-        map: this.mapInstance,
-        marker: this.markerInstance
+        type: 'leaflet',
+        map,
+        marker
       };
 
-    } catch (err) {
-      console.error("Google Maps initialization error:", err);
-      throw err;
+    } catch (lErr) {
+      console.error("OpenStreetMap Leaflet load error:", lErr);
+      throw lErr;
     }
   }
 
@@ -268,163 +383,190 @@ export class CropieLocationService {
    * Center map & update marker position
    */
   updateMapPosition(lat, lng, zoom = 15) {
-    if (this.mapInstance && this.markerInstance) {
-      const pos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    const numericLat = parseFloat(lat);
+    const numericLng = parseFloat(lng);
+
+    if (this.mapType === 'google' && this.mapInstance && this.markerInstance) {
+      const pos = { lat: numericLat, lng: numericLng };
       this.mapInstance.setCenter(pos);
       this.mapInstance.setZoom(zoom);
       this.markerInstance.setPosition(pos);
+    } else if (this.mapType === 'leaflet' && this.mapInstance && this.markerInstance) {
+      this.mapInstance.setView([numericLat, numericLng], zoom);
+      this.markerInstance.setLatLng([numericLat, numericLng]);
     }
   }
 
   /**
-   * Add custom floating "Center on My Location" control button on the Google Map
+   * Add custom floating "Center on My Location" control button on the Map
    */
-  addMyLocationControl(map, onMarkerChange) {
-    if (!map || !window.google || !window.google.maps) return;
+  addMyLocationControl(map, onMarkerChange, type = 'google') {
+    if (type === 'google' && map && window.google && window.google.maps) {
+      const controlDiv = document.createElement('div');
+      controlDiv.style.margin = '10px';
 
-    const controlDiv = document.createElement('div');
-    controlDiv.style.margin = '10px';
+      const controlBtn = document.createElement('button');
+      controlBtn.type = 'button';
+      controlBtn.className = 'google-maps-my-location-btn';
+      controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
 
-    const controlBtn = document.createElement('button');
-    controlBtn.type = 'button';
-    controlBtn.className = 'google-maps-my-location-btn';
-    controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
-    controlBtn.title = 'Center map on current GPS location';
+      controlBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        controlBtn.disabled = true;
+        controlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
 
-    controlBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      controlBtn.disabled = true;
-      controlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
-
-      try {
-        const pos = await this.getCurrentPosition();
-        this.updateMapPosition(pos.latitude, pos.longitude, 16);
-        if (typeof onMarkerChange === 'function') {
-          onMarkerChange(pos.latitude, pos.longitude, 'my_location_button', pos.accuracy);
+        try {
+          const pos = await this.getCurrentPosition();
+          this.updateMapPosition(pos.latitude, pos.longitude, 16);
+          if (typeof onMarkerChange === 'function') {
+            onMarkerChange(pos.latitude, pos.longitude, 'my_location_button', pos.accuracy);
+          }
+        } catch (err) {
+          alert(err.message || "Unable to acquire current location.");
+        } finally {
+          controlBtn.disabled = false;
+          controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
         }
-      } catch (err) {
-        alert(err.message || "Unable to acquire current location.");
-      } finally {
-        controlBtn.disabled = false;
-        controlBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Center on My Location';
-      }
-    });
+      });
 
-    controlDiv.appendChild(controlBtn);
-    map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(controlDiv);
+      controlDiv.appendChild(controlBtn);
+      map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(controlDiv);
+    }
   }
 
   /**
-   * Attach Google Places Autocomplete to an input element
+   * Attach Places Autocomplete or location search listener to an input element
    */
   async attachPlacesAutocomplete(inputEl, onPlaceSelect) {
     if (!inputEl) return null;
 
-    try {
-      const maps = await this.loadGoogleMapsScript();
-      if (!maps.places) return null;
+    if (this.mapType === 'google') {
+      try {
+        const maps = await this.loadGoogleMapsScript();
+        if (maps.places) {
+          const autocomplete = new maps.places.Autocomplete(inputEl, {
+            types: ['geocode', 'establishment']
+          });
 
-      const autocomplete = new maps.places.Autocomplete(inputEl, {
-        types: ['geocode', 'establishment']
-      });
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place && place.geometry && place.geometry.location) {
+              const lat = place.geometry.location.lat();
+              const lng = place.geometry.location.lng();
+              const formattedName = place.formatted_address || place.name || inputEl.value;
 
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (place && place.geometry && place.geometry.location) {
-          const lat = place.geometry.location.lat();
-          const lng = place.geometry.location.lng();
-          const formattedName = place.formatted_address || place.name || inputEl.value;
+              this.updateMapPosition(lat, lng, 15);
 
-          if (this.mapInstance && this.markerInstance) {
-            this.updateMapPosition(lat, lng, 15);
-          }
+              if (typeof onPlaceSelect === 'function') {
+                onPlaceSelect({
+                  name: formattedName,
+                  latitude: lat,
+                  longitude: lng,
+                  place
+                });
+              }
+            }
+          });
 
+          return autocomplete;
+        }
+      } catch (err) {
+        console.warn("Places Autocomplete notice:", err);
+      }
+    }
+
+    // Open-Meteo Search listener for OpenStreetMap mode
+    inputEl.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const query = inputEl.value.trim();
+        if (!query) return;
+
+        const results = await this.searchLocations(query);
+        if (results && results.length > 0) {
+          const sel = results[0];
+          this.updateMapPosition(sel.lat, sel.lon, 15);
           if (typeof onPlaceSelect === 'function') {
             onPlaceSelect({
-              name: formattedName,
-              latitude: lat,
-              longitude: lng,
-              place
+              name: sel.name,
+              latitude: sel.lat,
+              longitude: sel.lon
             });
           }
         }
-      });
+      }
+    });
 
-      return autocomplete;
-
-    } catch (err) {
-      console.warn("Places Autocomplete notice:", err);
-      return null;
-    }
+    return null;
   }
 
   /**
-   * Reverse-geocode latitude and longitude using Google Maps Geocoder API with robust fallbacks
+   * Reverse-geocode latitude and longitude with multi-tier fallbacks
    */
   async reverseGeocode(latitude, longitude) {
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
 
-    try {
-      const maps = await this.loadGoogleMapsScript();
-      if (maps && maps.Geocoder) {
-        if (!this.geocoderInstance) {
-          this.geocoderInstance = new maps.Geocoder();
-        }
+    if (this.mapType === 'google') {
+      try {
+        const maps = await this.loadGoogleMapsScript();
+        if (maps && maps.Geocoder) {
+          if (!this.geocoderInstance) {
+            this.geocoderInstance = new maps.Geocoder();
+          }
 
-        const res = await new Promise((resolve) => {
-          this.geocoderInstance.geocode({ location: { lat, lng } }, (results, status) => {
-            if (status === 'OK' && results && results.length > 0) {
-              resolve(results);
-            } else {
-              resolve(null);
-            }
-          });
-        });
-
-        if (res && res.length > 0) {
-          const best = res[0];
-          const components = best.address_components || [];
-          
-          let locality = '';
-          let adminArea1 = '';
-          let adminArea2 = '';
-          let country = 'Ghana';
-
-          components.forEach(c => {
-            const types = c.types || [];
-            if (types.includes('locality') || types.includes('sublocality') || types.includes('neighborhood') || types.includes('administrative_area_level_3')) {
-              if (!locality) locality = c.long_name;
-            }
-            if (types.includes('administrative_area_level_2')) {
-              adminArea2 = c.long_name;
-            }
-            if (types.includes('administrative_area_level_1')) {
-              adminArea1 = c.long_name;
-            }
-            if (types.includes('country')) {
-              country = c.long_name;
-            }
+          const res = await new Promise((resolve) => {
+            this.geocoderInstance.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results && results.length > 0) {
+                resolve(results);
+              } else {
+                resolve(null);
+              }
+            });
           });
 
-          const town = locality || adminArea2 || best.formatted_address.split(',')[0] || '';
-          const region = (adminArea1 && adminArea1 !== town) ? `${adminArea1.replace(/Region/i, '').trim()} Region, ` : '';
+          if (res && res.length > 0) {
+            const best = res[0];
+            const components = best.address_components || [];
+            
+            let locality = '';
+            let adminArea1 = '';
+            let adminArea2 = '';
+            let country = 'Ghana';
 
-          return {
-            locationName: town ? `${town}, ${region}${country}` : best.formatted_address,
-            town: town || best.formatted_address.split(',')[0],
-            region: adminArea1,
-            district: adminArea2,
-            country,
-            formattedAddress: best.formatted_address
-          };
+            components.forEach(c => {
+              const types = c.types || [];
+              if (types.includes('locality') || types.includes('sublocality') || types.includes('neighborhood') || types.includes('administrative_area_level_3')) {
+                if (!locality) locality = c.long_name;
+              }
+              if (types.includes('administrative_area_level_2')) {
+                adminArea2 = c.long_name;
+              }
+              if (types.includes('administrative_area_level_1')) {
+                adminArea1 = c.long_name;
+              }
+              if (types.includes('country')) {
+                country = c.long_name;
+              }
+            });
+
+            const town = locality || adminArea2 || best.formatted_address.split(',')[0] || '';
+            const region = (adminArea1 && adminArea1 !== town) ? `${adminArea1.replace(/Region/i, '').trim()} Region, ` : '';
+
+            return {
+              locationName: town ? `${town}, ${region}${country}` : best.formatted_address,
+              town: town || best.formatted_address.split(',')[0],
+              region: adminArea1,
+              district: adminArea2,
+              country,
+              formattedAddress: best.formatted_address
+            };
+          }
         }
-      }
-    } catch (gErr) {
-      console.warn("Google Geocoder notice:", gErr);
+      } catch (gErr) {}
     }
 
-    // Secondary HTTP Reverse Geocode Fallbacks
+    // Free OpenStreetMap Nominatim & BigDataCloud Reverse Geocoding
     try {
       const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`;
       const res = await fetch(bdcUrl);
@@ -446,6 +588,28 @@ export class CropieLocationService {
       }
     } catch (err) {}
 
+    try {
+      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=en`;
+      const res = await fetch(nomUrl, { headers: { 'User-Agent': 'Cropie-Farm-App/1.0' } });
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address || {};
+        const town = addr.town || addr.city || addr.village || addr.suburb || addr.county || '';
+        const state = addr.state || addr.region || '';
+        const country = addr.country || 'Ghana';
+
+        if (town) {
+          const regionStr = (state && state !== town) ? `${state}, ` : '';
+          return {
+            locationName: `${town}, ${regionStr}${country}`,
+            town,
+            region: state,
+            country
+          };
+        }
+      }
+    } catch (err) {}
+
     return {
       locationName: `Farm Location (${lat.toFixed(4)}° N, ${Math.abs(lng).toFixed(4)}° W)`,
       town: 'Farm Location',
@@ -455,7 +619,7 @@ export class CropieLocationService {
   }
 
   /**
-   * Search location string using Open-Meteo / Google Geocoding presets fallback
+   * Search location string using Open-Meteo / presets
    */
   async searchLocations(query) {
     if (!query || !query.trim()) return [];
@@ -531,7 +695,8 @@ export class CropieLocationService {
    * Log location telemetry
    */
   logLocationDebug(details) {
-    console.log("%c📍 Cropie Google Maps Location Telemetry", "color: #16a34a; font-weight: bold; font-size: 13px;");
+    console.log("%c📍 Cropie Location Telemetry", "color: #16a34a; font-weight: bold; font-size: 13px;");
+    console.log("Map Engine:", this.mapType || 'leaflet');
     console.log("Permission Status:", details.permissionStatus || 'granted');
     console.log("Latitude:", details.latitude);
     console.log("Longitude:", details.longitude);
