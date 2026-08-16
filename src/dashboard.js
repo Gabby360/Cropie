@@ -738,7 +738,6 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
             dashLocationCardWrapper.innerHTML = `
               <div class="location-status-card">
                 <div class="location-card-header">
-                  <i class="fa-solid fa-location-dot"></i>
                   <span>📍 Location detected</span>
                 </div>
                 <div class="location-name-title">${escapeHtml(resolvedLoc)}</div>
