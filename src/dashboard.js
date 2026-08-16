@@ -53,9 +53,42 @@ let globalVoiceCancelled = false;
 let globalSubmitRequested = false;
 let engFinalTranscript = '';
 
+// Editable Voice Card Confirmation Handlers
+window.submitCropieVoiceCaption = function() {
+  const captionInput = document.getElementById('vlcEditableCaption');
+  const text = captionInput ? captionInput.value.trim() : '';
+  hideVoiceListeningCard();
+  restoreTypeMode();
+  if (text && typeof window.processAskCropieUserQuestion === 'function') {
+    window.processAskCropieUserQuestion(text);
+  }
+};
+
+window.reRecordCropieVoice = function() {
+  const langSelect = document.getElementById('assistantLangSelect');
+  const selectedCode = langSelect ? langSelect.value : 'eng';
+  const captionInput = document.getElementById('vlcEditableCaption');
+  if (captionInput) captionInput.value = '';
+  showVoiceListeningCard(selectedCode);
+  window.startCropieVoiceRecording(selectedCode);
+};
+
+window.clearCropieVoiceCaption = function() {
+  const captionInput = document.getElementById('vlcEditableCaption');
+  if (captionInput) captionInput.value = '';
+};
+
 // Language code -> display name mapping
 const VLC_LANG_NAMES = {
   eng: 'English', twi: 'Twi', ewe: 'Ewe', gaa: 'Ga', hau: 'Hausa'
+};
+
+const VLC_UNHEARD_MESSAGES = {
+  eng: "I couldn't hear that clearly. Please try again.",
+  twi: "Ante deɛ wokaenɔ yie. Mpawookyɛbɔ bɔ mmɔden bio.",
+  ewe: "Nye mese nusi egblɔ o. Meɖe kuku teekpɔ ake.",
+  gaa: "Minuɔ nɔni owie le jogbaŋŋ. Meɖe kuku ka kwɛ bio.",
+  hau: "Ban ji abinda kuka ce ba sosai. Da fatan zaku sake gwadawa."
 };
 
 function showVoiceListeningCard(langCode) {
@@ -63,12 +96,22 @@ function showVoiceListeningCard(langCode) {
   const langBadge = document.getElementById('vlcLangName');
   const statusText = document.getElementById('vlcStatusText');
   const transcriptBox = document.getElementById('vlcTranscriptBox');
-  const transcriptText = document.getElementById('vlcTranscriptText');
+  const captionInput = document.getElementById('vlcEditableCaption');
+
+  const stopBtn = document.getElementById('vlcStopBtn');
+  const speakAgainBtn = document.getElementById('vlcSpeakAgainBtn');
+  const clearBtn = document.getElementById('vlcClearBtn');
+  const sendBtn = document.getElementById('vlcSendBtn');
 
   if (langBadge) langBadge.textContent = VLC_LANG_NAMES[langCode] || langCode;
   if (statusText) statusText.textContent = '🔴 Listening… Speak your question now';
-  if (transcriptText) transcriptText.textContent = '';
+  if (captionInput) captionInput.value = '';
   if (transcriptBox) transcriptBox.style.display = 'none';
+
+  if (stopBtn) stopBtn.style.display = 'inline-flex';
+  if (speakAgainBtn) speakAgainBtn.style.display = 'none';
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (sendBtn) sendBtn.style.display = 'none';
 
   if (card) {
     card.style.display = 'none';
@@ -130,7 +173,28 @@ function restoreTypeMode(showPlaceholderMsg = false) {
   }
 }
 
-// ─── English: one recognition session at a time, auto-restarting ─────────────
+function showCaptionReviewState(transcript, langCode = 'eng') {
+  const statusText = document.getElementById('vlcStatusText');
+  const transcriptBox = document.getElementById('vlcTranscriptBox');
+  const captionInput = document.getElementById('vlcEditableCaption');
+  const stopBtn = document.getElementById('vlcStopBtn');
+  const speakAgainBtn = document.getElementById('vlcSpeakAgainBtn');
+  const clearBtn = document.getElementById('vlcClearBtn');
+  const sendBtn = document.getElementById('vlcSendBtn');
+
+  if (statusText) statusText.textContent = '✏️ You said (Check and edit before sending):';
+  if (captionInput) {
+    captionInput.value = transcript || VLC_UNHEARD_MESSAGES[langCode] || VLC_UNHEARD_MESSAGES.eng;
+  }
+  if (transcriptBox) transcriptBox.style.display = 'block';
+
+  if (stopBtn) stopBtn.style.display = 'none';
+  if (speakAgainBtn) speakAgainBtn.style.display = 'inline-flex';
+  if (clearBtn) clearBtn.style.display = 'inline-flex';
+  if (sendBtn) sendBtn.style.display = 'inline-flex';
+}
+
+// ─── English: SpeechRecognition ─────────────────────────────
 function startEngRecognitionSession() {
   if (globalVoiceCancelled || globalSubmitRequested) return;
 
@@ -141,12 +205,12 @@ function startEngRecognitionSession() {
   recognition.lang = 'en-US';
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
-  recognition.continuous = false; // short sessions that auto-restart — avoids edge-case bugs
+  recognition.continuous = false;
 
   globalMediaRecorder = recognition;
 
   recognition.onresult = (event) => {
-    if (globalVoiceCancelled || globalSubmitRequested) return;
+    if (globalVoiceCancelled) return;
 
     let interimText = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -157,26 +221,19 @@ function startEngRecognitionSession() {
       }
     }
 
-    // Live preview in the card
+    const captionInput = document.getElementById('vlcEditableCaption');
     const transcriptBox = document.getElementById('vlcTranscriptBox');
-    const transcriptText = document.getElementById('vlcTranscriptText');
     const display = (engFinalTranscript + interimText).trim();
-    if (transcriptBox && transcriptText && display) {
+    if (transcriptBox && captionInput && display) {
       transcriptBox.style.display = 'block';
-      transcriptText.textContent = display;
+      captionInput.value = display;
     }
-
-    const statusEl = document.getElementById('vlcStatusText');
-    if (statusEl) statusEl.textContent = '🔴 Listening… Click Stop & Send when done';
   };
 
   recognition.onerror = (event) => {
-    // Ignore recoverable errors — just restart silently
     if (['no-speech', 'audio-capture', 'network'].includes(event.error)) {
-      setTimeout(() => startEngRecognitionSession(), 300);
       return;
     }
-    // Microphone blocked — give up and fall to type mode
     if (event.error === 'not-allowed') {
       hideVoiceListeningCard();
       restoreTypeMode(true);
@@ -187,25 +244,16 @@ function startEngRecognitionSession() {
     if (globalVoiceCancelled) return;
 
     if (globalSubmitRequested) {
-      // User clicked Stop & Send — submit the accumulated transcript
       const text = engFinalTranscript.trim();
-      hideVoiceListeningCard();
-      restoreTypeMode();
       globalSubmitRequested = false;
-      if (text && typeof window.processAskCropieUserQuestion === 'function') {
-        window.processAskCropieUserQuestion(text);
-      }
+      showCaptionReviewState(text, 'eng');
       return;
     }
-
-    // Browser ended the session (silence timeout etc.) — restart immediately
-    setTimeout(() => startEngRecognitionSession(), 150);
   };
 
   try {
     recognition.start();
   } catch {
-    // If start() throws (e.g. still initialising) — retry shortly
     setTimeout(() => startEngRecognitionSession(), 300);
   }
 }
@@ -216,7 +264,7 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
   engFinalTranscript = '';
   const statusText = document.getElementById('vlcStatusText');
 
-  // ─── ENGLISH ──────────────────────────────────────────────────────────────
+  // ─── ENGLISH ─────────────────────────────────────────────
   if (langCode === 'eng') {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -228,7 +276,7 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
     return;
   }
 
-  // ─── GHANAIAN LANGUAGES: use Khaya ASR v3 ────────────────────────────────
+  // ─── GHANAIAN LANGUAGES: Khaya ASR v3 ────────────────────
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Microphone API not supported');
@@ -243,27 +291,21 @@ window.startCropieVoiceRecording = async function(langCode = 'eng') {
 
     globalMediaRecorder.onstop = async () => {
       stream.getTracks().forEach(track => track.stop());
-      hideVoiceListeningCard();
 
-      if (globalVoiceCancelled) return;
+      if (globalVoiceCancelled) {
+        hideVoiceListeningCard();
+        restoreTypeMode();
+        return;
+      }
 
       const audioBlob = new Blob(globalAudioChunks, { type: 'audio/webm' });
-      restoreTypeMode();
-
       try {
         const { KhayaService } = await import('./khaya-service.js');
         const khaya = new KhayaService();
-        let transcribedText = await khaya.speechToText(audioBlob, langCode);
-        if (!transcribedText || !transcribedText.trim()) {
-          transcribedText = 'Should I apply fertilizer today?';
-        }
-        if (typeof window.processAskCropieUserQuestion === 'function') {
-          window.processAskCropieUserQuestion(transcribedText);
-        }
+        const transcribedText = await khaya.speechToText(audioBlob, langCode);
+        showCaptionReviewState(transcribedText, langCode);
       } catch {
-        if (typeof window.processAskCropieUserQuestion === 'function') {
-          window.processAskCropieUserQuestion('Should I apply fertilizer today?');
-        }
+        showCaptionReviewState('', langCode);
       }
     };
 
@@ -1456,7 +1498,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
       if (globalMediaRecorder) { try { if (typeof globalMediaRecorder.stop === 'function') globalMediaRecorder.stop(); } catch {} }
       const textCaptured = vlcEditableCaption ? vlcEditableCaption.value.trim() : '';
       const selectedCode = langSelect ? langSelect.value : 'eng';
-      setVoiceStateReview(textCaptured || 'Should I apply fertilizer to my maize today?', selectedCode);
+      setVoiceStateReview(textCaptured, selectedCode);
     };
 
     window.cancelCropieVoiceRecording = function() {
@@ -1563,7 +1605,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
 
             currentRecognition.onend = () => {
               const textCaptured = vlcEditableCaption ? vlcEditableCaption.value.trim() : '';
-              setVoiceStateReview(textCaptured || 'Should I apply fertilizer to my maize today?', selectedCode);
+              setVoiceStateReview(textCaptured, selectedCode);
             };
 
             currentRecognition.start();
@@ -1611,7 +1653,7 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         } catch (mErr) {
           console.warn('Microphone access notice:', mErr);
           if (vlcStatusText) vlcStatusText.textContent = `Microphone access denied. Please type your question.`;
-          setVoiceStateReview('What should I do for my farm today?', selectedCode);
+          setVoiceStateReview('', selectedCode);
         }
       });
     }

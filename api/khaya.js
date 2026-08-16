@@ -102,7 +102,7 @@ export default async function handler(req, res) {
 
       if (!apiKey) {
         return res.status(200).json({
-          text: 'Mewɔ semina ne afuo ho nsɛmmisa bi fa mfuturo biara ho.',
+          text: '',
           note: 'Development mode ASR simulation. Add GHANANLP_API_KEY to .env for live audio transcription.'
         });
       }
