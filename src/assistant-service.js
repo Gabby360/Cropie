@@ -142,7 +142,7 @@ export class CropieAssistantService {
             if (cName === 'maize') return `🌽 Maize (${context.growthStage}): Day ${context.daysAfterPlanting}. Rain probability is ${context.currentWeather.rainProb}.`;
             if (cName === 'cassava') return `🌱 Cassava: Ensure proper field drainage to protect root tubers.`;
             if (cName === 'rice') return `🌾 Rice: Monitor water levels in paddocks.`;
-            return `🌳 ${c}: Field condition is healthy under ${context.currentWeather.temp} weather.`;
+            return `🌳 ${c}: Weather is ${context.currentWeather.temp} (${context.currentWeather.condition}).`;
           }).join('\n\n');
         } else {
           responseText = `For your ${activeCrop} in ${context.location} (${context.growthStage} — Day ${context.daysAfterPlanting}): Weather is ${context.currentWeather.temp} and ${context.currentWeather.condition}. Agricultural guidance recommends regular field monitoring.`;

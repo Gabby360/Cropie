@@ -247,25 +247,43 @@
 
           <div class="crop-info-grid">
             <div class="crop-info-item">
-              <span class="crop-info-lbl">Crop Type</span>
+              <span class="crop-info-lbl">Crop Monitored</span>
               <strong class="crop-info-val" id="dashCropName">Maize</strong>
             </div>
 
             <div class="crop-info-item">
-              <span class="crop-info-lbl">Days After Planting</span>
-              <strong class="crop-info-val" id="dashDaysAfterPlanting">62 days</strong>
+              <span class="crop-info-lbl">Crop Variety</span>
+              <strong class="crop-info-val" id="dashCropVariety" style="color: #4b5563;">Not specified</strong>
             </div>
 
             <div class="crop-info-item">
-              <span class="crop-info-lbl">Growth Stage</span>
-              <strong class="crop-info-val" id="dashGrowthStage" style="color: #166534;">Flowering</strong>
-              <span style="font-size: 0.72rem; color: #6b7280; margin-top: 0.15rem;">Estimated from planting date</span>
+              <span class="crop-info-lbl">Crop Age</span>
+              <strong class="crop-info-val" id="dashDaysAfterPlanting">62 days after planting</strong>
+            </div>
+
+            <div class="crop-info-item">
+              <span class="crop-info-lbl">Estimated Growth Stage</span>
+              <strong class="crop-info-val" id="dashGrowthStage" style="color: #166534;">Flowering / Tasseling</strong>
+              <span style="font-size: 0.72rem; color: #6b7280; margin-top: 0.15rem;" id="dashStageNote">Calendar-based estimate</span>
+            </div>
+
+            <div class="crop-info-item">
+              <span class="crop-info-lbl">Weather Conditions</span>
+              <strong class="crop-info-val" id="dashWeatherCondition" style="color: #0369a1;">Generally favorable</strong>
+            </div>
+
+            <div class="crop-info-item">
+              <span class="crop-info-lbl">Crop Status (Detected Risks)</span>
+              <strong class="crop-info-val" id="dashCropRiskStatus">🟢 No major weather risk detected</strong>
             </div>
           </div>
 
           <!-- VISUAL CROP GROWTH PROGRESS STEPPER -->
           <div class="stage-stepper-wrapper">
-            <span class="stepper-title-lbl">Growth Stage Progression (Based on Farm Information)</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span class="stepper-title-lbl" style="margin-bottom: 0;">Growth Stage Progression (Calendar Estimate)</span>
+              <span class="stepper-title-lbl" id="dashCalendarProgress" style="color: #166534; font-weight: 700; margin-bottom: 0;">Estimated Season Progress: 56%</span>
+            </div>
             <div class="stage-stepper" id="dashStageStepper">
               <!-- Rendered via JavaScript -->
             </div>

@@ -1623,15 +1623,35 @@ function renderWeather(w) {
 
 function renderCropStatus(c) {
   const nameEl = document.getElementById('dashCropName');
+  const varietyEl = document.getElementById('dashCropVariety');
   const stageEl = document.getElementById('dashGrowthStage');
   const daysEl = document.getElementById('dashDaysAfterPlanting');
   const stepperContainer = document.getElementById('dashStageStepper');
-  const cropSourceTag = document.getElementById('dashCropSourceTag');
+  const calendarProgEl = document.getElementById('dashCalendarProgress');
+  const weatherCondEl = document.getElementById('dashWeatherCondition');
+  const riskStatusEl = document.getElementById('dashCropRiskStatus');
+  const picStageBadge = document.getElementById('dashPicStageBadge');
 
-  if (nameEl) nameEl.textContent = c.cropName;
-  // Show only the primary stage name (strip ' / Tasseling' etc.)
-  if (stageEl) stageEl.textContent = (c.estimatedGrowthStage || '').split(' / ')[0].trim() || c.estimatedGrowthStage;
-  if (daysEl) daysEl.textContent = c.daysAfterPlanting;
+  if (nameEl) nameEl.textContent = c.cropName || 'Maize';
+  if (varietyEl) varietyEl.textContent = c.cropVariety || 'Not specified';
+  if (stageEl) stageEl.textContent = c.estimatedGrowthStage || 'Stage unestimated';
+  if (daysEl) daysEl.textContent = c.daysAfterPlanting || 'Planting date not provided';
+
+  if (calendarProgEl) {
+    calendarProgEl.textContent = c.calendarProgressText || 'Not available';
+  }
+
+  if (weatherCondEl) {
+    weatherCondEl.textContent = c.weatherCondition || 'Generally favorable';
+  }
+
+  if (riskStatusEl) {
+    riskStatusEl.textContent = c.overallStatusText || '🟢 No major weather risk detected';
+  }
+
+  if (picStageBadge) {
+    picStageBadge.textContent = `${c.estimatedGrowthStage || 'Growth Stage'} • ${c.daysAfterPlanting || ''}`;
+  }
 
   if (stepperContainer && c.stages) {
     stepperContainer.innerHTML = c.stages.map((stage, idx) => {
@@ -1682,10 +1702,9 @@ function renderAiInsight(ai) {
   const notConsideredEl = document.getElementById('dashAiNotConsidered');
   const confidenceEl = document.getElementById('dashAiConfidence');
   const sourceEl = document.getElementById('dashAiSource');
-  const stageAnalysisContainer = document.getElementById('dashStageAnalysisContainer');
 
   if (quoteEl) quoteEl.textContent = `"${ai.quote}"`;
-  if (reasonEl) reasonEl.textContent = ai.reason;
+  if (reasonEl) reasonEl.textContent = ai.why || ai.reason;
   if (notConsideredEl) notConsideredEl.textContent = ai.notConsidered;
   if (confidenceEl) confidenceEl.textContent = ai.confidence;
   if (sourceEl) sourceEl.textContent = ai.source;
@@ -1697,42 +1716,5 @@ function renderAiInsight(ai) {
         <span>${factor}</span>
       </li>
     `).join('');
-  }
-
-  // Render Crop Growth Stage Insight
-  if (stageAnalysisContainer && ai.stageAnalysis) {
-    const s = ai.stageAnalysis;
-    stageAnalysisContainer.innerHTML = `
-      <div class="stage-analysis-card">
-        <div class="analysis-header-row">
-          <div class="stage-name-block">
-            <h3 class="stage-name-title">${s.stageName}</h3>
-            <span class="badge-tag-estimate">${s.estimationBadge}</span>
-          </div>
-        </div>
-
-        <div class="analysis-grid">
-          <div class="analysis-box">
-            <strong class="box-lbl"><i class="fa-solid fa-info-circle"></i> Crop Status</strong>
-            <p>${s.statusSummary}</p>
-          </div>
-
-          <div class="analysis-box">
-            <strong class="box-lbl"><i class="fa-solid fa-lightbulb"></i> What This Means</strong>
-            <p>${s.whatThisMeans}</p>
-          </div>
-
-          <div class="analysis-box action-box">
-            <strong class="box-lbl"><i class="fa-solid fa-circle-check"></i> Recommended Action</strong>
-            <p>${s.recommendedAction}</p>
-          </div>
-
-          <div class="analysis-box risk-box">
-            <strong class="box-lbl"><i class="fa-solid fa-triangle-exclamation"></i> Supported Risk</strong>
-            <p>${s.supportedRisk}</p>
-          </div>
-        </div>
-      </div>
-    `;
   }
 }
