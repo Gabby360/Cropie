@@ -250,46 +250,146 @@ export class CropieDataService {
     this.weatherService = weatherService;
   }
 
-  getActiveFarmContext() {
-    let farm = null;
-    try {
-      const activeSaved = localStorage.getItem('cropie_active_farm');
-      if (activeSaved) {
-        farm = JSON.parse(activeSaved);
+  // 5-Tier Location Resolution Hierarchy Implementation
+  async resolveFarmLocation(customFarm = null) {
+    let lat = null;
+    let lng = null;
+    let locationName = null;
+    let source = "unresolved";
+
+    // Tier 1: Active farm object passed directly
+    if (customFarm) {
+      if (customFarm.latitude !== undefined && customFarm.latitude !== null && !isNaN(parseFloat(customFarm.latitude))) {
+        lat = parseFloat(customFarm.latitude);
       }
-      if (!farm) {
-        const localFarms = JSON.parse(localStorage.getItem('cropie_farms')) || [];
-        if (localFarms.length > 0) farm = localFarms[0];
+      if (customFarm.longitude !== undefined && customFarm.longitude !== null && !isNaN(parseFloat(customFarm.longitude))) {
+        lng = parseFloat(customFarm.longitude);
       }
-    } catch {}
-    if (!farm && this.data.headerInfo && (this.data.headerInfo.latitude !== undefined || this.data.headerInfo.location)) {
-      farm = {
-        latitude: this.data.headerInfo.latitude,
-        longitude: this.data.headerInfo.longitude,
-        locationName: this.data.headerInfo.location,
-        farmName: this.data.headerInfo.farmName,
-        plantingDate: this.data.headerInfo.plantingDate
-      };
+      if (customFarm.locationName || customFarm.location) {
+        locationName = customFarm.locationName || customFarm.location;
+      }
+      if (lat !== null && lng !== null) source = "custom_farm_gps";
     }
-    return farm;
+
+    // Tier 2: Dashboard headerInfo memory state
+    if ((lat === null || lng === null) && this.data.headerInfo) {
+      const hLat = this.data.headerInfo.latitude;
+      const hLng = this.data.headerInfo.longitude;
+      if (hLat !== undefined && hLat !== null && !isNaN(parseFloat(hLat)) && hLng !== undefined && hLng !== null && !isNaN(parseFloat(hLng))) {
+        lat = parseFloat(hLat);
+        lng = parseFloat(hLng);
+        source = "header_info_gps";
+      }
+      if (!locationName && this.data.headerInfo.location) {
+        locationName = this.data.headerInfo.location;
+      }
+    }
+
+    // Tier 3: Saved active farm in localStorage (cropie_active_farm)
+    if (lat === null || lng === null) {
+      try {
+        const savedStr = localStorage.getItem('cropie_active_farm');
+        if (savedStr) {
+          const parsed = JSON.parse(savedStr);
+          if (parsed && parsed.latitude !== undefined && parsed.latitude !== null && !isNaN(parseFloat(parsed.latitude)) && parsed.longitude !== undefined && parsed.longitude !== null && !isNaN(parseFloat(parsed.longitude))) {
+            lat = parseFloat(parsed.latitude);
+            lng = parseFloat(parsed.longitude);
+            source = "local_active_farm_gps";
+          }
+          if (!locationName && (parsed.locationName || parsed.location)) {
+            locationName = parsed.locationName || parsed.location;
+          }
+        }
+      } catch {}
+    }
+
+    // Tier 4: Saved farms list in localStorage (cropie_farms)
+    if (lat === null || lng === null) {
+      try {
+        const savedFarmsStr = localStorage.getItem('cropie_farms');
+        if (savedFarmsStr) {
+          const farms = JSON.parse(savedFarmsStr);
+          if (Array.isArray(farms) && farms.length > 0) {
+            const f0 = farms[0];
+            if (f0 && f0.latitude !== undefined && f0.latitude !== null && !isNaN(parseFloat(f0.latitude)) && f0.longitude !== undefined && f0.longitude !== null && !isNaN(parseFloat(f0.longitude))) {
+              lat = parseFloat(f0.latitude);
+              lng = parseFloat(f0.longitude);
+              source = "local_farms_list_gps";
+            }
+            if (!locationName && (f0.locationName || f0.location)) {
+              locationName = f0.locationName || f0.location;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Tier 5: Dynamic geocoding of saved location name ONLY if GPS coordinates are missing!
+    if ((lat === null || lng === null) && locationName && this.weatherService && typeof this.weatherService.geocodeLocation === 'function') {
+      try {
+        const geoRes = await this.weatherService.geocodeLocation(locationName);
+        if (geoRes && geoRes.lat !== undefined && geoRes.lon !== undefined) {
+          lat = parseFloat(geoRes.lat);
+          lng = parseFloat(geoRes.lon);
+          source = "dynamic_geocoded_location_name";
+        }
+      } catch (gErr) {
+        console.warn("[CROPIE DYNAMIC GEOCODE NOTICE]", gErr);
+      }
+    }
+
+    // Diagnostic Location Resolution Log
+    console.log("[CROPIE LOCATION RESOLUTION]", {
+      source: source,
+      latitude: lat,
+      longitude: lng,
+      locationName: locationName
+    });
+
+    return {
+      latitude: lat,
+      longitude: lng,
+      locationName: locationName,
+      source: source
+    };
   }
 
   async getCanonicalWeather(customFarm = null) {
     if (this.data.weather && this.data.weather.temp && this.data.weather.temp !== 'Not available' && this.data.weather.isAvailable) {
+      console.log("[CROPIE CANONICAL WEATHER STATE]", this.data.weather);
       return this.data.weather;
     }
 
-    const farm = customFarm || this.getActiveFarmContext();
-    if (farm && farm.latitude !== undefined && farm.latitude !== null && farm.longitude !== undefined && farm.longitude !== null && this.weatherService) {
+    const resolvedLoc = await this.resolveFarmLocation(customFarm);
+
+    if (resolvedLoc.latitude !== null && resolvedLoc.longitude !== null && this.weatherService) {
+      console.log("[CROPIE CHAT WEATHER REQUEST]", {
+        latitude: resolvedLoc.latitude,
+        longitude: resolvedLoc.longitude
+      });
+
       try {
-        const weatherData = await this.weatherService.getWeatherForFarm(farm);
+        const weatherData = await this.weatherService.getWeatherForFarm({
+          latitude: resolvedLoc.latitude,
+          longitude: resolvedLoc.longitude,
+          locationName: resolvedLoc.locationName || 'Farm Location'
+        });
+
+        console.log("[CROPIE CHAT WEATHER RESPONSE]", weatherData);
+
         this.applyOpenMeteoWeather(weatherData);
+
+        console.log("[CROPIE CANONICAL WEATHER STATE]", this.data.weather);
+
         return this.data.weather;
       } catch (wErr) {
-        console.warn('[CROPIE CANONICAL WEATHER FETCH ERROR]', wErr);
+        console.error("[CROPIE CHAT WEATHER ERROR]", wErr);
       }
+    } else {
+      console.error("[CROPIE CHAT WEATHER ERROR]", new Error("No valid coordinates or location name found to request Open-Meteo weather."));
     }
 
+    console.log("[CROPIE CANONICAL WEATHER STATE]", this.data.weather);
     return this.data.weather;
   }
 
