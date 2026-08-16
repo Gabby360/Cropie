@@ -18,11 +18,12 @@ export class CropieAssistantService {
     };
   }
 
-  // Build full farm, weather, and crop phenology context (NO FAKE DEFAULTS!)
+  // Build full farm, weather, and crop phenology context (SINGLE SOURCE OF TRUTH!)
   async buildFarmContext() {
     const liveData = await this.dataService.getLiveData();
     const farmInfo = liveData.headerInfo || {};
     const cropStatus = liveData.cropStatus || {};
+    const weather = liveData.weather || {};
 
     let localSavedDate = null;
     try {
@@ -43,7 +44,7 @@ export class CropieAssistantService {
       localSavedDate ||
       null;
 
-    let locationStr = farmInfo.location || farmInfo.locationName || null;
+    let locationStr = farmInfo.location || farmInfo.locationName || weather.locationName || null;
     if (!locationStr) {
       try {
         const activeSaved = localStorage.getItem('cropie_active_farm');
@@ -73,18 +74,6 @@ export class CropieAssistantService {
     }
 
     const hasLocation = Boolean(hasValidGps || (locationStr && locationStr.trim().length > 0));
-
-    const activeFarmObj = {
-      latitude: latVal,
-      longitude: lngVal,
-      locationName: locationStr,
-      farmName: farmInfo.farmName || 'My Farm',
-      plantingDate: resolvedPlantingDate
-    };
-
-    // Mandatory Requirement: Await Canonical Weather Load from CropieDataService before constructing context
-    const canonicalWeather = await this.dataService.getCanonicalWeather(activeFarmObj);
-    const weather = canonicalWeather || liveData.weather || {};
 
     const cropsList = (cropStatus.cropsList && cropStatus.cropsList.length > 0)
       ? cropStatus.cropsList
@@ -151,13 +140,8 @@ export class CropieAssistantService {
       engineRecs = evaluateIntelligenceEngine(liveData);
     } catch {}
 
-    // Mandatory Diagnostic Logs
-    console.log("[CROPIE WEATHER COORDINATES]", {
-      latitude: latVal,
-      longitude: lngVal
-    });
-
-    console.log("[CROPIE CANONICAL WEATHER]", weather);
+    // Diagnostic Logs
+    console.log("[CROPIE CANONICAL WEATHER STATE]", weather);
 
     console.log("[CROPIE CHAT FARM CONTEXT]", {
       farm: farmInfo,
@@ -360,7 +344,7 @@ export class CropieAssistantService {
                 `🌽 For your ${activeCropName.toLowerCase()}:\n` +
                 `${targetedCropObj.hasPlantingDate ? `Your ${activeCropName.toLowerCase()} is around ${targetedCropObj.growthStage} (Day ${targetedCropObj.daysAfterPlanting}).` : `Your ${activeCropName.toLowerCase()} is monitored for field care.`} Check soil moisture before deciding on fertilizer application.`;
             } else {
-              responseText = `Weather telemetry is currently unavailable for ${context.location || 'your farm'}. I will provide detailed weather metrics as soon as the Open-Meteo connection refreshes.`;
+              responseText = `Weather telemetry is currently unavailable for ${context.location || 'your farm'}. I will provide detailed weather metrics as soon as the weather connection refreshes.`;
             }
           } else {
             responseText = `Sure. Your ${activeCropName.toLowerCase()} is in the ${targetedCropObj.hasPlantingDate ? targetedCropObj.growthStage.toLowerCase() : 'current growth'} stage, which is an important period for plant development. ${dataTruth.weatherAvailable && (parseInt(context.currentWeather.rainProb) || 0) < 50 ? 'Since rain is not expected today, check soil moisture before deciding on fertilizer or other field work.' : 'Keep an eye on field drainage and inspect leaf whorls for early pests.'}`;
@@ -536,12 +520,12 @@ export class CropieAssistantService {
     });
 
     if (dataTruth.weatherAvailable) {
-      out += `Today's weather is ${context.currentWeather.temp || '25°C'} and ${context.currentWeather.condition ? context.currentWeather.condition.toLowerCase() : 'clear'}, with a ${context.currentWeather.rainProb || '0%'} chance of rain. `;
+      out += `Right now it is ${context.currentWeather.temp || '25°C'} with ${context.currentWeather.condition ? context.currentWeather.condition.toLowerCase() : 'clear weather'} and a ${context.currentWeather.rainProb || '0%'} chance of rain. `;
       const rainProbNum = parseInt(context.currentWeather.rainProb) || 0;
       if (rainProbNum >= 50) {
-        out += `Rain is expected soon (${context.currentWeather.rainProb}), so hold off on applying top-dressed fertilizer until the rain risk passes.`;
+        out += `There is a rain warning in the forecast, so hold off on applying top-dressed fertilizer. Check your ${primaryObj.name.toLowerCase()} and make sure the soil has good drainage today.`;
       } else {
-        out += `There is no major weather risk showing in the current forecast.`;
+        out += `There is no major weather risk in the current forecast. Check your ${primaryObj.name.toLowerCase()} and make sure the soil has enough moisture today.`;
       }
     } else if (dataTruth.locationAvailable) {
       out += `I couldn't get the latest weather right now. Please try again in a moment.`;
