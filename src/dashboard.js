@@ -471,6 +471,7 @@ onDOMReady(async () => {
 
   const dataService = new CropieDataService();
   const weatherService = new CropieWeatherService();
+  dataService.setWeatherService(weatherService);
   const khayaService = new KhayaService();
   const assistantService = new CropieAssistantService(dataService, khayaService);
 
