@@ -43,6 +43,9 @@ export class CropieLocationService {
     }
 
     const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error("Google Maps API Key is missing. Please add VITE_GOOGLE_MAPS_API_KEY to your Vercel Environment Variables.");
+    }
 
     this.googleMapsPromise = new Promise((resolve, reject) => {
       const callbackName = `__initCropieGoogleMaps_${Date.now()}`;
