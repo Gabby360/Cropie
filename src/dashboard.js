@@ -665,11 +665,74 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
   const dashMapSearchInput = document.getElementById('dashMapSearchInput');
   const dashLocationCardWrapper = document.getElementById('dashLocationStatusCardWrapper');
 
-  let dashPendingLat = 7.3824;
-  let dashPendingLng = -1.3621;
-  let dashPendingLocName = 'Ejura, Ashanti Region, Ghana';
-  let dashPendingAccuracy = null;
-  let isDashMapInitialized = false;
+  // Central Current Selected Location State (Single Source of Truth)
+  let currentLocation = {
+    latitude: 7.3824,
+    longitude: -1.3621,
+    accuracy: null,
+    locationName: 'Ejura, Ashanti Region, Ghana',
+    locality: 'Ejura',
+    region: 'Ashanti Region',
+    country: 'Ghana',
+    source: 'Saved Farm',
+    timestamp: Date.now()
+  };
+
+  async function syncLocationUI(lat, lng, source = 'Manual', accuracy = null, rawGps = null) {
+    const numericLat = parseFloat(lat);
+    const numericLng = parseFloat(lng);
+
+    currentLocation.latitude = numericLat;
+    currentLocation.longitude = numericLng;
+    currentLocation.accuracy = accuracy;
+    currentLocation.source = source;
+    currentLocation.timestamp = Date.now();
+
+    // Reverse geocode new coordinates
+    const geocodeRes = await locationService.reverseGeocode(numericLat, numericLng);
+    const locationName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
+    const locality = typeof geocodeRes === 'object' && geocodeRes.town ? geocodeRes.town : locationName.split(',')[0].trim();
+
+    currentLocation.locationName = locationName;
+    currentLocation.locality = locality;
+    currentLocation.region = typeof geocodeRes === 'object' ? geocodeRes.region : '';
+    currentLocation.country = typeof geocodeRes === 'object' ? geocodeRes.country : 'Ghana';
+
+    // Evaluate accuracy tier
+    const accEval = locationService.evaluateAccuracy(accuracy);
+
+    // Update Header Title & Subtext dynamically (immediate visual sync)
+    const farmTitleEl = document.getElementById('dashFarmTitle');
+    const farmMetaLocation = document.getElementById('dashMetaLocation');
+
+    if (accEval && accEval.isUnreliable) {
+      if (farmTitleEl) farmTitleEl.textContent = "Current Location Detected";
+      if (farmMetaLocation) farmMetaLocation.textContent = `Location: Approx. ${locality} Area (±${(accuracy / 1000).toFixed(1)} km accuracy)`;
+    } else {
+      if (farmTitleEl) farmTitleEl.textContent = `Farm at ${locality}`;
+      if (farmMetaLocation) farmMetaLocation.textContent = `Location: ${locationName}`;
+    }
+
+    // Update Farmer Picture Card Location Badges dynamically
+    const picLocBadge = document.getElementById('dashPicLocationBadge');
+    const picFooterStation = document.getElementById('dashPicFooterStation');
+    const picFooterGps = document.getElementById('dashPicFooterGps');
+
+    if (picLocBadge) picLocBadge.textContent = `${locality} Field • 2 Acres`;
+    if (picFooterStation) picFooterStation.textContent = `${locality} Field Station • Ghana`;
+    if (picFooterGps) {
+      picFooterGps.textContent = `${locationName} (${numericLat.toFixed(4)}° N, ${Math.abs(numericLng).toFixed(4)}° W)`;
+    }
+
+    // Reposition Map & Marker
+    locationService.updateMapPosition(numericLat, numericLng, 16);
+    if (accuracy) {
+      locationService.drawAccuracyCircle(numericLat, numericLng, accuracy);
+    }
+
+    // Render Confirmation Card & Diagnostic Panel
+    renderDashConfirmationCard(numericLat, numericLng, locationName, accEval, rawGps);
+  }
 
   async function initDashGoogleMap(initialLat, initialLng) {
     if (dashGoogleMapWrapper) dashGoogleMapWrapper.style.display = 'block';
@@ -684,38 +747,18 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
         initialLat,
         initialLng,
         async (lat, lng, actionType) => {
-          dashPendingLat = lat;
-          dashPendingLng = lng;
-          
-          const geocodeRes = await locationService.reverseGeocode(lat, lng);
-          dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-          locationService.logLocationDebug({
-            permissionStatus: 'granted',
-            latitude: lat,
-            longitude: lng,
-            accuracy: dashPendingAccuracy,
-            timestamp: Date.now(),
-            locationName: dashPendingLocName
-          });
-
-          renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, dashPendingAccuracy);
+          const src = actionType === 'drag' ? 'Map Marker Drag' : 'Map Click';
+          await syncLocationUI(lat, lng, src, null, null);
         }
       );
 
       if (mapRes) {
         isDashMapInitialized = true;
         locationService.attachPlacesAutocomplete(dashMapSearchInput, async (selectedPlace) => {
-          dashPendingLat = selectedPlace.latitude;
-          dashPendingLng = selectedPlace.longitude;
-
-          const geocodeRes = await locationService.reverseGeocode(dashPendingLat, dashPendingLng);
-          dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-          renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, null);
+          await syncLocationUI(selectedPlace.latitude, selectedPlace.longitude, 'Search', null, null);
         });
 
-        renderDashConfirmationCard(initialLat, initialLng, dashPendingLocName, dashPendingAccuracy);
+        await syncLocationUI(initialLat, initialLng, 'Map Init', currentLocation.accuracy, null);
       }
     } catch (mErr) {
       if (dashLocationCardWrapper) {
@@ -723,9 +766,9 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
           <div class="location-status-card error-card">
             <div class="location-card-header">
               <i class="fa-solid fa-triangle-exclamation"></i>
-              <span>Unable to load Google Maps</span>
+              <span>Unable to load Farm Map</span>
             </div>
-            <p class="location-card-msg">${escapeHtml(mErr.message || "Unable to load Google Maps. Please check your connection and try again.")}</p>
+            <p class="location-card-msg">${escapeHtml(mErr.message || "Unable to load Farm Map. Please check your connection and try again.")}</p>
           </div>
         `;
         dashLocationCardWrapper.style.display = 'block';
@@ -734,9 +777,10 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
   }
 
   async function updateActiveFarmLocation(lat, lon, locationName, source = 'GPS') {
+    const locality = locationName.split(',')[0].trim();
     let updatedFarm = {
       id: `farm_${Date.now()}`,
-      farmName: `Farm at ${locationName.split(',')[0]}`,
+      farmName: `Farm at ${locality}`,
       locationName: locationName,
       latitude: parseFloat(lat),
       longitude: parseFloat(lon),
@@ -779,36 +823,16 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
     gpsBtn.addEventListener('click', async () => {
       gpsBtn.disabled = true;
       const btnSpan = gpsBtn.querySelector('span');
-      if (btnSpan) btnSpan.textContent = 'Detecting GPS...';
+      if (btnSpan) btnSpan.textContent = 'Getting your current location...';
       if (dashLocationCardWrapper) dashLocationCardWrapper.style.display = 'none';
 
       try {
         const pos = await locationService.getCurrentPosition();
-        dashPendingLat = pos.latitude;
-        dashPendingLng = pos.longitude;
-        dashPendingAccuracy = pos.accuracy;
-
-        const geocodeRes = await locationService.reverseGeocode(dashPendingLat, dashPendingLng);
-        dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-
-        locationService.logLocationDebug({
-          permissionStatus: 'granted',
-          latitude: dashPendingLat,
-          longitude: dashPendingLng,
-          accuracy: pos.accuracy,
-          timestamp: pos.timestamp,
-          locationName: dashPendingLocName
-        });
-
-        await initDashGoogleMap(dashPendingLat, dashPendingLng);
-        locationService.updateMapPosition(dashPendingLat, dashPendingLng, 16);
-        locationService.drawAccuracyCircle(dashPendingLat, dashPendingLng, pos.accuracy);
+        await initDashGoogleMap(pos.latitude, pos.longitude);
+        await syncLocationUI(pos.latitude, pos.longitude, 'Device GPS', pos.accuracy, pos);
 
         gpsBtn.disabled = false;
         if (btnSpan) btnSpan.textContent = 'Use My Current Location';
-
-        const accEval = locationService.evaluateAccuracy(pos.accuracy);
-        renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, accEval, pos);
 
       } catch (err) {
         gpsBtn.disabled = false;
@@ -871,27 +895,11 @@ function initDashboardApp(dataService, auth, weatherService, khayaService, assis
   // OPTION 2: Select on Map
   if (dashSelectMapBtn) {
     dashSelectMapBtn.addEventListener('click', async () => {
-      const activeFarmStr = localStorage.getItem('cropie_active_farm');
-      let initLat = 7.3824;
-      let initLng = -1.3621;
-      if (activeFarmStr) {
-        try {
-          const f = JSON.parse(activeFarmStr);
-          if (f.latitude && f.longitude) {
-            initLat = f.latitude;
-            initLng = f.longitude;
-          }
-        } catch {}
-      }
+      let initLat = currentLocation.latitude || 7.3824;
+      let initLng = currentLocation.longitude || -1.3621;
 
       await initDashGoogleMap(initLat, initLng);
-
-      const geocodeRes = await locationService.reverseGeocode(initLat, initLng);
-      dashPendingLocName = typeof geocodeRes === 'string' ? geocodeRes : geocodeRes.locationName;
-      dashPendingLat = initLat;
-      dashPendingLng = initLng;
-
-      renderDashConfirmationCard(dashPendingLat, dashPendingLng, dashPendingLocName, null);
+      await syncLocationUI(initLat, initLng, 'Select on Map', currentLocation.accuracy, null);
     });
   }
 
